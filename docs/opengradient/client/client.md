@@ -21,7 +21,7 @@ blockchain private key and optional Model Hub credentials.
 #### Constructor
 
 ```python
-def __init__(private_key: str, email: Optional[str] = None, password: Optional[str] = None, rpc_url: str = 'https://ogevmdevnet.opengradient.ai', api_url: str = 'https://sdk-devnet.opengradient.ai', contract_address: str = '0x8383C9bD7462F12Eb996DD02F78234C0421A6FaE', og_llm_server_url: Optional[str] = 'https://llmogevm.opengradient.ai', og_llm_streaming_server_url: Optional[str] = 'https://llmogevm.opengradient.ai')
+def __init__(private_key: str, email: Optional[str] = None, password: Optional[str] = None, rpc_url: str = 'https://ogevmdevnet.opengradient.ai', api_url: str = 'https://sdk-devnet.opengradient.ai', contract_address: str = '0x8383C9bD7462F12Eb996DD02F78234C0421A6FaE', og_llm_server_url: Optional[str] = 'https://llmogevm.opengradient.ai', og_llm_streaming_server_url: Optional[str] = 'https://llmogevm.opengradient.ai', payment_network: `PaymentNetwork` = PaymentNetwork.OG_EVM)
 ```
 
 **Arguments**
@@ -34,6 +34,7 @@ def __init__(private_key: str, email: Optional[str] = None, password: Optio
 * **`contract_address`**: Inference contract address.
 * **`og_llm_server_url`**: OpenGradient LLM server URL.
 * **`og_llm_streaming_server_url`**: OpenGradient LLM streaming server URL.
+* **`payment_network`**: Payment network for x402 transactions. Defaults to OG_EVM.
 
 #### Variables
 

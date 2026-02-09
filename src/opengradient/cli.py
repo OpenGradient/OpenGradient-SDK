@@ -324,9 +324,7 @@ def infer(ctx, model_cid: str, inference_mode: str, input_data, input_file: Path
                 model_input = json.load(file)
 
         click.echo(f'Running {inference_mode} inference for model "{model_cid}"')
-        inference_result = client.alpha.infer(
-            model_cid=model_cid, inference_mode=InferenceModes[inference_mode], model_input=model_input
-        )
+        inference_result = client.alpha.infer(model_cid=model_cid, inference_mode=InferenceModes[inference_mode], model_input=model_input)
 
         click.echo()  # Add a newline for better spacing
         click.secho("✅ Transaction successful", fg="green", bold=True)

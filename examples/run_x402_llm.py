@@ -15,6 +15,8 @@ import opengradient as og
 
 client = og.Client(
     private_key=os.environ.get("OG_PRIVATE_KEY"),
+    # To pay via Base Sepolia instead of OG EVM:
+    # payment_network=og.PaymentNetwork.BASE_SEPOLIA,
 )
 
 messages = [

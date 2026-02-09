@@ -11,6 +11,7 @@ from ..defaults import (
     DEFAULT_OPENGRADIENT_LLM_STREAMING_SERVER_URL,
     DEFAULT_RPC_URL,
 )
+from ..types import PaymentNetwork
 from .alpha import Alpha
 from .llm import LLM
 from .model_hub import ModelHub
@@ -50,6 +51,7 @@ class Client:
         contract_address: str = DEFAULT_INFERENCE_CONTRACT_ADDRESS,
         og_llm_server_url: Optional[str] = DEFAULT_OPENGRADIENT_LLM_SERVER_URL,
         og_llm_streaming_server_url: Optional[str] = DEFAULT_OPENGRADIENT_LLM_STREAMING_SERVER_URL,
+        payment_network: PaymentNetwork = PaymentNetwork.OG_EVM,
     ):
         """
         Initialize the OpenGradient client.
@@ -63,6 +65,7 @@ class Client:
             contract_address: Inference contract address.
             og_llm_server_url: OpenGradient LLM server URL.
             og_llm_streaming_server_url: OpenGradient LLM streaming server URL.
+            payment_network: Payment network for x402 transactions. Defaults to OG_EVM.
         """
         blockchain = Web3(Web3.HTTPProvider(rpc_url))
         wallet_account = blockchain.eth.account.from_key(private_key)
@@ -78,6 +81,7 @@ class Client:
             wallet_account=wallet_account,
             og_llm_server_url=og_llm_server_url,
             og_llm_streaming_server_url=og_llm_streaming_server_url,
+            network_filter=payment_network.value,
         )
 
         self.alpha = Alpha(
@@ -86,4 +90,3 @@ class Client:
             inference_hub_contract_address=contract_address,
             api_url=api_url,
         )
-

@@ -53,16 +53,23 @@ class LLM:
         result = client.llm.completion(model=TEE_LLM.CLAUDE_3_5_HAIKU, prompt="Hello")
     """
 
-    def __init__(self, wallet_account: LocalAccount, og_llm_server_url: str, og_llm_streaming_server_url: str):
+    def __init__(
+        self,
+        wallet_account: LocalAccount,
+        og_llm_server_url: str,
+        og_llm_streaming_server_url: str,
+        network_filter: str = DEFAULT_NETWORK_FILTER,
+    ):
         self._wallet_account = wallet_account
         self._og_llm_server_url = og_llm_server_url
         self._og_llm_streaming_server_url = og_llm_streaming_server_url
+        self._network_filter = network_filter
 
-    def _og_payment_selector(self, accepts, network_filter=DEFAULT_NETWORK_FILTER, scheme_filter=None, max_value=None):
+    def _og_payment_selector(self, accepts, network_filter=None, scheme_filter=None, max_value=None):
         """Custom payment selector for OpenGradient network."""
         return x402Client.default_payment_requirements_selector(
             accepts,
-            network_filter=network_filter,
+            network_filter=network_filter or self._network_filter,
             scheme_filter=scheme_filter,
             max_value=max_value,
         )
@@ -418,7 +425,7 @@ class LLM:
             limits=LIMITS,
             http2=False,
             follow_redirects=False,
-            auth=X402Auth(account=self._wallet_account, network_filter=DEFAULT_NETWORK_FILTER),  # type: ignore
+            auth=X402Auth(account=self._wallet_account, network_filter=self._network_filter),  # type: ignore
             verify=True,
         ) as client:
             headers = {

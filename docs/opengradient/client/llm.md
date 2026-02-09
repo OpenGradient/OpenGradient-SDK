@@ -21,7 +21,7 @@ Supports both streaming and non-streaming responses.
 #### Constructor
 
 ```python
-def __init__(wallet_account: `LocalAccount`, og_llm_server_url: str, og_llm_streaming_server_url: str)
+def __init__(wallet_account: `LocalAccount`, og_llm_server_url: str, og_llm_streaming_server_url: str, network_filter: str = 'og-evm')
 ```
 
 #### Methods

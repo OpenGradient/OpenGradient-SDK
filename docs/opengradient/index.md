@@ -126,7 +126,7 @@ blockchain private key and optional Model Hub credentials.
 #### Constructor
 
 ```python
-def __init__(private_key: str, email: Optional[str] = None, password: Optional[str] = None, rpc_url: str = 'https://ogevmdevnet.opengradient.ai', api_url: str = 'https://sdk-devnet.opengradient.ai', contract_address: str = '0x8383C9bD7462F12Eb996DD02F78234C0421A6FaE', og_llm_server_url: Optional[str] = 'https://llmogevm.opengradient.ai', og_llm_streaming_server_url: Optional[str] = 'https://llmogevm.opengradient.ai')
+def __init__(private_key: str, email: Optional[str] = None, password: Optional[str] = None, rpc_url: str = 'https://ogevmdevnet.opengradient.ai', api_url: str = 'https://sdk-devnet.opengradient.ai', contract_address: str = '0x8383C9bD7462F12Eb996DD02F78234C0421A6FaE', og_llm_server_url: Optional[str] = 'https://llmogevm.opengradient.ai', og_llm_streaming_server_url: Optional[str] = 'https://llmogevm.opengradient.ai', payment_network: `PaymentNetwork` = PaymentNetwork.OG_EVM)
 ```
 
 **Arguments**
@@ -139,6 +139,7 @@ def __init__(private_key: str, email: Optional[str] = None, password: Optio
 * **`contract_address`**: Inference contract address.
 * **`og_llm_server_url`**: OpenGradient LLM server URL.
 * **`og_llm_streaming_server_url`**: OpenGradient LLM streaming server URL.
+* **`payment_network`**: Payment network for x402 transactions. Defaults to OG_EVM.
 
 #### Variables
 
@@ -155,6 +156,23 @@ Enum for the different inference modes available for inference (VANILLA, ZKML, T
 * static `TEE`
 * static `VANILLA`
 * static `ZKML`
+
+### `PaymentNetwork`
+
+Payment network for x402 payment protocol transactions.
+
+Controls which blockchain network is used for paying for LLM inference.
+
+**Attributes**
+
+* **`OG_EVM`**: Pay on the OpenGradient EVM network (default).
+* **`BASE_SEPOLIA`**: Pay on the Base Sepolia testnet using the OG token
+        at address ``0x240b09731D96979f50B2C649C9CE10FcF9C7987F``.
+
+#### Variables
+
+* static `BASE_SEPOLIA`
+* static `OG_EVM`
 
 ### `TEE_LLM`
 

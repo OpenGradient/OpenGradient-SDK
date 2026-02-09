@@ -269,6 +269,16 @@ result = client.llm.chat(
 )
 ```
 
+### Payment Network Selection
+
+By default, payments settle on the OG EVM network. To pay via Base Sepolia instead, set the `payment_network` parameter at client initialization. The Base Sepolia payment network uses the OG token at address `0x240b09731D96979f50B2C649C9CE10FcF9C7987F`.
+```python
+client = og.Client(
+    private_key=os.environ.get("OG_PRIVATE_KEY"),
+    payment_network=og.PaymentNetwork.BASE_SEPOLIA,
+)
+```
+
 ## Examples
 
 Additional code examples are available in the [examples](./examples) directory.

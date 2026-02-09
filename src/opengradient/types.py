@@ -10,6 +10,28 @@ from typing import AsyncIterator, Dict, Iterator, List, Optional, Tuple, Union
 import numpy as np
 
 
+class PaymentNetwork(str, Enum):
+    """
+    Payment network for x402 payment protocol transactions.
+
+    Controls which blockchain network is used for paying for LLM inference.
+
+    Attributes:
+        OG_EVM: Pay on the OpenGradient EVM network (default).
+        BASE_SEPOLIA: Pay on the Base Sepolia testnet using the OG token
+            at address ``0x240b09731D96979f50B2C649C9CE10FcF9C7987F``.
+
+    Examples:
+        >>> client = og.Client(
+        ...     private_key="0x...",
+        ...     payment_network=og.PaymentNetwork.BASE_SEPOLIA,
+        ... )
+    """
+
+    OG_EVM = "og-evm"
+    BASE_SEPOLIA = "base-sepolia"
+
+
 class x402SettlementMode(str, Enum):
     """
     Settlement modes for x402 payment protocol transactions.
