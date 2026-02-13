@@ -9,8 +9,19 @@ from eth_account.account import LocalAccount
 from x402.clients.base import x402Client
 from x402.clients.httpx import x402HttpxClient
 
+from x402v2 import x402Client as x402Clientv2
+from x402v2.http import x402HTTPClient as x402HTTPClientv2
+from x402v2.http.clients import x402HttpxClient as x402HttpxClientv2
+from x402v2.mechanisms.evm import EthAccountSigner as EthAccountSignerv2
+from x402v2.mechanisms.evm.exact import ExactEvmServerScheme as ExactEvmServerSchemev2
+from x402v2.mechanisms.evm.upto import UptoEvmServerScheme as UptoEvmServerSchemev2
+from x402v2.mechanisms.evm.exact.register import register_exact_evm_client as register_exact_evm_clientv2
+from x402v2.mechanisms.evm.upto.register import register_upto_evm_client as register_upto_evm_clientv2
+from eth_account import Account
+
 from ..defaults import (
     DEFAULT_NETWORK_FILTER,
+    DEFAULT_OPENGRADIENT_V2_LLM_SERVER_URL
 )
 from ..types import (
     TEE_LLM,
@@ -18,6 +29,7 @@ from ..types import (
     TextGenerationOutput,
     TextGenerationStream,
     x402SettlementMode,
+    x402Network
 )
 from .exceptions import OpenGradientError
 from .x402_auth import X402Auth
@@ -182,6 +194,7 @@ class LLM:
         tool_choice: Optional[str] = None,
         x402_settlement_mode: Optional[x402SettlementMode] = x402SettlementMode.SETTLE_BATCH,
         stream: bool = False,
+        network: Optional[x402Network] = x402Network.OG_EVM,
     ) -> Union[TextGenerationOutput, TextGenerationStream]:
         """
         Perform inference on an LLM model using chat via TEE.
@@ -232,6 +245,7 @@ class LLM:
                 tools=tools,
                 tool_choice=tool_choice,
                 x402_settlement_mode=x402_settlement_mode,
+                network=network
             )
 
     def _tee_llm_chat(
@@ -244,6 +258,7 @@ class LLM:
         tools: Optional[List[Dict]] = None,
         tool_choice: Optional[str] = None,
         x402_settlement_mode: x402SettlementMode = x402SettlementMode.SETTLE_BATCH,
+        network: Optional[x402Network] = x402Network.OG_EVM,
     ) -> TextGenerationOutput:
         """
         Route chat request to OpenGradient TEE LLM server with x402 payments.
@@ -303,9 +318,71 @@ class LLM:
 
                 except Exception as e:
                     raise OpenGradientError(f"TEE LLM chat request failed: {str(e)}")
+        
+
+        async def make_request_v2():
+            x402_client = x402Clientv2()
+            register_exact_evm_clientv2(x402_client, EthAccountSignerv2(self._wallet_account),networks=["eip155:84532"])
+            register_upto_evm_clientv2(x402_client, EthAccountSignerv2(self._wallet_account),networks=["eip155:84532"])
+
+            # Security Fix: verify=True enabled
+            async with x402HttpxClientv2(
+                x402_client
+            ) as client:
+                headers = {
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {X402_PLACEHOLDER_API_KEY}",
+                    "X-SETTLEMENT-TYPE": x402_settlement_mode,
+                }
+
+                payload = {
+                    "model": model,
+                    "messages": messages,
+                    "max_tokens": max_tokens,
+                    "temperature": temperature,
+                }
+
+                if stop_sequence:
+                    payload["stop"] = stop_sequence
+
+                if tools:
+                    payload["tools"] = tools
+                    payload["tool_choice"] = tool_choice or "auto"
+
+                try:
+                    # Non-streaming with x402
+                    endpoint = "/v1/chat/completions"
+                    response = await client.post(DEFAULT_OPENGRADIENT_V2_LLM_SERVER_URL+endpoint, json=payload, headers=headers, timeout=60)
+
+                    # Read the response content
+                    content = await response.aread()
+                    result = json.loads(content.decode())
+
+                    payment_hash = ""
+                    if X402_PROCESSING_HASH_HEADER in response.headers:
+                        payment_hash = response.headers[X402_PROCESSING_HASH_HEADER]
+
+                    choices = result.get("choices")
+                    if not choices:
+                        raise OpenGradientError(f"Invalid response: 'choices' missing or empty in {result}")
+
+                    return TextGenerationOutput(
+                        transaction_hash="external",
+                        finish_reason=choices[0].get("finish_reason"),
+                        chat_output=choices[0].get("message"),
+                        payment_hash=payment_hash,
+                    )
+
+                except Exception as e:
+                    raise OpenGradientError(f"TEE LLM chat request failed: {str(e)}")
 
         try:
-            return asyncio.run(make_request())
+            if network == x402Network.OG_EVM:
+                return asyncio.run(make_request())
+            elif network == x402Network.BASE_TESTNET:
+                return asyncio.run(make_request_v2())
+            else:
+                raise OpenGradientError(f"Invalid network: {network}")
         except OpenGradientError:
             raise
         except Exception as e:
