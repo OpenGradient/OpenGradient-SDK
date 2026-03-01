@@ -10,6 +10,48 @@ from typing import AsyncIterator, Dict, Iterator, List, Optional, Tuple, Union
 import numpy as np
 
 
+@dataclass
+class ResponseFormat:
+    """Configuration for structured LLM output following the OpenAI structured outputs spec.
+
+    Constrains the model to produce output matching a JSON schema, ensuring
+    predictable, machine-readable responses.
+
+    Attributes:
+        type: The response format type. Use ``"json_schema"`` for schema-constrained
+            output, or ``"json_object"`` for freeform JSON.
+        json_schema: Schema definition when ``type`` is ``"json_schema"``.
+            Must include ``name`` (str) and ``schema`` (JSON Schema object).
+            May include ``description`` (str) and ``strict`` (bool, default True).
+
+    Examples:
+        >>> fmt = ResponseFormat(
+        ...     type="json_schema",
+        ...     json_schema={
+        ...         "name": "sentiment",
+        ...         "schema": {
+        ...             "type": "object",
+        ...             "properties": {
+        ...                 "label": {"type": "string", "enum": ["positive", "negative", "neutral"]},
+        ...                 "score": {"type": "number"},
+        ...             },
+        ...             "required": ["label", "score"],
+        ...         },
+        ...     },
+        ... )
+    """
+
+    type: str
+    json_schema: Optional[Dict] = None
+
+    def to_dict(self) -> Dict:
+        """Serialize to the payload format expected by the API."""
+        d: Dict = {"type": self.type}
+        if self.json_schema is not None:
+            d["json_schema"] = self.json_schema
+        return d
+
+
 class x402SettlementMode(str, Enum):
     """
     Settlement modes for x402 payment protocol transactions.

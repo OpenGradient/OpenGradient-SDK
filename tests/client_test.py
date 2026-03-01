@@ -10,6 +10,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from src.opengradient.client import Client
 from src.opengradient.types import (
     TEE_LLM,
+    ResponseFormat,
     StreamChunk,
     TextGenerationOutput,
     x402SettlementMode,
@@ -319,3 +320,95 @@ class TestX402SettlementMode:
         """Test settlement mode aliases."""
         assert x402SettlementMode.SETTLE_INDIVIDUAL == x402SettlementMode.SETTLE
         assert x402SettlementMode.SETTLE_INDIVIDUAL_WITH_METADATA == x402SettlementMode.SETTLE_METADATA
+
+
+# --- ResponseFormat Tests ---
+
+
+class TestResponseFormat:
+    def test_json_object_format(self):
+        """Test basic json_object response format serialization."""
+        fmt = ResponseFormat(type="json_object")
+        assert fmt.to_dict() == {"type": "json_object"}
+
+    def test_json_schema_format(self):
+        """Test json_schema response format with full schema."""
+        schema = {
+            "name": "sentiment",
+            "schema": {
+                "type": "object",
+                "properties": {
+                    "label": {"type": "string", "enum": ["positive", "negative"]},
+                    "score": {"type": "number"},
+                },
+                "required": ["label", "score"],
+            },
+        }
+        fmt = ResponseFormat(type="json_schema", json_schema=schema)
+        result = fmt.to_dict()
+
+        assert result["type"] == "json_schema"
+        assert result["json_schema"]["name"] == "sentiment"
+        assert "properties" in result["json_schema"]["schema"]
+
+    def test_json_schema_none_omitted(self):
+        """Test that json_schema key is omitted when not provided."""
+        fmt = ResponseFormat(type="json_object")
+        result = fmt.to_dict()
+        assert "json_schema" not in result
+
+    def test_completion_passes_response_format(self, client):
+        """Test that completion forwards response_format to the internal method."""
+        fmt = ResponseFormat(type="json_object")
+        with patch.object(client.llm, "_tee_llm_completion") as mock_tee:
+            mock_tee.return_value = TextGenerationOutput(
+                transaction_hash="external",
+                completion_output='{"result": "ok"}',
+            )
+
+            client.llm.completion(
+                model=TEE_LLM.GPT_4O,
+                prompt="Return JSON",
+                response_format=fmt,
+            )
+
+            call_kwargs = mock_tee.call_args[1]
+            assert call_kwargs["response_format"] is fmt
+
+    def test_chat_passes_response_format(self, client):
+        """Test that chat forwards response_format to the internal method."""
+        fmt = {"type": "json_object"}
+        with patch.object(client.llm, "_tee_llm_chat") as mock_tee:
+            mock_tee.return_value = TextGenerationOutput(
+                transaction_hash="external",
+                chat_output={"role": "assistant", "content": '{"ok": true}'},
+                finish_reason="stop",
+            )
+
+            client.llm.chat(
+                model=TEE_LLM.GPT_4O,
+                messages=[{"role": "user", "content": "Return JSON"}],
+                response_format=fmt,
+            )
+
+            call_kwargs = mock_tee.call_args[1]
+            assert call_kwargs["response_format"] is fmt
+
+    def test_chat_stream_passes_response_format(self, client):
+        """Test that streaming chat forwards response_format."""
+        fmt = ResponseFormat(type="json_object")
+        with patch.object(client.llm, "_tee_llm_chat_stream_sync") as mock_stream:
+            mock_stream.return_value = iter([
+                StreamChunk(choices=[], model="gpt-4o", is_final=True),
+            ])
+
+            result = client.llm.chat(
+                model=TEE_LLM.GPT_4O,
+                messages=[{"role": "user", "content": "Return JSON"}],
+                stream=True,
+                response_format=fmt,
+            )
+            list(result)
+
+            call_kwargs = mock_stream.call_args[1]
+            assert call_kwargs["response_format"] is fmt

@@ -14,7 +14,7 @@ from x402v2.mechanisms.evm import EthAccountSigner as EthAccountSignerv2
 from x402v2.mechanisms.evm.exact.register import register_exact_evm_client as register_exact_evm_clientv2
 from x402v2.mechanisms.evm.upto.register import register_upto_evm_client as register_upto_evm_clientv2
 
-from ..types import TEE_LLM, StreamChunk, TextGenerationOutput, TextGenerationStream, x402SettlementMode
+from ..types import TEE_LLM, ResponseFormat, StreamChunk, TextGenerationOutput, TextGenerationStream, x402SettlementMode
 from .exceptions import OpenGradientError
 from .opg_token import Permit2ApprovalResult, ensure_opg_approval
 
@@ -148,6 +148,7 @@ class LLM:
         stop_sequence: Optional[List[str]] = None,
         temperature: float = 0.0,
         x402_settlement_mode: Optional[x402SettlementMode] = x402SettlementMode.SETTLE_BATCH,
+        response_format: Optional[Union[Dict, ResponseFormat]] = None,
     ) -> TextGenerationOutput:
         """
         Perform inference on an LLM model using completions via TEE.
@@ -163,6 +164,10 @@ class LLM:
                 - SETTLE_BATCH: Aggregates multiple inferences into batch hashes (most cost-efficient).
                 - SETTLE_METADATA: Records full model info, complete input/output data, and all metadata.
                 Defaults to SETTLE_BATCH.
+            response_format (dict or ResponseFormat, optional): Constrain the output format.
+                Use ``{"type": "json_object"}`` for freeform JSON, or provide a full JSON schema
+                via ``ResponseFormat`` / a dict with ``type`` and ``json_schema`` keys.
+                See `OpenAI structured outputs <https://platform.openai.com/docs/guides/structured-outputs>`_.
 
         Returns:
             TextGenerationOutput: Generated text results including:
@@ -180,6 +185,7 @@ class LLM:
             stop_sequence=stop_sequence,
             temperature=temperature,
             x402_settlement_mode=x402_settlement_mode,
+            response_format=response_format,
         )
 
     def _tee_llm_completion(
@@ -190,6 +196,7 @@ class LLM:
         stop_sequence: Optional[List[str]] = None,
         temperature: float = 0.0,
         x402_settlement_mode: Optional[x402SettlementMode] = x402SettlementMode.SETTLE_BATCH,
+        response_format: Optional[Union[Dict, ResponseFormat]] = None,
     ) -> TextGenerationOutput:
         """
         Route completion request to OpenGradient TEE LLM server with x402 payments.
@@ -211,6 +218,9 @@ class LLM:
 
             if stop_sequence:
                 payload["stop"] = stop_sequence
+
+            if response_format is not None:
+                payload["response_format"] = response_format.to_dict() if isinstance(response_format, ResponseFormat) else response_format
 
             try:
                 response = await self._request_client.post(
@@ -246,6 +256,7 @@ class LLM:
         tool_choice: Optional[str] = None,
         x402_settlement_mode: Optional[x402SettlementMode] = x402SettlementMode.SETTLE_BATCH,
         stream: bool = False,
+        response_format: Optional[Union[Dict, ResponseFormat]] = None,
     ) -> Union[TextGenerationOutput, TextGenerationStream]:
         """
         Perform inference on an LLM model using chat via TEE.
@@ -264,6 +275,10 @@ class LLM:
                 - SETTLE_METADATA: Records full model info, complete input/output data, and all metadata.
                 Defaults to SETTLE_BATCH.
             stream (bool, optional): Whether to stream the response. Default is False.
+            response_format (dict or ResponseFormat, optional): Constrain the output format.
+                Use ``{"type": "json_object"}`` for freeform JSON, or provide a full JSON schema
+                via ``ResponseFormat`` / a dict with ``type`` and ``json_schema`` keys.
+                See `OpenAI structured outputs <https://platform.openai.com/docs/guides/structured-outputs>`_.
 
         Returns:
             Union[TextGenerationOutput, TextGenerationStream]:
@@ -284,6 +299,7 @@ class LLM:
                 tools=tools,
                 tool_choice=tool_choice,
                 x402_settlement_mode=x402_settlement_mode,
+                response_format=response_format,
             )
         else:
             # Non-streaming
@@ -296,6 +312,7 @@ class LLM:
                 tools=tools,
                 tool_choice=tool_choice,
                 x402_settlement_mode=x402_settlement_mode,
+                response_format=response_format,
             )
 
     def _tee_llm_chat(
@@ -308,6 +325,7 @@ class LLM:
         tools: Optional[List[Dict]] = None,
         tool_choice: Optional[str] = None,
         x402_settlement_mode: x402SettlementMode = x402SettlementMode.SETTLE_BATCH,
+        response_format: Optional[Union[Dict, ResponseFormat]] = None,
     ) -> TextGenerationOutput:
         """
         Route chat request to OpenGradient TEE LLM server with x402 payments.
@@ -333,6 +351,9 @@ class LLM:
             if tools:
                 payload["tools"] = tools
                 payload["tool_choice"] = tool_choice or "auto"
+
+            if response_format is not None:
+                payload["response_format"] = response_format.to_dict() if isinstance(response_format, ResponseFormat) else response_format
 
             try:
                 endpoint = "/v1/chat/completions"
@@ -374,6 +395,7 @@ class LLM:
         tools: Optional[List[Dict]] = None,
         tool_choice: Optional[str] = None,
         x402_settlement_mode: x402SettlementMode = x402SettlementMode.SETTLE_BATCH,
+        response_format: Optional[Union[Dict, ResponseFormat]] = None,
     ):
         """
         Sync streaming using threading bridge - TRUE real-time streaming.
@@ -395,6 +417,7 @@ class LLM:
                     tools=tools,
                     tool_choice=tool_choice,
                     x402_settlement_mode=x402_settlement_mode,
+                    response_format=response_format,
                 ):
                     queue.put(chunk)
             except Exception as e:
@@ -430,6 +453,7 @@ class LLM:
         tools: Optional[List[Dict]] = None,
         tool_choice: Optional[str] = None,
         x402_settlement_mode: x402SettlementMode = x402SettlementMode.SETTLE_BATCH,
+        response_format: Optional[Union[Dict, ResponseFormat]] = None,
     ):
         """
         Internal async streaming implementation for TEE LLM with x402 payments.
@@ -455,6 +479,8 @@ class LLM:
         if tools:
             payload["tools"] = tools
             payload["tool_choice"] = tool_choice or "auto"
+        if response_format is not None:
+            payload["response_format"] = response_format.to_dict() if isinstance(response_format, ResponseFormat) else response_format
 
         async def _parse_sse_response(response) -> AsyncGenerator[StreamChunk, None]:
             status_code = getattr(response, "status_code", None)
