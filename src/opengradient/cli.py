@@ -608,8 +608,16 @@ def print_llm_chat_result(model_cid, tx_hash, finish_reason, chat_output, is_van
     click.secho("Chat Output:", fg="yellow", bold=True)
     click.echo()
     for key, value in chat_output.items():
-        if value != None and value != "" and value != "[]" and value != []:
-            click.echo(f"{key}: {value}")
+        if value is not None and value not in ("", "[]", []):
+            # Normalize list-of-blocks content (e.g. Gemini 3 thought signatures)
+            if key == "content" and isinstance(value, list):
+                text = " ".join(
+                    block.get("text", "") for block in value
+                    if isinstance(block, dict) and block.get("type") == "text"
+                ).strip()
+                click.echo(f"{key}: {text}")
+            else:
+                click.echo(f"{key}: {value}")
     click.echo()
 
 

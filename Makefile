@@ -1,7 +1,7 @@
 # OpenGradient SDK Makefile
 
-# Default model for testing (override with: make chat MODEL=openai/gpt-4o)
-MODEL ?= anthropic/claude-3.7-sonnet
+# Default model for testing (override with: make chat MODEL=google/gemini-3-pro-preview)
+MODEL ?= google/gemini-3-pro-preview
 
 # ============================================================================
 # Development
@@ -67,7 +67,7 @@ infer:
 
 completion:
 	python -m opengradient.cli completion \
-		--model $(MODEL) --mode TEE \
+		--model $(MODEL) \
 		--prompt "Hello, how are you?" \
 		--max-tokens 50
 
@@ -75,16 +75,23 @@ chat:
 	python -m opengradient.cli chat \
 		--model $(MODEL) \
 		--messages '[{"role":"user","content":"Tell me a fun fact"}]' \
-		--max-tokens 150
+		--max-tokens 350
 
 chat-stream:
 	python -m opengradient.cli chat \
 		--model $(MODEL) \
 		--messages '[{"role":"user","content":"Tell me a short story"}]' \
-		--max-tokens 250 \
+		--max-tokens 1250 \
 		--stream
 
 chat-tool:
+	python -m opengradient.cli chat \
+		--model $(MODEL) \
+		--messages '[{"role":"user","content":"What is the weather in Tokyo?"}]' \
+		--tools '[{"type":"function","function":{"name":"get_weather","description":"Get weather for a location","parameters":{"type":"object","properties":{"location":{"type":"string"},"unit":{"type":"string","enum":["celsius","fahrenheit"]}},"required":["location"]}}}]' \
+		--max-tokens 100
+
+chat-stream-tool:
 	python -m opengradient.cli chat \
 		--model $(MODEL) \
 		--messages '[{"role":"user","content":"What is the weather in Tokyo?"}]' \
@@ -93,4 +100,4 @@ chat-tool:
 		--stream
 
 .PHONY: install build publish check docs test utils_test client_test langchain_adapter_test opg_token_test integrationtest examples \
-	infer completion chat chat-stream chat-tool
+	infer completion chat chat-stream chat-tool chat-stream-tool

@@ -7,4 +7,4 @@ requests>=2.32.3
 langchain>=0.3.7
 openai>=1.58.1
 pydantic>=2.9.2
-og-test-v2-x402==0.0.9
+og-test-v2-x402==0.0.11

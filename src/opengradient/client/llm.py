@@ -5,6 +5,10 @@ import json
 import threading
 from queue import Queue
 from typing import AsyncGenerator, Dict, List, Optional, Union
+import ssl
+import socket
+import tempfile
+from urllib.parse import urlparse
 
 import httpx
 from eth_account.account import LocalAccount
@@ -36,6 +40,53 @@ LIMITS = httpx.Limits(
 )
 
 
+def _fetch_tls_cert_as_ssl_context(server_url: str) -> Optional[ssl.SSLContext]:
+    """
+    Connect to a server, retrieve its TLS certificate (TOFU),
+    and return an ssl.SSLContext that trusts ONLY that certificate.
+
+    Hostname verification is disabled because the TEE server's cert
+    is typically issued for a hostname but we may connect via IP address.
+    The pinned certificate itself provides the trust anchor.
+
+    Returns None if the server is not HTTPS or unreachable.
+    """
+    parsed = urlparse(server_url)
+    if parsed.scheme != "https":
+        return None
+
+    hostname = parsed.hostname
+    port = parsed.port or 443
+
+    # Connect without verification to retrieve the server's certificate
+    fetch_ctx = ssl.create_default_context()
+    fetch_ctx.check_hostname = False
+    fetch_ctx.verify_mode = ssl.CERT_NONE
+
+    try:
+        with socket.create_connection((hostname, port), timeout=10) as sock:
+            with fetch_ctx.wrap_socket(sock, server_hostname=hostname) as ssock:
+                der_cert = ssock.getpeercert(binary_form=True)
+                pem_cert = ssl.DER_cert_to_PEM_cert(der_cert)
+    except Exception:
+        return None
+
+    # Write PEM to a temp file so we can load it into the SSLContext
+    cert_file = tempfile.NamedTemporaryFile(
+        prefix="og_tee_tls_", suffix=".pem", delete=False, mode="w"
+    )
+    cert_file.write(pem_cert)
+    cert_file.flush()
+    cert_file.close()
+
+    # Build an SSLContext that trusts ONLY this cert, with hostname check disabled
+    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    ctx.load_verify_locations(cert_file.name)
+    ctx.check_hostname = False  # Cert is for a hostname, but we connect via IP
+    ctx.verify_mode = ssl.CERT_REQUIRED  # Still verify the cert itself
+    return ctx
+
+
 class LLM:
     """
     LLM inference namespace.
@@ -63,6 +114,13 @@ class LLM:
         self._wallet_account = wallet_account
         self._og_llm_server_url = og_llm_server_url
         self._og_llm_streaming_server_url = og_llm_streaming_server_url
+
+        self._tls_verify: Union[ssl.SSLContext, bool] = (
+            _fetch_tls_cert_as_ssl_context(self._og_llm_server_url) or True
+        )
+        self._streaming_tls_verify: Union[ssl.SSLContext, bool] = (
+            _fetch_tls_cert_as_ssl_context(self._og_llm_streaming_server_url) or True
+        )
 
         signer = EthAccountSignerv2(self._wallet_account)
         self._x402_client = x402Clientv2()
@@ -92,10 +150,10 @@ class LLM:
 
     async def _initialize_http_clients(self) -> None:
         if self._request_client is None:
-            self._request_client_ctx = x402HttpxClientv2(self._x402_client)
+            self._request_client_ctx = x402HttpxClientv2(self._x402_client, verify=self._tls_verify)
             self._request_client = await self._request_client_ctx.__aenter__()
         if self._stream_client is None:
-            self._stream_client_ctx = x402HttpxClientv2(self._x402_client)
+            self._stream_client_ctx = x402HttpxClientv2(self._x402_client, verify=self._streaming_tls_verify)
             self._stream_client = await self._stream_client_ctx.__aenter__()
 
     async def _close_http_clients(self) -> None:
@@ -223,6 +281,8 @@ class LLM:
                 return TextGenerationOutput(
                     transaction_hash="external",
                     completion_output=result.get("completion"),
+                    tee_signature=result.get("tee_signature"),
+                    tee_timestamp=result.get("tee_timestamp"),
                 )
 
             except Exception as e:
@@ -348,10 +408,20 @@ class LLM:
                 if not choices:
                     raise OpenGradientError(f"Invalid response: 'choices' missing or empty in {result}")
 
+                message = choices[0].get("message", {})
+                content = message.get("content")
+                if isinstance(content, list):
+                    message["content"] = " ".join(
+                        block.get("text", "") for block in content
+                        if isinstance(block, dict) and block.get("type") == "text"
+                    ).strip()
+
                 return TextGenerationOutput(
                     transaction_hash="external",
                     finish_reason=choices[0].get("finish_reason"),
-                    chat_output=choices[0].get("message"),
+                    chat_output=message,
+                    tee_signature=result.get("tee_signature"),
+                    tee_timestamp=result.get("tee_timestamp"),
                 )
 
             except Exception as e:
