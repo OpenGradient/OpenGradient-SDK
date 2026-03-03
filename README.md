@@ -340,6 +340,5 @@ Browse and discover AI models on the [OpenGradient Model Hub](https://hub.opengr
 
 ## Support
 
-- Execute `opengradient --help` for CLI command reference
 - Visit our [documentation](https://docs.opengradient.ai/) for detailed guides
 - Join our [community](https://discord.gg/axammqTRDz) for support and discussions
