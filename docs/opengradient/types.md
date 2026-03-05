@@ -37,7 +37,12 @@ static def from_json(abi_json)
 #### Constructor
 
 ```python
-def __init__(name: str, inputs: List[Union[str, ForwardRef('`AbiFunction`')]], outputs: List[Union[str, ForwardRef('`AbiFunction`')]], state_mutability: str)
+def __init__(
+    name: str,
+    inputs: List[Union[str, ForwardRef('`AbiFunction`')]],
+    outputs: List[Union[str, ForwardRef('`AbiFunction`')]],
+    state_mutability: str
+)
 ```
 
 #### Variables
@@ -86,7 +91,14 @@ def __init__(modelCid: str, size: int)
 #### Constructor
 
 ```python
-def __init__(base: str, quote: str, total_candles: int, candle_duration_in_mins: int, order: `CandleOrder`, candle_types: List[`CandleType`])
+def __init__(
+    base: str,
+    quote: str,
+    total_candles: int,
+    candle_duration_in_mins: int,
+    order: `CandleOrder`,
+    candle_types: List[`CandleType`]
+)
 ```
 
 #### Methods
@@ -164,7 +176,12 @@ Model output struct based on translations from smart contract.
 #### Constructor
 
 ```python
-def __init__(numbers: Dict[str, `ndarray`], strings: Dict[str, `ndarray`], jsons: Dict[str, `ndarray`], is_simulation_result: bool)
+def __init__(
+    numbers: Dict[str, `ndarray`],
+    strings: Dict[str, `ndarray`],
+    jsons: Dict[str, `ndarray`],
+    is_simulation_result: bool
+)
 ```
 
 #### Variables
@@ -286,7 +303,14 @@ usage information.
 #### Constructor
 
 ```python
-def __init__(choices: List[`StreamChoice`], model: str, usage: Optional[`StreamUsage`] = None, is_final: bool = False, tee_signature: Optional[str] = None, tee_timestamp: Optional[str] = None)
+def __init__(
+    choices: List[`StreamChoice`],
+    model: str,
+    usage: Optional[`StreamUsage`] = None,
+    is_final: bool = False,
+    tee_signature: Optional[str] = None,
+    tee_timestamp: Optional[str] = None
+)
 ```
 
 #### Static methods
@@ -307,7 +331,6 @@ Parse a StreamChunk from SSE data dictionary.
 **Returns**
 
 StreamChunk instance
-
 **`StreamChunk` fields:**
 
 * **`choices`**: List of streaming choices (usually contains one choice)
@@ -339,7 +362,11 @@ Represents a delta (incremental change) in a streaming response.
 #### Constructor
 
 ```python
-def __init__(content: Optional[str] = None, role: Optional[str] = None, tool_calls: Optional[List[Dict]] = None)
+def __init__(
+    content: Optional[str] = None,
+    role: Optional[str] = None,
+    tool_calls: Optional[List[Dict]] = None
+)
 ```
 
 #### Variables
@@ -455,7 +482,15 @@ performed inside a TEE enclave.
 #### Constructor
 
 ```python
-def __init__(transaction_hash: str, finish_reason: Optional[str] = None, chat_output: Optional[Dict] = None, completion_output: Optional[str] = None, payment_hash: Optional[str] = None, tee_signature: Optional[str] = None, tee_timestamp: Optional[str] = None)
+def __init__(
+    transaction_hash: str,
+    finish_reason: Optional[str] = None,
+    chat_output: Optional[Dict] = None,
+    completion_output: Optional[str] = None,
+    payment_hash: Optional[str] = None,
+    tee_signature: Optional[str] = None,
+    tee_timestamp: Optional[str] = None
+)
 ```
 
 #### Variables

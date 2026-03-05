@@ -90,7 +90,18 @@ The client operates across two chains:
 #### Constructor
 
 ```python
-def __init__(private_key: str, alpha_private_key: Optional[str] = None, email: Optional[str] = None, password: Optional[str] = None, twins_api_key: Optional[str] = None, rpc_url: str = 'https://ogevmdevnet.opengradient.ai', api_url: str = 'https://sdk-devnet.opengradient.ai', contract_address: str = '0x8383C9bD7462F12Eb996DD02F78234C0421A6FaE', og_llm_server_url: Optional[str] = 'https://3.15.214.21:443', og_llm_streaming_server_url: Optional[str] = 'https://3.15.214.21:443')
+def __init__(
+    private_key: str,
+    alpha_private_key: Optional[str] = None,
+    email: Optional[str] = None,
+    password: Optional[str] = None,
+    twins_api_key: Optional[str] = None,
+    rpc_url: str = 'https://ogevmdevnet.opengradient.ai',
+    api_url: str = 'https://sdk-devnet.opengradient.ai',
+    contract_address: str = '0x8383C9bD7462F12Eb996DD02F78234C0421A6FaE',
+    og_llm_server_url: Optional[str] = 'https://3.15.214.21:443',
+    og_llm_streaming_server_url: Optional[str] = 'https://3.15.214.21:443'
+)
 ```
 
 **Arguments**

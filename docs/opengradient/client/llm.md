@@ -26,7 +26,11 @@ below the requested amount.
 #### Constructor
 
 ```python
-def __init__(wallet_account: `LocalAccount`, og_llm_server_url: str, og_llm_streaming_server_url: str)
+def __init__(
+    wallet_account: `LocalAccount`,
+    og_llm_server_url: str,
+    og_llm_streaming_server_url: str
+)
 ```
 
 #### Methods
@@ -36,7 +40,18 @@ def __init__(wallet_account: `LocalAccount`, og_llm_server_url: str, og_llm_st
 #### `chat()`
 
 ```python
-def chat(self, model: `TEE_LLM`, messages: List[Dict], max_tokens: int = 100, stop_sequence: Optional[List[str]] = None, temperature: float = 0.0, tools: Optional[List[Dict]] = None, tool_choice: Optional[str] = None, x402_settlement_mode: Optional[`x402SettlementMode`] = x402SettlementMode.SETTLE_BATCH, stream: bool = False) ‑> Union[`TextGenerationOutput`, `TextGenerationStream`]
+def chat(
+    self,
+    model: `TEE_LLM`,
+    messages: List[Dict],
+    max_tokens: int = 100,
+    stop_sequence: Optional[List[str]] = None,
+    temperature: float = 0.0,
+    tools: Optional[List[Dict]] = None,
+    tool_choice: Optional[str] = None,
+    x402_settlement_mode: Optional[`x402SettlementMode`] = x402SettlementMode.SETTLE_BATCH,
+    stream: bool = False
+) ‑> Union[`TextGenerationOutput`, `TextGenerationStream`]
 ```
 Perform inference on an LLM model using chat via TEE.
 
@@ -62,10 +77,6 @@ Union[TextGenerationOutput, TextGenerationStream]:
     - If stream=False: TextGenerationOutput with chat_output, transaction_hash, finish_reason, and payment_hash
     - If stream=True: TextGenerationStream yielding StreamChunk objects with typed deltas (true streaming via threading)
 
-**Raises**
-
-* **`OpenGradientError`**: If the inference fails.
-
 **`TextGenerationOutput` fields:**
 
 * **`transaction_hash`**: Blockchain transaction hash.  Set to
@@ -83,6 +94,10 @@ Union[TextGenerationOutput, TextGenerationStream]:
 * **`tee_timestamp`**: ISO-8601 timestamp from the TEE at signing
         time.
 
+**Raises**
+
+* **`OpenGradientError`**: If the inference fails.
+
 ---
 
 #### `close()`
@@ -96,7 +111,15 @@ def close(self) ‑> None
 #### `completion()`
 
 ```python
-def completion(self, model: `TEE_LLM`, prompt: str, max_tokens: int = 100, stop_sequence: Optional[List[str]] = None, temperature: float = 0.0, x402_settlement_mode: Optional[`x402SettlementMode`] = x402SettlementMode.SETTLE_BATCH) ‑> `TextGenerationOutput`
+def completion(
+    self,
+    model: `TEE_LLM`,
+    prompt: str,
+    max_tokens: int = 100,
+    stop_sequence: Optional[List[str]] = None,
+    temperature: float = 0.0,
+    x402_settlement_mode: Optional[`x402SettlementMode`] = x402SettlementMode.SETTLE_BATCH
+) ‑> `TextGenerationOutput`
 ```
 Perform inference on an LLM model using completions via TEE.
 
@@ -120,10 +143,6 @@ TextGenerationOutput: Generated text results including:
     - String of completion output
     - Payment hash for x402 transactions
 
-**Raises**
-
-* **`OpenGradientError`**: If the inference fails.
-
 **`TextGenerationOutput` fields:**
 
 * **`transaction_hash`**: Blockchain transaction hash.  Set to
@@ -140,6 +159,10 @@ TextGenerationOutput: Generated text results including:
         by the TEE enclave.
 * **`tee_timestamp`**: ISO-8601 timestamp from the TEE at signing
         time.
+
+**Raises**
+
+* **`OpenGradientError`**: If the inference fails.
 
 ---
 
@@ -165,13 +188,13 @@ Permit2ApprovalResult: Contains ``allowance_before``,
     ``allowance_after``, and ``tx_hash`` (None when no approval
     was needed).
 
-**Raises**
-
-* **`ValueError`**: If the OPG amount is less than 0.05.
-* **`OpenGradientError`**: If the approval transaction fails.
-
 **`Permit2ApprovalResult` fields:**
 
 * **`allowance_before`**: The Permit2 allowance before the method ran.
 * **`allowance_after`**: The Permit2 allowance after the method ran.
 * **`tx_hash`**: Transaction hash of the approval, or None if no transaction was needed.
+
+**Raises**
+
+* **`ValueError`**: If the OPG amount is less than 0.05.
+* **`OpenGradientError`**: If the approval transaction fails.

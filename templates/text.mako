@@ -162,7 +162,7 @@ def breadcrumb(module):
 * **`${terms[i]}`**: ${terms[i+1]}
 % endfor
 </%def>\
-<%def name="show_sections(sections)">\
+<%def name="show_sections(sections, ret_type_attrs=None)">\
 % if sections.get('Args'):
 
 **Arguments**
@@ -175,11 +175,20 @@ ${show_term_list(sections['Args'])}\
 
 ${show_term_list(sections['Attributes'])}\
 % endif
-% if sections.get('Returns'):
+% if sections.get('Returns') or ret_type_attrs:
 
 **Returns**
 
+% if sections.get('Returns'):
 ${sections['Returns']}
+% endif
+% if ret_type_attrs:
+% for type_name, attrs in ret_type_attrs:
+**`${type_name}` fields:**
+
+${show_term_list(attrs)}\
+% endfor
+% endif
 % endif
 % if sections.get('Raises'):
 
@@ -200,7 +209,7 @@ ${sections['Note']}
 ${sections['Notes']}
 % endif
 </%def>\
-<%def name="show_desc(d, short=False)">\
+<%def name="show_desc(d, short=False, ret_type_attrs=None)">\
 <%
 inherits = d.inherits
 %>\
@@ -220,28 +229,24 @@ bd = breakdown_google(d.docstring)
 %>\
 % if bd:
 ${bd[0]}
-${show_sections(bd[1])}\
+${show_sections(bd[1], ret_type_attrs=ret_type_attrs)}\
 % else:
 ${d.docstring}
 % endif
 % endif
 </%def>\
-<%def name="show_return_type_attrs(f)">\
-<%
-ret_attrs = get_return_type_attrs(f)
-%>\
-% for type_name, attrs in ret_attrs:
-
-**`${type_name}` fields:**
-
-${show_term_list(attrs)}\
-% endfor
-</%def>\
 <%def name="show_func(f, qual='', level=3)">\
 <%
-params = ', '.join(f.params(annotate=show_type_annotations, link=link))
+params_list = f.params(annotate=show_type_annotations, link=link)
 return_type = get_annotation(f.return_annotation, '\N{non-breaking hyphen}>', link=link)
 prefix = qual + ' ' if qual else ''
+oneline = '{}{} {}({}){}'.format(prefix, f.funcdef(), f.name, ', '.join(params_list), return_type)
+if len(params_list) > 3 or len(oneline) > 88:
+  params_block = ',\n    '.join(params_list)
+  sig = '{}{} {}(\n    {}\n){}'.format(prefix, f.funcdef(), f.name, params_block, return_type)
+else:
+  sig = oneline
+ret_attrs = get_return_type_attrs(f)
 %>
 
 ---
@@ -249,10 +254,9 @@ prefix = qual + ' ' if qual else ''
 ${header('`' + f.name + '()`', level)}
 
 ```python
-${prefix}${f.funcdef()} ${f.name}(${params})${return_type}
+${sig}
 ```
-${show_desc(f)}\
-${show_return_type_attrs(f)}\
+${show_desc(f, ret_type_attrs=ret_attrs)}\
 </%def>\
 <%def name="show_funcs(fs, qual='', level=3)">\
 % for f in fs:
@@ -329,7 +333,12 @@ all_methods = c.methods(show_inherited_members, sort=sort_identifiers)
 methods = [m for m in all_methods if m.name != '__init__']
 subclasses = c.subclasses()
 is_enum = any(cls.qualname.split('.')[-1] in ('Enum', 'IntEnum', 'StrEnum', 'Flag', 'IntFlag') for cls in c.mro())
-init_params = ', '.join(c.params(annotate=show_type_annotations, link=link))
+_init_params_list = c.params(annotate=show_type_annotations, link=link)
+_init_oneline = 'def __init__({})'.format(', '.join(_init_params_list))
+if len(_init_params_list) > 3 or len(_init_oneline) > 88:
+  init_sig = 'def __init__(\n    {}\n)'.format(',\n    '.join(_init_params_list))
+else:
+  init_sig = _init_oneline
 
 _bd = breakdown_google(c.docstring) if c.docstring else None
 _class_args = None
@@ -350,12 +359,12 @@ ${header('`' + c.name + '`', 3)}
 ${_class_body}
 % endif
 ${show_sections(_class_sections)}\
-% if not is_enum and init_params:
+% if not is_enum and _init_params_list:
 
 ${header('Constructor', 4)}
 
 ```python
-def __init__(${init_params})
+${init_sig}
 ```
 % if _class_args:
 

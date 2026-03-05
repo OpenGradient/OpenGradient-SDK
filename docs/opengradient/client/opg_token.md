@@ -15,7 +15,10 @@ OPG token Permit2 approval utilities for x402 payments.
 ### `ensure_opg_approval()`
 
 ```python
-def ensure_opg_approval(wallet_account: `LocalAccount`, opg_amount: float) ‑> `Permit2ApprovalResult`
+def ensure_opg_approval(
+    wallet_account: `LocalAccount`,
+    opg_amount: float
+) ‑> `Permit2ApprovalResult`
 ```
 Ensure the Permit2 allowance for OPG is at least ``opg_amount``.
 
@@ -35,15 +38,15 @@ Permit2ApprovalResult: Contains ``allowance_before``,
     ``allowance_after``, and ``tx_hash`` (None when no approval
     was needed).
 
-**Raises**
-
-* **`OpenGradientError`**: If the approval transaction fails.
-
 **`Permit2ApprovalResult` fields:**
 
 * **`allowance_before`**: The Permit2 allowance before the method ran.
 * **`allowance_after`**: The Permit2 allowance after the method ran.
 * **`tx_hash`**: Transaction hash of the approval, or None if no transaction was needed.
+
+**Raises**
+
+* **`OpenGradientError`**: If the approval transaction fails.
 
 ## Classes
 

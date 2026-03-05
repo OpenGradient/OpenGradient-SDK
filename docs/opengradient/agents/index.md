@@ -19,7 +19,12 @@ into existing applications and agent frameworks.
 ### `langchain_adapter()`
 
 ```python
-def langchain_adapter(private_key: str, model_cid: `TEE_LLM`, max_tokens: int = 300, x402_settlement_mode: `x402SettlementMode` = x402SettlementMode.SETTLE_BATCH) ‑> [OpenGradientChatModel](./og_langchain)
+def langchain_adapter(
+    private_key: str,
+    model_cid: `TEE_LLM`,
+    max_tokens: int = 300,
+    x402_settlement_mode: `x402SettlementMode` = x402SettlementMode.SETTLE_BATCH
+) ‑> [OpenGradientChatModel](./og_langchain)
 ```
 Returns an OpenGradient LLM that implements LangChain's LLM interface
 and can be plugged into LangChain agents.

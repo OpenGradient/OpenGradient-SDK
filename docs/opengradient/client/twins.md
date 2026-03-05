@@ -30,7 +30,14 @@ def __init__(api_key: str)
 #### `chat()`
 
 ```python
-def chat(self, twin_id: str, model: `TEE_LLM`, messages: List[Dict], temperature: Optional[float] = None, max_tokens: Optional[int] = None) ‑> `TextGenerationOutput`
+def chat(
+    self,
+    twin_id: str,
+    model: `TEE_LLM`,
+    messages: List[Dict],
+    temperature: Optional[float] = None,
+    max_tokens: Optional[int] = None
+) ‑> `TextGenerationOutput`
 ```
 Chat with a digital twin.
 
@@ -45,10 +52,6 @@ Chat with a digital twin.
 **Returns**
 
 TextGenerationOutput: Generated text results including chat_output and finish_reason.
-
-**Raises**
-
-* **`OpenGradientError`**: If the request fails.
 
 **`TextGenerationOutput` fields:**
 
@@ -66,3 +69,7 @@ TextGenerationOutput: Generated text results including chat_output and finish_re
         by the TEE enclave.
 * **`tee_timestamp`**: ISO-8601 timestamp from the TEE at signing
         time.
+
+**Raises**
+
+* **`OpenGradientError`**: If the request fails.

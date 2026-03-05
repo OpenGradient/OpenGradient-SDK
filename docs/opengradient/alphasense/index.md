@@ -15,7 +15,14 @@ OpenGradient AlphaSense Tools
 ### `create_read_workflow_tool()`
 
 ```python
-def create_read_workflow_tool(tool_type: [ToolType](./types), workflow_contract_address: str, tool_name: str, tool_description: str, alpha: Optional[`Alpha`] = None, output_formatter: Callable[..., str] = &lt;function &lt;lambda&gt;&gt;) ‑> Union[`BaseTool`, Callable]
+def create_read_workflow_tool(
+    tool_type: [ToolType](./types),
+    workflow_contract_address: str,
+    tool_name: str,
+    tool_description: str,
+    alpha: Optional[`Alpha`] = None,
+    output_formatter: Callable[..., str] = &lt;function &lt;lambda&gt;&gt;
+) ‑> Union[`BaseTool`, Callable]
 ```
 Creates a tool that reads results from a workflow contract on OpenGradient.
 
@@ -54,7 +61,17 @@ Callable: For ToolType.SWARM, returns a decorated function with appropriate meta
 ### `create_run_model_tool()`
 
 ```python
-def create_run_model_tool(tool_type: [ToolType](./types), model_cid: str, tool_name: str, model_input_provider: Callable[..., Dict[str, Union[str, int, float, List, `ndarray`]]], model_output_formatter: Callable[[`InferenceResult`], str], inference: Optional[`Alpha`] = None, tool_input_schema: Optional[Type[`BaseModel`]] = None, tool_description: str = 'Executes the given ML model', inference_mode: `InferenceMode` = InferenceMode.VANILLA) ‑> Union[`BaseTool`, Callable]
+def create_run_model_tool(
+    tool_type: [ToolType](./types),
+    model_cid: str,
+    tool_name: str,
+    model_input_provider: Callable[..., Dict[str, Union[str, int, float, List, `ndarray`]]],
+    model_output_formatter: Callable[[`InferenceResult`], str],
+    inference: Optional[`Alpha`] = None,
+    tool_input_schema: Optional[Type[`BaseModel`]] = None,
+    tool_description: str = 'Executes the given ML model',
+    inference_mode: `InferenceMode` = InferenceMode.VANILLA
+) ‑> Union[`BaseTool`, Callable]
 ```
 Creates a tool that wraps an OpenGradient model for inference.
 
