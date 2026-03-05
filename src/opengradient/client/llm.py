@@ -218,10 +218,6 @@ class LLM:
         return ensure_opg_approval(self._wallet_account, opg_amount)
 
     @staticmethod
-    def _resolve_model_id(model: Union[TEE_LLM, str]) -> str:
-        return str(model)
-
-    @staticmethod
     def _resolve_settlement_mode(
         mode: Optional[Union[x402SettlementMode, str]],
     ) -> x402SettlementMode:
@@ -244,7 +240,7 @@ class LLM:
 
     def completion(
         self,
-        model: Union[TEE_LLM, str],
+        model: TEE_LLM,
         prompt: str,
         max_tokens: int = 100,
         stop_sequence: Optional[List[str]] = None,
@@ -276,7 +272,7 @@ class LLM:
             OpenGradientError: If the inference fails.
         """
         return self._tee_llm_completion(
-            model=self._resolve_model_id(model).split("/")[1],
+            model=model.split("/")[1],
             prompt=prompt,
             max_tokens=max_tokens,
             stop_sequence=stop_sequence,
@@ -345,7 +341,7 @@ class LLM:
 
     def chat(
         self,
-        model: Union[TEE_LLM, str],
+        model: TEE_LLM,
         messages: List[Dict],
         max_tokens: int = 100,
         stop_sequence: Optional[List[str]] = None,
@@ -381,12 +377,10 @@ class LLM:
         Raises:
             OpenGradientError: If the inference fails.
         """
-        resolved_model = self._resolve_model_id(model)
-
         if stream:
             # Use threading bridge for true sync streaming
             return self._tee_llm_chat_stream_sync(
-                model=resolved_model.split("/")[1],
+                model=model.split("/")[1],
                 messages=messages,
                 max_tokens=max_tokens,
                 stop_sequence=stop_sequence,
@@ -398,7 +392,7 @@ class LLM:
         else:
             # Non-streaming
             return self._tee_llm_chat(
-                model=resolved_model.split("/")[1],
+                model=model.split("/")[1],
                 messages=messages,
                 max_tokens=max_tokens,
                 stop_sequence=stop_sequence,
