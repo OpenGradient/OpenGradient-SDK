@@ -217,27 +217,6 @@ class LLM:
             raise ValueError("OPG amount must be at least 0.05.")
         return ensure_opg_approval(self._wallet_account, opg_amount)
 
-    @staticmethod
-    def _resolve_settlement_mode(
-        mode: Optional[Union[x402SettlementMode, str]],
-    ) -> x402SettlementMode:
-        if mode is None:
-            return x402SettlementMode.SETTLE_BATCH
-        if isinstance(mode, x402SettlementMode):
-            return mode
-
-        normalized = mode.strip()
-        try:
-            return x402SettlementMode(normalized)
-        except Exception:
-            # Handle strings like "x402SettlementMode.SETTLE_BATCH"
-            if normalized.startswith("x402SettlementMode."):
-                normalized = normalized.split(".", 1)[1]
-            by_name = getattr(x402SettlementMode, normalized, None)
-            if isinstance(by_name, x402SettlementMode):
-                return by_name
-            raise OpenGradientError(f"Invalid x402 settlement mode: {mode}")
-
     def completion(
         self,
         model: TEE_LLM,
@@ -245,7 +224,7 @@ class LLM:
         max_tokens: int = 100,
         stop_sequence: Optional[List[str]] = None,
         temperature: float = 0.0,
-        x402_settlement_mode: Optional[Union[x402SettlementMode, str]] = x402SettlementMode.SETTLE_BATCH,
+        x402_settlement_mode: x402SettlementMode = x402SettlementMode.SETTLE_BATCH,
     ) -> TextGenerationOutput:
         """
         Perform inference on an LLM model using completions via TEE.
@@ -287,18 +266,17 @@ class LLM:
         max_tokens: int = 100,
         stop_sequence: Optional[List[str]] = None,
         temperature: float = 0.0,
-        x402_settlement_mode: Optional[Union[x402SettlementMode, str]] = x402SettlementMode.SETTLE_BATCH,
+        x402_settlement_mode: x402SettlementMode = x402SettlementMode.SETTLE_BATCH,
     ) -> TextGenerationOutput:
         """
         Route completion request to OpenGradient TEE LLM server with x402 payments.
         """
 
         async def make_request_v2():
-            settlement_mode = self._resolve_settlement_mode(x402_settlement_mode)
             headers = {
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {X402_PLACEHOLDER_API_KEY}",
-                "X-SETTLEMENT-TYPE": settlement_mode.value,
+                "X-SETTLEMENT-TYPE": x402_settlement_mode.value,
             }
 
             payload = {
@@ -348,7 +326,7 @@ class LLM:
         temperature: float = 0.0,
         tools: Optional[List[Dict]] = None,
         tool_choice: Optional[str] = None,
-        x402_settlement_mode: Optional[Union[x402SettlementMode, str]] = x402SettlementMode.SETTLE_BATCH,
+        x402_settlement_mode: x402SettlementMode = x402SettlementMode.SETTLE_BATCH,
         stream: bool = False,
     ) -> Union[TextGenerationOutput, TextGenerationStream]:
         """
@@ -411,18 +389,17 @@ class LLM:
         temperature: float = 0.0,
         tools: Optional[List[Dict]] = None,
         tool_choice: Optional[str] = None,
-        x402_settlement_mode: Optional[Union[x402SettlementMode, str]] = x402SettlementMode.SETTLE_BATCH,
+        x402_settlement_mode: x402SettlementMode = x402SettlementMode.SETTLE_BATCH,
     ) -> TextGenerationOutput:
         """
         Route chat request to OpenGradient TEE LLM server with x402 payments.
         """
 
         async def make_request_v2():
-            settlement_mode = self._resolve_settlement_mode(x402_settlement_mode)
             headers = {
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {X402_PLACEHOLDER_API_KEY}",
-                "X-SETTLEMENT-TYPE": settlement_mode.value,
+                "X-SETTLEMENT-TYPE": x402_settlement_mode.value,
             }
 
             payload = {
@@ -491,7 +468,7 @@ class LLM:
         temperature: float = 0.0,
         tools: Optional[List[Dict]] = None,
         tool_choice: Optional[str] = None,
-        x402_settlement_mode: Optional[Union[x402SettlementMode, str]] = x402SettlementMode.SETTLE_BATCH,
+        x402_settlement_mode: x402SettlementMode = x402SettlementMode.SETTLE_BATCH,
     ):
         """
         Sync streaming using threading bridge - TRUE real-time streaming.
@@ -563,18 +540,17 @@ class LLM:
         temperature: float = 0.0,
         tools: Optional[List[Dict]] = None,
         tool_choice: Optional[str] = None,
-        x402_settlement_mode: Optional[Union[x402SettlementMode, str]] = x402SettlementMode.SETTLE_BATCH,
+        x402_settlement_mode: x402SettlementMode = x402SettlementMode.SETTLE_BATCH,
     ):
         """
         Internal async streaming implementation for TEE LLM with x402 payments.
 
         Yields StreamChunk objects as they arrive from the server.
         """
-        settlement_mode = self._resolve_settlement_mode(x402_settlement_mode)
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {X402_PLACEHOLDER_API_KEY}",
-            "X-SETTLEMENT-TYPE": settlement_mode.value,
+            "X-SETTLEMENT-TYPE": x402_settlement_mode.value,
         }
 
         payload = {

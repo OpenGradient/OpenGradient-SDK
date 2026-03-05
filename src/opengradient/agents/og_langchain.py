@@ -76,7 +76,7 @@ class OpenGradientChatModel(BaseChatModel):
     model_cid: Union[TEE_LLM, str]
     temperature: float = 0.0
     max_tokens: int = 300
-    x402_settlement_mode: Optional[x402SettlementMode] = x402SettlementMode.SETTLE_BATCH
+    x402_settlement_mode: x402SettlementMode = x402SettlementMode.SETTLE_BATCH
 
     _client: Client = PrivateAttr()
     _tools: List[Dict] = PrivateAttr(default_factory=list)
@@ -88,7 +88,7 @@ class OpenGradientChatModel(BaseChatModel):
         client: Optional[Client] = None,
         temperature: float = 0.0,
         max_tokens: int = 300,
-        x402_settlement_mode: Optional[x402SettlementMode] = x402SettlementMode.SETTLE_BATCH,
+        x402_settlement_mode: x402SettlementMode = x402SettlementMode.SETTLE_BATCH,
         **kwargs,
     ):
         super().__init__(
