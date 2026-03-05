@@ -1,6 +1,7 @@
 import json
 import os
 import sys
+import asyncio
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -218,8 +219,7 @@ class TestGenerate:
         }
         assert mock_client.llm.chat.call_args.kwargs["stream"] is True
 
-    @pytest.mark.asyncio
-    async def test_astream_response(self, model, mock_client):
+    def test_astream_response(self, model, mock_client):
         """Test _astream yields incremental chunks via async interface."""
         stream_chunks = iter(
             [
@@ -248,9 +248,13 @@ class TestGenerate:
         )
         mock_client.llm.chat.return_value = stream_chunks
 
-        generations = []
-        async for generation in model._astream([HumanMessage(content="Hi")]):
-            generations.append(generation)
+        async def collect_generations():
+            generations = []
+            async for generation in model._astream([HumanMessage(content="Hi")]):
+                generations.append(generation)
+            return generations
+
+        generations = asyncio.run(collect_generations())
 
         assert len(generations) == 2
         assert generations[0].message.content == "Hello"
