@@ -2,13 +2,10 @@
 
 import asyncio
 import json
+import ssl
 import threading
 from queue import Queue
 from typing import AsyncGenerator, Dict, List, Optional, Union
-import ssl
-import socket
-import tempfile
-from urllib.parse import urlparse
 
 import httpx
 from eth_account.account import LocalAccount
@@ -21,6 +18,7 @@ from x402v2.mechanisms.evm.upto.register import register_upto_evm_client as regi
 from ..types import TEE_LLM, StreamChunk, TextGenerationOutput, TextGenerationStream, x402SettlementMode
 from .exceptions import OpenGradientError
 from .opg_token import Permit2ApprovalResult, ensure_opg_approval
+from .tee_registry import build_ssl_context_from_der
 
 X402_PROCESSING_HASH_HEADER = "x-processing-hash"
 X402_PLACEHOLDER_API_KEY = "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
@@ -38,53 +36,6 @@ LIMITS = httpx.Limits(
     max_connections=500,
     keepalive_expiry=60 * 20,  # 20 minutes
 )
-
-
-def _fetch_tls_cert_as_ssl_context(server_url: str) -> Optional[ssl.SSLContext]:
-    """
-    Connect to a server, retrieve its TLS certificate (TOFU),
-    and return an ssl.SSLContext that trusts ONLY that certificate.
-
-    Hostname verification is disabled because the TEE server's cert
-    is typically issued for a hostname but we may connect via IP address.
-    The pinned certificate itself provides the trust anchor.
-
-    Returns None if the server is not HTTPS or unreachable.
-    """
-    parsed = urlparse(server_url)
-    if parsed.scheme != "https":
-        return None
-
-    hostname = parsed.hostname
-    port = parsed.port or 443
-
-    # Connect without verification to retrieve the server's certificate
-    fetch_ctx = ssl.create_default_context()
-    fetch_ctx.check_hostname = False
-    fetch_ctx.verify_mode = ssl.CERT_NONE
-
-    try:
-        with socket.create_connection((hostname, port), timeout=10) as sock:
-            with fetch_ctx.wrap_socket(sock, server_hostname=hostname) as ssock:
-                der_cert = ssock.getpeercert(binary_form=True)
-                pem_cert = ssl.DER_cert_to_PEM_cert(der_cert)
-    except Exception:
-        return None
-
-    # Write PEM to a temp file so we can load it into the SSLContext
-    cert_file = tempfile.NamedTemporaryFile(
-        prefix="og_tee_tls_", suffix=".pem", delete=False, mode="w"
-    )
-    cert_file.write(pem_cert)
-    cert_file.flush()
-    cert_file.close()
-
-    # Build an SSLContext that trusts ONLY this cert, with hostname check disabled
-    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-    ctx.load_verify_locations(cert_file.name)
-    ctx.check_hostname = False  # Cert is for a hostname, but we connect via IP
-    ctx.verify_mode = ssl.CERT_REQUIRED  # Still verify the cert itself
-    return ctx
 
 
 class LLM:
@@ -110,17 +61,34 @@ class LLM:
         result = client.llm.completion(model=TEE_LLM.CLAUDE_3_5_HAIKU, prompt="Hello")
     """
 
-    def __init__(self, wallet_account: LocalAccount, og_llm_server_url: str, og_llm_streaming_server_url: str):
+    def __init__(
+        self,
+        wallet_account: LocalAccount,
+        og_llm_server_url: str,
+        og_llm_streaming_server_url: str,
+        tls_cert_der: Optional[bytes] = None,
+        tee_id: Optional[str] = None,
+        tee_payment_address: Optional[str] = None,
+    ):
         self._wallet_account = wallet_account
         self._og_llm_server_url = og_llm_server_url
         self._og_llm_streaming_server_url = og_llm_streaming_server_url
 
-        self._tls_verify: Union[ssl.SSLContext, bool] = (
-            _fetch_tls_cert_as_ssl_context(self._og_llm_server_url) or True
-        )
-        self._streaming_tls_verify: Union[ssl.SSLContext, bool] = (
-            _fetch_tls_cert_as_ssl_context(self._og_llm_streaming_server_url) or True
-        )
+        # TEE metadata surfaced on every response so callers can verify/audit which
+        # enclave served the request.
+        self._tee_id = tee_id
+        self._tee_endpoint = og_llm_server_url
+        self._tee_payment_address = tee_payment_address
+
+        if tls_cert_der:
+            # Use the registry-verified certificate as the sole trust anchor.
+            ssl_ctx = build_ssl_context_from_der(tls_cert_der)
+            self._tls_verify: Union[ssl.SSLContext, bool] = ssl_ctx
+            self._streaming_tls_verify: Union[ssl.SSLContext, bool] = ssl_ctx
+        else:
+            # No cert from registry — fall back to default system CA verification.
+            self._tls_verify = True
+            self._streaming_tls_verify = True
 
         signer = EthAccountSignerv2(self._wallet_account)
         self._x402_client = x402Clientv2()
@@ -283,6 +251,9 @@ class LLM:
                     completion_output=result.get("completion"),
                     tee_signature=result.get("tee_signature"),
                     tee_timestamp=result.get("tee_timestamp"),
+                    tee_id=self._tee_id,
+                    tee_endpoint=self._tee_endpoint,
+                    tee_payment_address=self._tee_payment_address,
                 )
 
             except Exception as e:
@@ -422,6 +393,9 @@ class LLM:
                     chat_output=message,
                     tee_signature=result.get("tee_signature"),
                     tee_timestamp=result.get("tee_timestamp"),
+                    tee_id=self._tee_id,
+                    tee_endpoint=self._tee_endpoint,
+                    tee_payment_address=self._tee_payment_address,
                 )
 
             except Exception as e:
@@ -560,7 +534,12 @@ class LLM:
 
                     try:
                         data = json.loads(data_str)
-                        yield StreamChunk.from_sse_data(data)
+                        chunk = StreamChunk.from_sse_data(data)
+                        if chunk.is_final:
+                            chunk.tee_id = self._tee_id
+                            chunk.tee_endpoint = self._tee_endpoint
+                            chunk.tee_payment_address = self._tee_payment_address
+                        yield chunk
                     except json.JSONDecodeError:
                         continue
 

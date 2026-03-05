@@ -413,13 +413,29 @@ def completion(
             x402_settlement_mode=x402SettlementModes[x402_settlement_mode],
         )
 
-        print_llm_completion_result(model_cid, completion_output.transaction_hash, completion_output.completion_output, is_vanilla=False)
+        print_llm_completion_result(model_cid, completion_output.transaction_hash, completion_output.completion_output, is_vanilla=False, result=completion_output)
 
     except Exception as e:
         click.echo(f"Error running LLM completion: {str(e)}")
 
 
-def print_llm_completion_result(model_cid, tx_hash, llm_output, is_vanilla=True):
+def _print_tee_info(tee_id, tee_endpoint, tee_payment_address):
+    """Print TEE node info if available."""
+    if not any([tee_id, tee_endpoint, tee_payment_address]):
+        return
+    click.secho("TEE Node:", fg="magenta", bold=True)
+    if tee_endpoint:
+        click.echo("  Endpoint:        ", nl=False)
+        click.secho(tee_endpoint, fg="magenta")
+    if tee_id:
+        click.echo("  TEE ID:          ", nl=False)
+        click.secho(tee_id, fg="magenta")
+    if tee_payment_address:
+        click.echo("  Payment address: ", nl=False)
+        click.secho(tee_payment_address, fg="magenta")
+
+
+def print_llm_completion_result(model_cid, tx_hash, llm_output, is_vanilla=True, result=None):
     click.secho("✅ LLM completion Successful", fg="green", bold=True)
     click.echo("──────────────────────────────────────")
     click.echo("Model: ", nl=False)
@@ -434,6 +450,9 @@ def print_llm_completion_result(model_cid, tx_hash, llm_output, is_vanilla=True)
     else:
         click.echo("Source: ", nl=False)
         click.secho("OpenGradient TEE", fg="cyan", bold=True)
+
+    if result is not None:
+        _print_tee_info(result.tee_id, result.tee_endpoint, result.tee_payment_address)
 
     click.echo("──────────────────────────────────────")
     click.secho("LLM Output:", fg="yellow", bold=True)
@@ -578,13 +597,13 @@ def chat(
         if stream:
             print_streaming_chat_result(model_cid, result, is_tee=True)
         else:
-            print_llm_chat_result(model_cid, result.transaction_hash, result.finish_reason, result.chat_output, is_vanilla=False)
+            print_llm_chat_result(model_cid, result.transaction_hash, result.finish_reason, result.chat_output, is_vanilla=False, result=result)
 
     except Exception as e:
         click.echo(f"Error running LLM chat inference: {str(e)}")
 
 
-def print_llm_chat_result(model_cid, tx_hash, finish_reason, chat_output, is_vanilla=True):
+def print_llm_chat_result(model_cid, tx_hash, finish_reason, chat_output, is_vanilla=True, result=None):
     click.secho("✅ LLM Chat Successful", fg="green", bold=True)
     click.echo("──────────────────────────────────────")
     click.echo("Model: ", nl=False)
@@ -599,6 +618,9 @@ def print_llm_chat_result(model_cid, tx_hash, finish_reason, chat_output, is_van
     else:
         click.echo("Source: ", nl=False)
         click.secho("OpenGradient TEE", fg="cyan", bold=True)
+
+    if result is not None:
+        _print_tee_info(result.tee_id, result.tee_endpoint, result.tee_payment_address)
 
     click.echo("──────────────────────────────────────")
     click.secho("Finish Reason: ", fg="yellow", bold=True)
@@ -672,6 +694,8 @@ def print_streaming_chat_result(model_cid, stream, is_tee=True):
                 if chunk.choices[0].finish_reason:
                     click.echo("Finish reason: ", nl=False)
                     click.secho(chunk.choices[0].finish_reason, fg="green")
+
+                _print_tee_info(chunk.tee_id, chunk.tee_endpoint, chunk.tee_payment_address)
 
                 click.echo("──────────────────────────────────────")
                 click.echo(f"Chunks received: {chunk_count}")
