@@ -11,7 +11,7 @@ from langchain_core.tools import tool
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 from src.opengradient.agents.og_langchain import OpenGradientChatModel, _extract_content, _parse_tool_call
-from src.opengradient.types import TEE_LLM, TextGenerationOutput, x402SettlementMode
+from src.opengradient.types import StreamChoice, StreamChunk, StreamDelta, StreamUsage, TEE_LLM, TextGenerationOutput, x402SettlementMode
 
 
 @pytest.fixture
@@ -26,7 +26,7 @@ def mock_client():
 @pytest.fixture
 def model(mock_client):
     """Create an OpenGradientChatModel with a mocked client."""
-    return OpenGradientChatModel(private_key="0x" + "a" * 64, model_cid=TEE_LLM.GPT_5)
+    return OpenGradientChatModel(model_cid=TEE_LLM.GPT_5, private_key="0x" + "a" * 64)
 
 
 class TestOpenGradientChatModel:
@@ -39,21 +39,41 @@ class TestOpenGradientChatModel:
 
     def test_initialization_custom_max_tokens(self, mock_client):
         """Test model initializes with custom max_tokens."""
-        model = OpenGradientChatModel(private_key="0x" + "a" * 64, model_cid=TEE_LLM.CLAUDE_HAIKU_4_5, max_tokens=1000)
+        model = OpenGradientChatModel(model_cid=TEE_LLM.CLAUDE_HAIKU_4_5, private_key="0x" + "a" * 64, max_tokens=1000)
         assert model.max_tokens == 1000
 
     def test_initialization_custom_settlement_mode(self, mock_client):
         """Test model initializes with custom settlement mode."""
         model = OpenGradientChatModel(
-            private_key="0x" + "a" * 64,
             model_cid=TEE_LLM.GPT_5,
+            private_key="0x" + "a" * 64,
             x402_settlement_mode=x402SettlementMode.SETTLE,
         )
         assert model.x402_settlement_mode == x402SettlementMode.SETTLE
 
+    def test_initialization_with_injected_client(self, mock_client):
+        """Test model can reuse an injected SDK client."""
+        model = OpenGradientChatModel(model_cid="openai/gpt-4.1", client=mock_client)
+        assert model.model_cid == "openai/gpt-4.1"
+        assert model._client is mock_client
+
+    def test_initialization_requires_client_or_private_key(self):
+        """Test model requires either a private key or SDK client."""
+        with pytest.raises(ValueError, match="Either client or private_key must be provided."):
+            OpenGradientChatModel(model_cid=TEE_LLM.GPT_5)
+
+    def test_initialization_rejects_client_and_private_key(self, mock_client):
+        """Test model rejects duplicate client configuration."""
+        with pytest.raises(ValueError, match="Pass either client or private_key, not both."):
+            OpenGradientChatModel(
+                model_cid=TEE_LLM.GPT_5,
+                private_key="0x" + "a" * 64,
+                client=mock_client,
+            )
+
     def test_identifying_params(self, model):
         """Test _identifying_params returns model name."""
-        assert model._identifying_params == {"model_name": TEE_LLM.GPT_5}
+        assert model._identifying_params == {"model_name": TEE_LLM.GPT_5, "temperature": 0.0}
 
 
 class TestGenerate:
@@ -155,6 +175,88 @@ class TestGenerate:
 
         assert result.generations[0].message.content == ""
 
+    def test_stream_response(self, model, mock_client):
+        """Test _stream yields incremental chunks and usage metadata."""
+        stream_chunks = iter(
+            [
+                StreamChunk(
+                    choices=[
+                        StreamChoice(
+                            delta=StreamDelta(content="Hello"),
+                            index=0,
+                            finish_reason=None,
+                        )
+                    ],
+                    model="openai/gpt-5",
+                ),
+                StreamChunk(
+                    choices=[
+                        StreamChoice(
+                            delta=StreamDelta(content=" world"),
+                            index=0,
+                            finish_reason="stop",
+                        )
+                    ],
+                    model="openai/gpt-5",
+                    usage=StreamUsage(prompt_tokens=10, completion_tokens=2, total_tokens=12),
+                    is_final=True,
+                ),
+            ]
+        )
+        mock_client.llm.chat.return_value = stream_chunks
+
+        generations = list(model._stream([HumanMessage(content="Hi")]))
+
+        assert len(generations) == 2
+        assert generations[0].message.content == "Hello"
+        assert generations[1].message.content == " world"
+        assert generations[1].generation_info == {"finish_reason": "stop"}
+        assert generations[1].message.usage_metadata == {
+            "input_tokens": 10,
+            "output_tokens": 2,
+            "total_tokens": 12,
+        }
+        assert mock_client.llm.chat.call_args.kwargs["stream"] is True
+
+    @pytest.mark.asyncio
+    async def test_astream_response(self, model, mock_client):
+        """Test _astream yields incremental chunks via async interface."""
+        stream_chunks = iter(
+            [
+                StreamChunk(
+                    choices=[
+                        StreamChoice(
+                            delta=StreamDelta(content="Hello"),
+                            index=0,
+                            finish_reason=None,
+                        )
+                    ],
+                    model="openai/gpt-5",
+                ),
+                StreamChunk(
+                    choices=[
+                        StreamChoice(
+                            delta=StreamDelta(content=" world"),
+                            index=0,
+                            finish_reason="stop",
+                        )
+                    ],
+                    model="openai/gpt-5",
+                    is_final=True,
+                ),
+            ]
+        )
+        mock_client.llm.chat.return_value = stream_chunks
+
+        generations = []
+        async for generation in model._astream([HumanMessage(content="Hi")]):
+            generations.append(generation)
+
+        assert len(generations) == 2
+        assert generations[0].message.content == "Hello"
+        assert generations[1].message.content == " world"
+        assert generations[1].generation_info == {"finish_reason": "stop"}
+
 
 class TestMessageConversion:
     def test_converts_all_message_types(self, model, mock_client):
@@ -199,6 +301,20 @@ class TestMessageConversion:
         with pytest.raises(ValueError, match="Unexpected message type"):
             model._generate([MagicMock(spec=[])])
 
+    def test_accepts_dict_messages(self, model, mock_client):
+        """Test that dict messages are accepted for compatibility with existing routes."""
+        mock_client.llm.chat.return_value = TextGenerationOutput(
+            transaction_hash="external",
+            finish_reason="stop",
+            chat_output={"role": "assistant", "content": "ok"},
+        )
+
+        model._generate([{"role": "user", "content": "Hi"}])
+
+        assert mock_client.llm.chat.call_args.kwargs["messages"] == [
+            {"role": "user", "content": "Hi"}
+        ]
+
     def test_passes_correct_params_to_client(self, model, mock_client):
         """Test that _generate passes model params correctly to the SDK client."""
         mock_client.llm.chat.return_value = TextGenerationOutput(
@@ -213,6 +329,7 @@ class TestMessageConversion:
             model=TEE_LLM.GPT_5,
             messages=[{"role": "user", "content": "Hi"}],
             stop_sequence=["END"],
+            temperature=0.0,
             max_tokens=300,
             tools=[],
             x402_settlement_mode=x402SettlementMode.SETTLE_BATCH,
