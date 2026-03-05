@@ -74,6 +74,7 @@ class OpenGradientChatModel(BaseChatModel):
     """OpenGradient adapter class for LangChain chat model"""
 
     model_cid: Union[TEE_LLM, str]
+    temperature: float = 0.0
     max_tokens: int = 300
     x402_settlement_mode: Optional[x402SettlementMode] = x402SettlementMode.SETTLE_BATCH
 
@@ -85,12 +86,14 @@ class OpenGradientChatModel(BaseChatModel):
         model_cid: Union[TEE_LLM, str],
         private_key: Optional[str] = None,
         client: Optional[Client] = None,
+        temperature: float = 0.0,
         max_tokens: int = 300,
         x402_settlement_mode: Optional[x402SettlementMode] = x402SettlementMode.SETTLE_BATCH,
         **kwargs,
     ):
         super().__init__(
             model_cid=model_cid,
+            temperature=temperature,
             max_tokens=max_tokens,
             x402_settlement_mode=x402_settlement_mode,
             **kwargs,
@@ -153,6 +156,7 @@ class OpenGradientChatModel(BaseChatModel):
             model=self.model_cid,
             messages=sdk_messages,
             stop_sequence=stop,
+            temperature=self.temperature,
             max_tokens=self.max_tokens,
             tools=self._tools,
             x402_settlement_mode=self.x402_settlement_mode,
@@ -181,6 +185,7 @@ class OpenGradientChatModel(BaseChatModel):
             model=self.model_cid,
             messages=sdk_messages,
             stop_sequence=stop,
+            temperature=self.temperature,
             max_tokens=self.max_tokens,
             tools=self._tools,
             x402_settlement_mode=self.x402_settlement_mode,
@@ -236,6 +241,7 @@ class OpenGradientChatModel(BaseChatModel):
     def _identifying_params(self) -> Dict[str, Any]:
         return {
             "model_name": self.model_cid,
+            "temperature": self.temperature,
         }
 
     @staticmethod

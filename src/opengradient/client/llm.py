@@ -25,6 +25,10 @@ from .opg_token import Permit2ApprovalResult, ensure_opg_approval
 X402_PROCESSING_HASH_HEADER = "x-processing-hash"
 X402_PLACEHOLDER_API_KEY = "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
 BASE_TESTNET_NETWORK = "eip155:84532"
+RETRYABLE_PAYMENT_ERROR_SNIPPETS = (
+    "invalid payment required response",
+    "failed to handle payment",
+)
 
 TIMEOUT = httpx.Timeout(
     timeout=90.0,
@@ -122,10 +126,7 @@ class LLM:
             _fetch_tls_cert_as_ssl_context(self._og_llm_streaming_server_url) or True
         )
 
-        signer = EthAccountSignerv2(self._wallet_account)
-        self._x402_client = x402Clientv2()
-        register_exact_evm_clientv2(self._x402_client, signer, networks=[BASE_TESTNET_NETWORK])
-        register_upto_evm_clientv2(self._x402_client, signer, networks=[BASE_TESTNET_NETWORK])
+        self._initialize_x402_client()
 
         self._request_client_ctx = None
         self._request_client = None
@@ -155,6 +156,24 @@ class LLM:
         if self._stream_client is None:
             self._stream_client_ctx = x402HttpxClientv2(self._x402_client, verify=self._streaming_tls_verify)
             self._stream_client = await self._stream_client_ctx.__aenter__()
+
+    def _initialize_x402_client(self) -> None:
+        signer = EthAccountSignerv2(self._wallet_account)
+        self._x402_client = x402Clientv2()
+        register_exact_evm_clientv2(self._x402_client, signer, networks=[BASE_TESTNET_NETWORK])
+        register_upto_evm_clientv2(self._x402_client, signer, networks=[BASE_TESTNET_NETWORK])
+
+    @staticmethod
+    def _is_retryable_payment_error(error: Exception) -> bool:
+        message = str(error).lower()
+        if any(snippet in message for snippet in RETRYABLE_PAYMENT_ERROR_SNIPPETS):
+            return True
+        return "paymenterror" in error.__class__.__name__.lower()
+
+    async def _refresh_payment_clients(self) -> None:
+        await self._close_http_clients()
+        self._initialize_x402_client()
+        await self._initialize_http_clients()
 
     async def _close_http_clients(self) -> None:
         if self._request_client_ctx is not None:
@@ -198,14 +217,39 @@ class LLM:
             raise ValueError("OPG amount must be at least 0.05.")
         return ensure_opg_approval(self._wallet_account, opg_amount)
 
+    @staticmethod
+    def _resolve_model_id(model: Union[TEE_LLM, str]) -> str:
+        return str(model)
+
+    @staticmethod
+    def _resolve_settlement_mode(
+        mode: Optional[Union[x402SettlementMode, str]],
+    ) -> x402SettlementMode:
+        if mode is None:
+            return x402SettlementMode.SETTLE_BATCH
+        if isinstance(mode, x402SettlementMode):
+            return mode
+
+        normalized = mode.strip()
+        try:
+            return x402SettlementMode(normalized)
+        except Exception:
+            # Handle strings like "x402SettlementMode.SETTLE_BATCH"
+            if normalized.startswith("x402SettlementMode."):
+                normalized = normalized.split(".", 1)[1]
+            by_name = getattr(x402SettlementMode, normalized, None)
+            if isinstance(by_name, x402SettlementMode):
+                return by_name
+            raise OpenGradientError(f"Invalid x402 settlement mode: {mode}")
+
     def completion(
         self,
-        model: TEE_LLM,
+        model: Union[TEE_LLM, str],
         prompt: str,
         max_tokens: int = 100,
         stop_sequence: Optional[List[str]] = None,
         temperature: float = 0.0,
-        x402_settlement_mode: Optional[x402SettlementMode] = x402SettlementMode.SETTLE_BATCH,
+        x402_settlement_mode: Optional[Union[x402SettlementMode, str]] = x402SettlementMode.SETTLE_BATCH,
     ) -> TextGenerationOutput:
         """
         Perform inference on an LLM model using completions via TEE.
@@ -232,7 +276,7 @@ class LLM:
             OpenGradientError: If the inference fails.
         """
         return self._tee_llm_completion(
-            model=model.split("/")[1],
+            model=self._resolve_model_id(model).split("/")[1],
             prompt=prompt,
             max_tokens=max_tokens,
             stop_sequence=stop_sequence,
@@ -247,17 +291,18 @@ class LLM:
         max_tokens: int = 100,
         stop_sequence: Optional[List[str]] = None,
         temperature: float = 0.0,
-        x402_settlement_mode: Optional[x402SettlementMode] = x402SettlementMode.SETTLE_BATCH,
+        x402_settlement_mode: Optional[Union[x402SettlementMode, str]] = x402SettlementMode.SETTLE_BATCH,
     ) -> TextGenerationOutput:
         """
         Route completion request to OpenGradient TEE LLM server with x402 payments.
         """
 
         async def make_request_v2():
+            settlement_mode = self._resolve_settlement_mode(x402_settlement_mode)
             headers = {
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {X402_PLACEHOLDER_API_KEY}",
-                "X-SETTLEMENT-TYPE": x402_settlement_mode.value,
+                "X-SETTLEMENT-TYPE": settlement_mode.value,
             }
 
             payload = {
@@ -290,21 +335,24 @@ class LLM:
 
         try:
             return self._run_coroutine(make_request_v2())
-        except OpenGradientError:
-            raise
         except Exception as e:
+            if self._is_retryable_payment_error(e):
+                self._run_coroutine(self._refresh_payment_clients())
+                return self._run_coroutine(make_request_v2())
+            if isinstance(e, OpenGradientError):
+                raise
             raise OpenGradientError(f"TEE LLM completion failed: {str(e)}")
 
     def chat(
         self,
-        model: TEE_LLM,
+        model: Union[TEE_LLM, str],
         messages: List[Dict],
         max_tokens: int = 100,
         stop_sequence: Optional[List[str]] = None,
         temperature: float = 0.0,
         tools: Optional[List[Dict]] = None,
         tool_choice: Optional[str] = None,
-        x402_settlement_mode: Optional[x402SettlementMode] = x402SettlementMode.SETTLE_BATCH,
+        x402_settlement_mode: Optional[Union[x402SettlementMode, str]] = x402SettlementMode.SETTLE_BATCH,
         stream: bool = False,
     ) -> Union[TextGenerationOutput, TextGenerationStream]:
         """
@@ -333,10 +381,12 @@ class LLM:
         Raises:
             OpenGradientError: If the inference fails.
         """
+        resolved_model = self._resolve_model_id(model)
+
         if stream:
             # Use threading bridge for true sync streaming
             return self._tee_llm_chat_stream_sync(
-                model=model.split("/")[1],
+                model=resolved_model.split("/")[1],
                 messages=messages,
                 max_tokens=max_tokens,
                 stop_sequence=stop_sequence,
@@ -348,7 +398,7 @@ class LLM:
         else:
             # Non-streaming
             return self._tee_llm_chat(
-                model=model.split("/")[1],
+                model=resolved_model.split("/")[1],
                 messages=messages,
                 max_tokens=max_tokens,
                 stop_sequence=stop_sequence,
@@ -367,17 +417,18 @@ class LLM:
         temperature: float = 0.0,
         tools: Optional[List[Dict]] = None,
         tool_choice: Optional[str] = None,
-        x402_settlement_mode: x402SettlementMode = x402SettlementMode.SETTLE_BATCH,
+        x402_settlement_mode: Optional[Union[x402SettlementMode, str]] = x402SettlementMode.SETTLE_BATCH,
     ) -> TextGenerationOutput:
         """
         Route chat request to OpenGradient TEE LLM server with x402 payments.
         """
 
         async def make_request_v2():
+            settlement_mode = self._resolve_settlement_mode(x402_settlement_mode)
             headers = {
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {X402_PLACEHOLDER_API_KEY}",
-                "X-SETTLEMENT-TYPE": x402_settlement_mode.value,
+                "X-SETTLEMENT-TYPE": settlement_mode.value,
             }
 
             payload = {
@@ -429,9 +480,12 @@ class LLM:
 
         try:
             return self._run_coroutine(make_request_v2())
-        except OpenGradientError:
-            raise
         except Exception as e:
+            if self._is_retryable_payment_error(e):
+                self._run_coroutine(self._refresh_payment_clients())
+                return self._run_coroutine(make_request_v2())
+            if isinstance(e, OpenGradientError):
+                raise
             raise OpenGradientError(f"TEE LLM chat failed: {str(e)}")
 
     def _tee_llm_chat_stream_sync(
@@ -443,7 +497,7 @@ class LLM:
         temperature: float = 0.0,
         tools: Optional[List[Dict]] = None,
         tool_choice: Optional[str] = None,
-        x402_settlement_mode: x402SettlementMode = x402SettlementMode.SETTLE_BATCH,
+        x402_settlement_mode: Optional[Union[x402SettlementMode, str]] = x402SettlementMode.SETTLE_BATCH,
     ):
         """
         Sync streaming using threading bridge - TRUE real-time streaming.
@@ -456,17 +510,33 @@ class LLM:
 
         async def _stream():
             try:
-                async for chunk in self._tee_llm_chat_stream_async(
-                    model=model,
-                    messages=messages,
-                    max_tokens=max_tokens,
-                    stop_sequence=stop_sequence,
-                    temperature=temperature,
-                    tools=tools,
-                    tool_choice=tool_choice,
-                    x402_settlement_mode=x402_settlement_mode,
-                ):
-                    queue.put(chunk)
+                try:
+                    async for chunk in self._tee_llm_chat_stream_async(
+                        model=model,
+                        messages=messages,
+                        max_tokens=max_tokens,
+                        stop_sequence=stop_sequence,
+                        temperature=temperature,
+                        tools=tools,
+                        tool_choice=tool_choice,
+                        x402_settlement_mode=x402_settlement_mode,
+                    ):
+                        queue.put(chunk)
+                except Exception as e:
+                    if not self._is_retryable_payment_error(e):
+                        raise
+                    await self._refresh_payment_clients()
+                    async for chunk in self._tee_llm_chat_stream_async(
+                        model=model,
+                        messages=messages,
+                        max_tokens=max_tokens,
+                        stop_sequence=stop_sequence,
+                        temperature=temperature,
+                        tools=tools,
+                        tool_choice=tool_choice,
+                        x402_settlement_mode=x402_settlement_mode,
+                    ):
+                        queue.put(chunk)
             except Exception as e:
                 queue.put(e)
             finally:
@@ -499,17 +569,18 @@ class LLM:
         temperature: float = 0.0,
         tools: Optional[List[Dict]] = None,
         tool_choice: Optional[str] = None,
-        x402_settlement_mode: x402SettlementMode = x402SettlementMode.SETTLE_BATCH,
+        x402_settlement_mode: Optional[Union[x402SettlementMode, str]] = x402SettlementMode.SETTLE_BATCH,
     ):
         """
         Internal async streaming implementation for TEE LLM with x402 payments.
 
         Yields StreamChunk objects as they arrive from the server.
         """
+        settlement_mode = self._resolve_settlement_mode(x402_settlement_mode)
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {X402_PLACEHOLDER_API_KEY}",
-            "X-SETTLEMENT-TYPE": x402_settlement_mode.value,
+            "X-SETTLEMENT-TYPE": settlement_mode.value,
         }
 
         payload = {

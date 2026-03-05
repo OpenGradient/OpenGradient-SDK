@@ -17,6 +17,7 @@ def langchain_adapter(
     model_cid: Union[TEE_LLM, str],
     private_key: Optional[str] = None,
     client: Optional[Client] = None,
+    temperature: float = 0.0,
     max_tokens: int = 300,
     x402_settlement_mode: x402SettlementMode = x402SettlementMode.SETTLE_BATCH,
 ) -> OpenGradientChatModel:
@@ -28,6 +29,7 @@ def langchain_adapter(
         model_cid=model_cid,
         private_key=private_key,
         client=client,
+        temperature=temperature,
         max_tokens=max_tokens,
         x402_settlement_mode=x402_settlement_mode,
     )
