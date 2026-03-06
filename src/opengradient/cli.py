@@ -630,16 +630,24 @@ def print_llm_chat_result(model_cid, tx_hash, finish_reason, chat_output, is_van
     click.secho("Chat Output:", fg="yellow", bold=True)
     click.echo()
     for key, value in chat_output.items():
-        if value is not None and value not in ("", "[]", []):
+        if value is None or value in ("", "[]", []):
+            continue
+        if key == "tool_calls":
+            # Format tool calls the same way as the streaming path
+            click.secho("Tool Calls:", fg="yellow", bold=True)
+            for tool_call in value:
+                fn = tool_call.get("function", {})
+                click.echo(f"  Function: {fn.get('name', '')}")
+                click.echo(f"  Arguments: {fn.get('arguments', '')}")
+        elif key == "content" and isinstance(value, list):
             # Normalize list-of-blocks content (e.g. Gemini 3 thought signatures)
-            if key == "content" and isinstance(value, list):
-                text = " ".join(
-                    block.get("text", "") for block in value
-                    if isinstance(block, dict) and block.get("type") == "text"
-                ).strip()
-                click.echo(f"{key}: {text}")
-            else:
-                click.echo(f"{key}: {value}")
+            text = " ".join(
+                block.get("text", "") for block in value
+                if isinstance(block, dict) and block.get("type") == "text"
+            ).strip()
+            click.echo(f"{key}: {text}")
+        else:
+            click.echo(f"{key}: {value}")
     click.echo()
 
 
@@ -663,20 +671,21 @@ def print_streaming_chat_result(model_cid, stream, is_tee=True):
         for chunk in stream:
             chunk_count += 1
 
-            if chunk.choices[0].delta.content:
-                content = chunk.choices[0].delta.content
-                sys.stdout.write(content)
-                sys.stdout.flush()
-                content_parts.append(content)
+            if chunk.choices:
+                if chunk.choices[0].delta.content:
+                    content = chunk.choices[0].delta.content
+                    sys.stdout.write(content)
+                    sys.stdout.flush()
+                    content_parts.append(content)
 
-            # Handle tool calls
-            if chunk.choices[0].delta.tool_calls:
-                sys.stdout.write("\n")
-                sys.stdout.flush()
-                click.secho("Tool Calls:", fg="yellow", bold=True)
-                for tool_call in chunk.choices[0].delta.tool_calls:
-                    click.echo(f"  Function: {tool_call['function']['name']}")
-                    click.echo(f"  Arguments: {tool_call['function']['arguments']}")
+                # Handle tool calls
+                if chunk.choices[0].delta.tool_calls:
+                    sys.stdout.write("\n")
+                    sys.stdout.flush()
+                    click.secho("Tool Calls:", fg="yellow", bold=True)
+                    for tool_call in chunk.choices[0].delta.tool_calls:
+                        click.echo(f"  Function: {tool_call['function']['name']}")
+                        click.echo(f"  Arguments: {tool_call['function']['arguments']}")
 
             # Print final info when stream completes
             if chunk.is_final:
@@ -691,7 +700,7 @@ def print_streaming_chat_result(model_cid, stream, is_tee=True):
                     click.echo(f"  Total tokens: {chunk.usage.total_tokens}")
                     click.echo()
 
-                if chunk.choices[0].finish_reason:
+                if chunk.choices and chunk.choices[0].finish_reason:
                     click.echo("Finish reason: ", nl=False)
                     click.secho(chunk.choices[0].finish_reason, fg="green")
 
