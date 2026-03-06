@@ -87,16 +87,16 @@ chat-stream:
 chat-tool:
 	python -m opengradient.cli chat \
 		--model $(MODEL) \
-		--messages '[{"role":"system","content":"You are a helpful assistant. Use the available tools when needed."},{"role":"user","content":"What is the weather in Tokyo? Give me the temperature in celsius."}]' \
-		--tools '[{"type":"function","function":{"name":"get_weather","description":"Get weather for a location","parameters":{"type":"object","properties":{"location":{"type":"string"},"unit":{"type":"string","enum":["celsius","fahrenheit"]}},"required":["location"]}}}]' \
-		--max-tokens 100
+		--messages '[{"role":"system","content":"You are a helpful assistant. Use tools when needed."},{"role":"user","content":"What'\''s the weather like in Dallas, Texas? Give me the temperature in fahrenheit."}]' \
+		--tools '[{"type":"function","function":{"name":"get_current_weather","description":"Get the current weather in a given location","parameters":{"type":"object","properties":{"city":{"type":"string"},"state":{"type":"string"},"unit":{"type":"string","enum":["fahrenheit","celsius"]}},"required":["city","state","unit"]}}}]' \
+		--max-tokens 200
 
 chat-stream-tool:
 	python -m opengradient.cli chat \
 		--model $(MODEL) \
-		--messages '[{"role":"system","content":"You are a helpful assistant. Use the available tools when needed."},{"role":"user","content":"What is the weather in Tokyo? Give me the temperature in celsius."}]' \
-		--tools '[{"type":"function","function":{"name":"get_weather","description":"Get weather for a location","parameters":{"type":"object","properties":{"location":{"type":"string"},"unit":{"type":"string","enum":["celsius","fahrenheit"]}},"required":["location"]}}}]' \
-		--max-tokens 100 \
+		--messages '[{"role":"system","content":"You are a helpful assistant. Use tools when needed."},{"role":"user","content":"What'\''s the weather like in Dallas, Texas? Give me the temperature in fahrenheit."}]' \
+		--tools '[{"type":"function","function":{"name":"get_current_weather","description":"Get the current weather in a given location","parameters":{"type":"object","properties":{"city":{"type":"string"},"state":{"type":"string"},"unit":{"type":"string","enum":["fahrenheit","celsius"]}},"required":["city","state","unit"]}}}]' \
+		--max-tokens 200 \
 		--stream
 
 .PHONY: install build publish check docs test utils_test client_test langchain_adapter_test opg_token_test integrationtest examples \
