@@ -269,7 +269,9 @@ class StreamChunk:
         """
         choices = []
         for choice_data in data.get("choices", []):
-            delta_data = choice_data.get("delta", {})
+            # The TEE proxy sometimes sends SSE events using the non-streaming "message"
+            # key instead of the standard streaming "delta" key.  Fall back gracefully.
+            delta_data = choice_data.get("delta") or choice_data.get("message") or {}
             delta = StreamDelta(content=delta_data.get("content"), role=delta_data.get("role"), tool_calls=delta_data.get("tool_calls"))
             choice = StreamChoice(delta=delta, index=choice_data.get("index", 0), finish_reason=choice_data.get("finish_reason"))
             choices.append(choice)

@@ -2,10 +2,13 @@
 
 import asyncio
 import json
+import logging
 import ssl
 import threading
 from queue import Queue
 from typing import AsyncGenerator, Dict, List, Optional, Union
+
+logger = logging.getLogger(__name__)
 
 import httpx
 from eth_account.account import LocalAccount
@@ -15,7 +18,7 @@ from x402v2.mechanisms.evm import EthAccountSigner as EthAccountSignerv2
 from x402v2.mechanisms.evm.exact.register import register_exact_evm_client as register_exact_evm_clientv2
 from x402v2.mechanisms.evm.upto.register import register_upto_evm_client as register_upto_evm_clientv2
 
-from ..types import TEE_LLM, StreamChunk, TextGenerationOutput, TextGenerationStream, x402SettlementMode
+from ..types import TEE_LLM, StreamChunk, StreamChoice, StreamDelta, TextGenerationOutput, TextGenerationStream, x402SettlementMode
 from .exceptions import OpenGradientError
 from .opg_token import Permit2ApprovalResult, ensure_opg_approval
 from .tee_registry import build_ssl_context_from_der
@@ -305,6 +308,20 @@ class LLM:
             OpenGradientError: If the inference fails.
         """
         if stream:
+            if tools:
+                # The TEE streaming endpoint omits tool call content from SSE events.
+                # Fall back transparently to the non-streaming endpoint and emit a
+                # single final StreamChunk so callers get the complete tool call data.
+                return self._tee_llm_chat_tools_as_stream(
+                    model=model.split("/")[1],
+                    messages=messages,
+                    max_tokens=max_tokens,
+                    stop_sequence=stop_sequence,
+                    temperature=temperature,
+                    tools=tools,
+                    tool_choice=tool_choice,
+                    x402_settlement_mode=x402_settlement_mode,
+                )
             # Use threading bridge for true sync streaming
             return self._tee_llm_chat_stream_sync(
                 model=model.split("/")[1],
@@ -407,6 +424,59 @@ class LLM:
             raise
         except Exception as e:
             raise OpenGradientError(f"TEE LLM chat failed: {str(e)}")
+
+    def _tee_llm_chat_tools_as_stream(
+        self,
+        model: str,
+        messages: List[Dict],
+        max_tokens: int = 100,
+        stop_sequence: Optional[List[str]] = None,
+        temperature: float = 0.0,
+        tools: Optional[List[Dict]] = None,
+        tool_choice: Optional[str] = None,
+        x402_settlement_mode: x402SettlementMode = x402SettlementMode.SETTLE_BATCH,
+    ):
+        """
+        Transparent non-streaming fallback for tool-call requests with stream=True.
+
+        The TEE streaming endpoint returns an empty delta when tools are present —
+        tool call content is not emitted as SSE events.  This method calls the
+        non-streaming endpoint instead and emits a single final StreamChunk that
+        carries the complete tool call response, preserving the streaming interface
+        for callers (including the CLI).
+        """
+        result = self._tee_llm_chat(
+            model=model,
+            messages=messages,
+            max_tokens=max_tokens,
+            stop_sequence=stop_sequence,
+            temperature=temperature,
+            tools=tools,
+            tool_choice=tool_choice,
+            x402_settlement_mode=x402_settlement_mode,
+        )
+
+        chat_output = result.chat_output or {}
+        delta = StreamDelta(
+            role=chat_output.get("role"),
+            content=chat_output.get("content"),
+            tool_calls=chat_output.get("tool_calls"),
+        )
+        choice = StreamChoice(
+            delta=delta,
+            index=0,
+            finish_reason=result.finish_reason,
+        )
+        yield StreamChunk(
+            choices=[choice],
+            model=model,
+            is_final=True,
+            tee_signature=result.tee_signature,
+            tee_timestamp=result.tee_timestamp,
+            tee_id=result.tee_id,
+            tee_endpoint=result.tee_endpoint,
+            tee_payment_address=result.tee_payment_address,
+        )
 
     def _tee_llm_chat_stream_sync(
         self,
