@@ -87,14 +87,14 @@ chat-stream:
 chat-tool:
 	python -m opengradient.cli chat \
 		--model $(MODEL) \
-		--messages '[{"role":"user","content":"What is the weather in Tokyo?"}]' \
+		--messages '[{"role":"system","content":"You are a helpful assistant. Use the available tools when needed."},{"role":"user","content":"What is the weather in Tokyo? Give me the temperature in celsius."}]' \
 		--tools '[{"type":"function","function":{"name":"get_weather","description":"Get weather for a location","parameters":{"type":"object","properties":{"location":{"type":"string"},"unit":{"type":"string","enum":["celsius","fahrenheit"]}},"required":["location"]}}}]' \
 		--max-tokens 100
 
 chat-stream-tool:
 	python -m opengradient.cli chat \
 		--model $(MODEL) \
-		--messages '[{"role":"user","content":"What is the weather in Tokyo?"}]' \
+		--messages '[{"role":"system","content":"You are a helpful assistant. Use the available tools when needed."},{"role":"user","content":"What is the weather in Tokyo? Give me the temperature in celsius."}]' \
 		--tools '[{"type":"function","function":{"name":"get_weather","description":"Get weather for a location","parameters":{"type":"object","properties":{"location":{"type":"string"},"unit":{"type":"string","enum":["celsius","fahrenheit"]}},"required":["location"]}}}]' \
 		--max-tokens 100 \
 		--stream
