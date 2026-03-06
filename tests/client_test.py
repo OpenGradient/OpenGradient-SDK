@@ -21,7 +21,10 @@ from src.opengradient.types import (
 @pytest.fixture
 def mock_web3():
     """Create a mock Web3 instance."""
-    with patch("src.opengradient.client.client.Web3") as mock:
+    with (
+        patch("src.opengradient.client.client.Web3") as mock,
+        patch("src.opengradient.client.client.TEERegistry") as mock_tee_registry,
+    ):
         mock_instance = MagicMock()
         mock.return_value = mock_instance
         mock.HTTPProvider.return_value = MagicMock()
@@ -30,6 +33,14 @@ def mock_web3():
         mock_instance.eth.get_transaction_count.return_value = 0
         mock_instance.eth.gas_price = 1000000000
         mock_instance.eth.contract.return_value = MagicMock()
+
+        # Return a fake active TEE endpoint so Client.__init__ doesn't need a live registry
+        mock_tee = MagicMock()
+        mock_tee.endpoint = "https://test.tee.server"
+        mock_tee.tls_cert_der = None
+        mock_tee.tee_id = "test-tee-id"
+        mock_tee.payment_address = "0xTestPaymentAddress"
+        mock_tee_registry.return_value.get_llm_tee.return_value = mock_tee
 
         yield mock_instance
 
@@ -194,7 +205,7 @@ class TestLLMCompletion:
             )
 
             result = client.llm.completion(
-                model=TEE_LLM.GPT_4O,
+                model=TEE_LLM.GPT_5,
                 prompt="Hello",
                 max_tokens=100,
             )
@@ -215,7 +226,7 @@ class TestLLMChat:
             )
 
             result = client.llm.chat(
-                model=TEE_LLM.GPT_4O,
+                model=TEE_LLM.GPT_5,
                 messages=[{"role": "user", "content": "Hello"}],
                 stream=False,
             )
@@ -233,7 +244,7 @@ class TestLLMChat:
             mock_stream.return_value = iter(mock_chunks)
 
             result = client.llm.chat(
-                model=TEE_LLM.GPT_4O,
+                model=TEE_LLM.GPT_5,
                 messages=[{"role": "user", "content": "Hello"}],
                 stream=True,
             )
