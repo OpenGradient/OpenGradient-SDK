@@ -359,6 +359,43 @@ def infer(ctx, model_cid: str, inference_mode: str, input_data, input_file: Path
         click.echo(f"Error running inference: {str(e)}")
 
 
+def _parse_response_format(ctx, response_format: Optional[str], response_format_file: Optional[Path]) -> Optional[dict]:
+    """Parse --response-format / --response-format-file into a dict (or None)."""
+    if response_format and response_format_file:
+        click.echo("Cannot specify both --response-format and --response-format-file")
+        ctx.exit(1)
+        return None
+
+    if response_format:
+        try:
+            parsed = json.loads(response_format)
+            if not isinstance(parsed, dict):
+                click.echo("--response-format must be a JSON object")
+                ctx.exit(1)
+                return None
+            return parsed
+        except json.JSONDecodeError as e:
+            click.echo(f"Failed to parse --response-format JSON: {e}")
+            ctx.exit(1)
+            return None
+
+    if response_format_file:
+        try:
+            with response_format_file.open("r") as f:
+                parsed = json.load(f)
+            if not isinstance(parsed, dict):
+                click.echo("Response format file must contain a JSON object")
+                ctx.exit(1)
+                return None
+            return parsed
+        except Exception as e:
+            click.echo(f"Failed to load response format from file: {e}")
+            ctx.exit(1)
+            return None
+
+    return None
+
+
 @cli.command()
 @click.option(
     "--model",
@@ -378,6 +415,13 @@ def infer(ctx, model_cid: str, inference_mode: str, input_data, input_file: Path
     default="settle-batch",
     help="Settlement mode for x402 payments: settle (payment only), settle-batch (batched, default), settle-metadata (full data)",
 )
+@click.option("--response-format", type=str, default=None, help="Response format config as JSON for structured outputs")
+@click.option(
+    "--response-format-file",
+    type=click.Path(exists=True, path_type=Path),
+    default=None,
+    help="Path to JSON file containing response format configuration",
+)
 @click.pass_context
 def completion(
     ctx,
@@ -387,6 +431,8 @@ def completion(
     max_tokens: int,
     stop_sequence: List[str],
     temperature: float,
+    response_format: Optional[str],
+    response_format_file: Optional[Path],
 ):
     """
     Run completion inference on an LLM model via TEE.
@@ -404,6 +450,9 @@ def completion(
     try:
         click.echo(f'Running TEE LLM completion for model "{model_cid}"\n')
 
+        # Parse response format
+        parsed_response_format = _parse_response_format(ctx, response_format, response_format_file)
+
         completion_output = client.llm.completion(
             model=model_cid,
             prompt=prompt,
@@ -411,6 +460,7 @@ def completion(
             stop_sequence=list(stop_sequence),
             temperature=temperature,
             x402_settlement_mode=x402SettlementModes[x402_settlement_mode],
+            response_format=parsed_response_format,
         )
 
         print_llm_completion_result(model_cid, completion_output.transaction_hash, completion_output.completion_output, is_vanilla=False)
@@ -472,6 +522,13 @@ def print_llm_completion_result(model_cid, tx_hash, llm_output, is_vanilla=True)
     help="Settlement mode for x402 payments: settle (payment only), settle-batch (batched, default), settle-metadata (full data)",
 )
 @click.option("--stream", is_flag=True, default=False, help="Stream the output from the LLM")
+@click.option("--response-format", type=str, default=None, help="Response format config as JSON for structured outputs")
+@click.option(
+    "--response-format-file",
+    type=click.Path(exists=True, path_type=Path),
+    default=None,
+    help="Path to JSON file containing response format configuration",
+)
 @click.pass_context
 def chat(
     ctx,
@@ -486,6 +543,8 @@ def chat(
     tool_choice: Optional[str],
     x402_settlement_mode: Optional[str],
     stream: bool,
+    response_format: Optional[str],
+    response_format_file: Optional[Path],
 ):
     """
     Run chat inference on an LLM model via TEE.
@@ -562,6 +621,9 @@ def chat(
         if not tools and not tools_file:
             parsed_tools = None
 
+        # Parse response format
+        parsed_response_format = _parse_response_format(ctx, response_format, response_format_file)
+
         result = client.llm.chat(
             model=model_cid,
             messages=messages,
@@ -572,6 +634,7 @@ def chat(
             tool_choice=tool_choice,
             x402_settlement_mode=x402SettlementModes[x402_settlement_mode],
             stream=stream,
+            response_format=parsed_response_format,
         )
 
         # Handle response based on streaming flag

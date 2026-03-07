@@ -73,6 +73,18 @@ python examples/llm_chat_streaming.py
 - Demonstrates real-time token streaming
 - Returns chunks as they arrive from the model
 
+#### `llm_structured_output.py`
+Demonstrates structured LLM output via JSON schema enforcement.
+
+```bash
+python examples/llm_structured_output.py
+```
+
+**What it does:**
+- Defines a JSON schema for sentiment analysis output
+- Uses `response_format` to constrain the model's response to match the schema
+- Parses the guaranteed-structured JSON response
+
 #### `llm_tool_calling.py`
 Demonstrates LLM tool/function calling.
 
