@@ -31,7 +31,7 @@ docs:
 # Testing
 # ============================================================================
 
-test: utils_test client_test langchain_adapter_test opg_token_test
+test: utils_test client_test langchain_adapter_test opg_token_test tee_registry_test
 
 utils_test:
 	pytest tests/utils_test.py -v
@@ -44,6 +44,9 @@ langchain_adapter_test:
 
 opg_token_test:
 	pytest tests/opg_token_test.py -v
+
+tee_registry_test:
+	pytest tests/tee_registry_test.py -v
 
 integrationtest:
 	python integrationtest/agent/test_agent.py

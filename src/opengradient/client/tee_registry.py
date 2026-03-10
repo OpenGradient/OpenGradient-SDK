@@ -2,7 +2,6 @@
 
 import logging
 import ssl
-import tempfile
 from dataclasses import dataclass
 from typing import List, Optional
 
@@ -138,15 +137,8 @@ def build_ssl_context_from_der(der_cert: bytes) -> ssl.SSLContext:
     """
     pem = ssl.DER_cert_to_PEM_cert(der_cert)
 
-    cert_file = tempfile.NamedTemporaryFile(
-        prefix="og_tee_tls_", suffix=".pem", delete=False, mode="w"
-    )
-    cert_file.write(pem)
-    cert_file.flush()
-    cert_file.close()
-
     ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-    ctx.load_verify_locations(cert_file.name)
+    ctx.load_verify_locations(cadata=pem)
     ctx.check_hostname = False  # TEE cert may be issued for a hostname; we connect via IP
     ctx.verify_mode = ssl.CERT_REQUIRED
     return ctx

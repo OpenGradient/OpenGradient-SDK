@@ -26,34 +26,34 @@ def mock_client():
 @pytest.fixture
 def model(mock_client):
     """Create an OpenGradientChatModel with a mocked client."""
-    return OpenGradientChatModel(private_key="0x" + "a" * 64, model_cid=TEE_LLM.GPT_4O)
+    return OpenGradientChatModel(private_key="0x" + "a" * 64, model_cid=TEE_LLM.GPT_5)
 
 
 class TestOpenGradientChatModel:
     def test_initialization(self, model):
         """Test model initializes with correct fields."""
-        assert model.model_cid == TEE_LLM.GPT_4O
+        assert model.model_cid == TEE_LLM.GPT_5
         assert model.max_tokens == 300
         assert model.x402_settlement_mode == x402SettlementMode.SETTLE_BATCH
         assert model._llm_type == "opengradient"
 
     def test_initialization_custom_max_tokens(self, mock_client):
         """Test model initializes with custom max_tokens."""
-        model = OpenGradientChatModel(private_key="0x" + "a" * 64, model_cid=TEE_LLM.CLAUDE_3_5_HAIKU, max_tokens=1000)
+        model = OpenGradientChatModel(private_key="0x" + "a" * 64, model_cid=TEE_LLM.CLAUDE_HAIKU_4_5, max_tokens=1000)
         assert model.max_tokens == 1000
 
     def test_initialization_custom_settlement_mode(self, mock_client):
         """Test model initializes with custom settlement mode."""
         model = OpenGradientChatModel(
             private_key="0x" + "a" * 64,
-            model_cid=TEE_LLM.GPT_4O,
+            model_cid=TEE_LLM.GPT_5,
             x402_settlement_mode=x402SettlementMode.SETTLE,
         )
         assert model.x402_settlement_mode == x402SettlementMode.SETTLE
 
     def test_identifying_params(self, model):
         """Test _identifying_params returns model name."""
-        assert model._identifying_params == {"model_name": TEE_LLM.GPT_4O}
+        assert model._identifying_params == {"model_name": TEE_LLM.GPT_5}
 
 
 class TestGenerate:
@@ -210,7 +210,7 @@ class TestMessageConversion:
         model._generate([HumanMessage(content="Hi")], stop=["END"])
 
         mock_client.llm.chat.assert_called_once_with(
-            model=TEE_LLM.GPT_4O,
+            model=TEE_LLM.GPT_5,
             messages=[{"role": "user", "content": "Hi"}],
             stop_sequence=["END"],
             max_tokens=300,
