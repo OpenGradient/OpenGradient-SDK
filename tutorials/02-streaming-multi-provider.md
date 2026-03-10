@@ -163,9 +163,9 @@ privacy/cost/transparency trade-off:
 
 | Mode | On-Chain Data | Use Case |
 |------|--------------|----------|
-| `SETTLE` | Input/output hashes only | **Privacy** -- prove execution without revealing content |
-| `SETTLE_BATCH` | Batch digest of multiple calls | **Cost efficiency** -- lower gas per inference (default) |
-| `SETTLE_METADATA` | Full model, input, output, metadata | **Transparency** -- complete audit trail |
+| `PRIVATE` | Input/output hashes only | **Privacy** -- prove execution without revealing content |
+| `BATCH_HASHED` | Batch digest of multiple calls | **Cost efficiency** -- lower gas per inference (default) |
+| `INDIVIDUAL_FULL` | Full model, input, output, metadata | **Transparency** -- complete audit trail |
 
 ```python
 # Privacy-first: only hashes stored on-chain
@@ -173,7 +173,7 @@ result_private = client.llm.chat(
     model=og.TEE_LLM.CLAUDE_SONNET_4_6,
     messages=[{"role": "user", "content": "Sensitive query here."}],
     max_tokens=100,
-    x402_settlement_mode=og.x402SettlementMode.SETTLE,
+    x402_settlement_mode=og.x402SettlementMode.PRIVATE,
 )
 print(f"Payment hash (SETTLE): {result_private.payment_hash}")
 
@@ -182,18 +182,18 @@ result_batch = client.llm.chat(
     model=og.TEE_LLM.CLAUDE_SONNET_4_6,
     messages=[{"role": "user", "content": "Regular query."}],
     max_tokens=100,
-    x402_settlement_mode=og.x402SettlementMode.SETTLE_BATCH,
+    x402_settlement_mode=og.x402SettlementMode.BATCH_HASHED,
 )
-print(f"Payment hash (SETTLE_BATCH): {result_batch.payment_hash}")
+print(f"Payment hash (BATCH_HASHED): {result_batch.payment_hash}")
 
 # Full transparency: everything on-chain
 result_transparent = client.llm.chat(
     model=og.TEE_LLM.CLAUDE_SONNET_4_6,
     messages=[{"role": "user", "content": "Auditable query."}],
     max_tokens=100,
-    x402_settlement_mode=og.x402SettlementMode.SETTLE_METADATA,
+    x402_settlement_mode=og.x402SettlementMode.INDIVIDUAL_FULL,
 )
-print(f"Payment hash (SETTLE_METADATA): {result_transparent.payment_hash}")
+print(f"Payment hash (INDIVIDUAL_FULL): {result_transparent.payment_hash}")
 ```
 
 All three calls return a `payment_hash` you can look up on-chain. The difference is
@@ -308,9 +308,9 @@ print("\n")
 
 # ── Settlement modes ──────────────────────────────────────────────────────
 for mode_name, mode in [
-    ("SETTLE",          og.x402SettlementMode.SETTLE),
-    ("SETTLE_BATCH",    og.x402SettlementMode.SETTLE_BATCH),
-    ("SETTLE_METADATA", og.x402SettlementMode.SETTLE_METADATA),
+    ("PRIVATE",          og.x402SettlementMode.PRIVATE),
+    ("BATCH_HASHED",    og.x402SettlementMode.BATCH_HASHED),
+    ("INDIVIDUAL_FULL", og.x402SettlementMode.INDIVIDUAL_FULL),
 ]:
     try:
         r = client.llm.chat(

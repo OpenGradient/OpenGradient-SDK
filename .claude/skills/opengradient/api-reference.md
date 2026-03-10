@@ -46,7 +46,7 @@ client.llm.chat(
     stream: bool = False,
     tools: list[dict] = None,      # Function definitions
     tool_choice: str = None,       # "auto", "none", or specific
-    x402_settlement_mode: og.x402SettlementMode = og.x402SettlementMode.SETTLE_BATCH,
+    x402_settlement_mode: og.x402SettlementMode = og.x402SettlementMode.BATCH_HASHED,
 ) -> TextGenerationOutput | TextGenerationStream
 ```
 
@@ -137,9 +137,9 @@ Returned by `client.alpha.infer()`.
 
 | Mode | Value | Description |
 |------|-------|-------------|
-| `SETTLE` | `"private"` | Hashes only — maximum privacy |
-| `SETTLE_METADATA` | `"individual"` | Full data on-chain — maximum transparency |
-| `SETTLE_BATCH` | `"batch"` | Aggregated hashes — most cost-efficient (default) |
+| `PRIVATE` | `"private"` | Hashes only — maximum privacy |
+| `INDIVIDUAL_FULL` | `"individual"` | Full data on-chain — maximum transparency |
+| `BATCH_HASHED` | `"batch"` | Aggregated hashes — most cost-efficient (default) |
 
 ---
 
@@ -242,7 +242,7 @@ llm = og.agents.langchain_adapter(
     private_key: str,
     model_cid: og.TEE_LLM,
     max_tokens: int = 300,
-    x402_settlement_mode: og.x402SettlementMode = og.x402SettlementMode.SETTLE_BATCH,
+    x402_settlement_mode: og.x402SettlementMode = og.x402SettlementMode.BATCH_HASHED,
 )
 ```
 

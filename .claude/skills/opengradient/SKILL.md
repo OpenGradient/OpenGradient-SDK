@@ -68,9 +68,9 @@ client.llm.ensure_opg_approval(opg_amount=5)
 
 ## Settlement Modes (`og.x402SettlementMode`)
 
-- `SETTLE` — Hashes only (maximum privacy)
-- `SETTLE_METADATA` — Full data on-chain (maximum transparency)
-- `SETTLE_BATCH` — Aggregated hashes (most cost-efficient, default)
+- `PRIVATE` — Hashes only (maximum privacy)
+- `INDIVIDUAL_FULL` — Full data on-chain (maximum transparency)
+- `BATCH_HASHED` — Aggregated hashes (most cost-efficient, default)
 
 ## Core Patterns
 

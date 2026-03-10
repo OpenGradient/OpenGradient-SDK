@@ -59,7 +59,7 @@ result = client.llm.chat(
     tools: List[Dict] = [],            # Optional: function calling
     tool_choice: str = None,           # "auto", "none", or specific tool
     stop_sequence: List[str] = None,
-    x402_settlement_mode: x402SettlementMode = x402SettlementMode.SETTLE_BATCH,
+    x402_settlement_mode: x402SettlementMode = x402SettlementMode.BATCH_HASHED,
     stream: bool = False,              # Enable streaming responses
 )
 # Returns: TextGenerationOutput (or TextGenerationStream if stream=True)
@@ -78,7 +78,7 @@ result = client.llm.completion(
     max_tokens: int = 100,
     temperature: float = 0.0,
     stop_sequence: List[str] = None,
-    x402_settlement_mode: x402SettlementMode = x402SettlementMode.SETTLE_BATCH,
+    x402_settlement_mode: x402SettlementMode = x402SettlementMode.BATCH_HASHED,
 )
 # Returns: TextGenerationOutput
 #   - completion_output: str (raw text)
@@ -272,9 +272,9 @@ og.InferenceMode.TEE        # Trusted Execution Environment
 og.InferenceMode.ZKML       # Zero-knowledge proof
 
 # x402 Payment Settlement Modes (for LLM calls)
-og.x402SettlementMode.SETTLE           # Input/output hashes only (most private)
-og.x402SettlementMode.SETTLE_BATCH     # Batch hashes (most cost-efficient, default)
-og.x402SettlementMode.SETTLE_METADATA  # Full data and metadata on-chain
+og.x402SettlementMode.PRIVATE           # Input/output hashes only (most private)
+og.x402SettlementMode.BATCH_HASHED     # Batch hashes (most cost-efficient, default)
+og.x402SettlementMode.INDIVIDUAL_FULL  # Full data and metadata on-chain
 
 # Workflow data types
 og.CandleType.OPEN, .HIGH, .LOW, .CLOSE, .VOLUME
