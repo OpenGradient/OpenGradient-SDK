@@ -176,7 +176,7 @@ class LLM:
         max_tokens: int = 100,
         stop_sequence: Optional[List[str]] = None,
         temperature: float = 0.0,
-        x402_settlement_mode: Optional[x402SettlementMode] = x402SettlementMode.BATCH_HASHED,
+        x402_settlement_mode: x402SettlementMode = x402SettlementMode.BATCH_HASHED,
     ) -> TextGenerationOutput:
         """
         Perform inference on an LLM model using completions via TEE.
@@ -218,7 +218,7 @@ class LLM:
         max_tokens: int = 100,
         stop_sequence: Optional[List[str]] = None,
         temperature: float = 0.0,
-        x402_settlement_mode: Optional[x402SettlementMode] = x402SettlementMode.BATCH_HASHED,
+        x402_settlement_mode: x402SettlementMode = x402SettlementMode.BATCH_HASHED,
     ) -> TextGenerationOutput:
         """
         Route completion request to OpenGradient TEE LLM server with x402 payments.
@@ -278,7 +278,7 @@ class LLM:
         temperature: float = 0.0,
         tools: Optional[List[Dict]] = None,
         tool_choice: Optional[str] = None,
-        x402_settlement_mode: Optional[x402SettlementMode] = x402SettlementMode.BATCH_HASHED,
+        x402_settlement_mode: x402SettlementMode = x402SettlementMode.BATCH_HASHED,
         stream: bool = False,
     ) -> Union[TextGenerationOutput, TextGenerationStream]:
         """
@@ -431,8 +431,8 @@ class LLM:
         temperature: float = 0.0,
         tools: Optional[List[Dict]] = None,
         tool_choice: Optional[str] = None,
-        x402_settlement_mode: x402SettlementMode = x402SettlementMode.SETTLE_BATCH,
-    ):
+        x402_settlement_mode: x402SettlementMode = x402SettlementMode.BATCH_HASHED,
+    ) -> TextGenerationStream:
         """
         Transparent non-streaming fallback for tool-call requests with stream=True.
 

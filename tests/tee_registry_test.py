@@ -27,16 +27,16 @@ def _make_tee_info(
 ):
     """Build a tuple matching the TEEInfo struct order from the new contract."""
     return (
-        "0xOwner",          # owner
-        payment_address,    # paymentAddress
-        endpoint,           # endpoint
-        pub_key,            # publicKey
-        tls_cert_der,       # tlsCertificate
-        b"\x00" * 32,      # pcrHash
-        0,                  # teeType
-        True,               # enabled (always True from getActiveTEEs)
-        1000,               # registeredAt
-        2000,               # lastHeartbeatAt
+        "0xOwner",  # owner
+        payment_address,  # paymentAddress
+        endpoint,  # endpoint
+        pub_key,  # publicKey
+        tls_cert_der,  # tlsCertificate
+        b"\x00" * 32,  # pcrHash
+        0,  # teeType
+        True,  # enabled (always True from getActiveTEEs)
+        1000,  # registeredAt
+        2000,  # lastHeartbeatAt
     )
 
 
@@ -131,10 +131,7 @@ class TestGetActiveTeesByType:
     def test_multiple_active_tees(self, mock_contract):
         registry, contract = mock_contract
 
-        infos = [
-            _make_tee_info(endpoint=f"https://tee-{i}.example.com", pub_key=f"pubkey{i}".encode())
-            for i in range(3)
-        ]
+        infos = [_make_tee_info(endpoint=f"https://tee-{i}.example.com", pub_key=f"pubkey{i}".encode()) for i in range(3)]
         contract.functions.getActiveTEEs.return_value.call.return_value = infos
 
         result = registry.get_active_tees_by_type(TEE_TYPE_LLM_PROXY)

@@ -413,7 +413,9 @@ def completion(
             x402_settlement_mode=x402SettlementModes[x402_settlement_mode],
         )
 
-        print_llm_completion_result(model_cid, completion_output.transaction_hash, completion_output.completion_output, is_vanilla=False, result=completion_output)
+        print_llm_completion_result(
+            model_cid, completion_output.transaction_hash, completion_output.completion_output, is_vanilla=False, result=completion_output
+        )
 
     except Exception as e:
         click.echo(f"Error running LLM completion: {str(e)}")
@@ -597,7 +599,9 @@ def chat(
         if stream:
             print_streaming_chat_result(model_cid, result, is_tee=True)
         else:
-            print_llm_chat_result(model_cid, result.transaction_hash, result.finish_reason, result.chat_output, is_vanilla=False, result=result)
+            print_llm_chat_result(
+                model_cid, result.transaction_hash, result.finish_reason, result.chat_output, is_vanilla=False, result=result
+            )
 
     except Exception as e:
         click.echo(f"Error running LLM chat inference: {str(e)}")

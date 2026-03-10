@@ -138,10 +138,7 @@ class Client:
                     llm_tls_cert_der = tee.tls_cert_der
                     logger.info("Using TEE endpoint from registry: %s (teeId=%s)", tee.endpoint, tee.tee_id)
                 else:
-                    raise ValueError(
-                        "No active LLM proxy TEE found in the registry. "
-                        "Pass og_llm_server_url explicitly to override."
-                    )
+                    raise ValueError("No active LLM proxy TEE found in the registry. Pass og_llm_server_url explicitly to override.")
             except ValueError:
                 raise
             except Exception as e:
