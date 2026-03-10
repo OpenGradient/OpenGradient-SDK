@@ -312,5 +312,5 @@ class TestX402SettlementMode:
     def test_settlement_modes_values(self):
         """Test settlement mode enum values."""
         assert x402SettlementMode.PRIVATE == "private"
-        assert x402SettlementMode.BATCH == "batch"
-        assert x402SettlementMode.METADATA == "individual"
+        assert x402SettlementMode.BATCH_HASHED == "batch"
+        assert x402SettlementMode.INDIVIDUAL_FULL == "individual"

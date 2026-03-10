@@ -34,7 +34,7 @@ class TestOpenGradientChatModel:
         """Test model initializes with correct fields."""
         assert model.model_cid == TEE_LLM.GPT_5
         assert model.max_tokens == 300
-        assert model.x402_settlement_mode == x402SettlementMode.BATCH
+        assert model.x402_settlement_mode == x402SettlementMode.BATCH_HASHED
         assert model._llm_type == "opengradient"
 
     def test_initialization_custom_max_tokens(self, mock_client):
@@ -215,7 +215,7 @@ class TestMessageConversion:
             stop_sequence=["END"],
             max_tokens=300,
             tools=[],
-            x402_settlement_mode=x402SettlementMode.BATCH,
+            x402_settlement_mode=x402SettlementMode.BATCH_HASHED,
         )
 
 

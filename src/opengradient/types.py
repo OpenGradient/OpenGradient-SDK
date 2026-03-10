@@ -25,17 +25,17 @@ class x402SettlementMode(str, Enum):
             Suitable when payment settlement is required without any on-chain record of execution.
             CLI usage: --settlement-mode private
 
-        METADATA: Individual settlement with full metadata.
-            Records input data, output data, timestamp, and verification on-chain.
-            Provides maximum transparency and auditability.
-            Higher gas costs due to larger data storage.
-            CLI usage: --settlement-mode metadata
-
-        BATCH: Batch settlement (default).
+        BATCH_HASHED: Batch settlement with hashes (default).
             Aggregates multiple inferences into a single settlement transaction
             using a Merkle tree containing input hashes, output hashes, and signatures.
             Most cost-efficient for high-volume applications.
-            CLI usage: --settlement-mode batch
+            CLI usage: --settlement-mode batch-hashed
+
+        INDIVIDUAL_FULL: Individual settlement with full metadata.
+            Records input data, output data, timestamp, and verification on-chain.
+            Provides maximum transparency and auditability.
+            Higher gas costs due to larger data storage.
+            CLI usage: --settlement-mode individual-full
 
     Examples:
         >>> from opengradient import x402SettlementMode
@@ -45,8 +45,8 @@ class x402SettlementMode(str, Enum):
     """
 
     PRIVATE = "private"
-    METADATA = "individual"
-    BATCH = "batch"
+    BATCH_HASHED = "batch"
+    INDIVIDUAL_FULL = "individual"
 
 
 class CandleOrder(IntEnum):
