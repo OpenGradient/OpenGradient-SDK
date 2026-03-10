@@ -281,6 +281,7 @@ class StreamChunk:
             tee_timestamp=data.get("tee_timestamp"),
         )
 
+
 @dataclass
 class TextGenerationStream:
     """
@@ -473,6 +474,7 @@ class TEE_LLM(str, Enum):
             messages=[{"role": "user", "content": "Hello"}],
         )
     """
+
     # OpenAI models via TEE
     GPT_4_1_2025_04_14 = "openai/gpt-4.1-2025-04-14"
     O4_MINI = "openai/o4-mini"

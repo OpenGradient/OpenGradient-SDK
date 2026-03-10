@@ -72,9 +72,7 @@ def _fetch_tls_cert_as_ssl_context(server_url: str) -> Optional[ssl.SSLContext]:
         return None
 
     # Write PEM to a temp file so we can load it into the SSLContext
-    cert_file = tempfile.NamedTemporaryFile(
-        prefix="og_tee_tls_", suffix=".pem", delete=False, mode="w"
-    )
+    cert_file = tempfile.NamedTemporaryFile(prefix="og_tee_tls_", suffix=".pem", delete=False, mode="w")
     cert_file.write(pem_cert)
     cert_file.flush()
     cert_file.close()
@@ -115,12 +113,8 @@ class LLM:
         self._og_llm_server_url = og_llm_server_url
         self._og_llm_streaming_server_url = og_llm_streaming_server_url
 
-        self._tls_verify: Union[ssl.SSLContext, bool] = (
-            _fetch_tls_cert_as_ssl_context(self._og_llm_server_url) or True
-        )
-        self._streaming_tls_verify: Union[ssl.SSLContext, bool] = (
-            _fetch_tls_cert_as_ssl_context(self._og_llm_streaming_server_url) or True
-        )
+        self._tls_verify: Union[ssl.SSLContext, bool] = _fetch_tls_cert_as_ssl_context(self._og_llm_server_url) or True
+        self._streaming_tls_verify: Union[ssl.SSLContext, bool] = _fetch_tls_cert_as_ssl_context(self._og_llm_streaming_server_url) or True
 
         signer = EthAccountSignerv2(self._wallet_account)
         self._x402_client = x402Clientv2()
@@ -396,9 +390,7 @@ class LLM:
 
             try:
                 endpoint = "/v1/chat/completions"
-                response = await self._request_client.post(
-                    self._og_llm_server_url + endpoint, json=payload, headers=headers, timeout=60
-                )
+                response = await self._request_client.post(self._og_llm_server_url + endpoint, json=payload, headers=headers, timeout=60)
 
                 response.raise_for_status()
                 content = await response.aread()
@@ -412,8 +404,7 @@ class LLM:
                 content = message.get("content")
                 if isinstance(content, list):
                     message["content"] = " ".join(
-                        block.get("text", "") for block in content
-                        if isinstance(block, dict) and block.get("type") == "text"
+                        block.get("text", "") for block in content if isinstance(block, dict) and block.get("type") == "text"
                     ).strip()
 
                 return TextGenerationOutput(

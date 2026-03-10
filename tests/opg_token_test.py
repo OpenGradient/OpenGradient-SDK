@@ -252,9 +252,7 @@ class TestPermit2ApprovalResult:
         assert result.tx_hash is None
 
     def test_fields(self):
-        result = Permit2ApprovalResult(
-            allowance_before=0, allowance_after=500, tx_hash="0xabc"
-        )
+        result = Permit2ApprovalResult(allowance_before=0, allowance_after=500, tx_hash="0xabc")
         assert result.allowance_before == 0
         assert result.allowance_after == 500
         assert result.tx_hash == "0xabc"
