@@ -97,7 +97,7 @@ runs inference using the specified OpenGradient model.
 
         This is required to ensure the output is compatible with the tool framework.
 
-        Default returns the InferenceResult object.
+        This argument is required and has no default formatter.
 
         InferenceResult has attributes:
             * transaction_hash (str): Blockchain hash for the transaction

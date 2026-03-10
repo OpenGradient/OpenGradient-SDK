@@ -179,7 +179,7 @@ result = client.llm.chat(
     # "auto" lets the model decide whether to call a tool or respond with text.
     # "none" forces a text-only response.
     tool_choice="auto",
-    x402_settlement_mode=og.x402SettlementMode.SETTLE_BATCH,
+    x402_settlement_mode=og.x402SettlementMode.BATCH_HASHED,
 )
 ```
 
@@ -225,7 +225,7 @@ def run_agent(client: og.Client, user_query: str) -> str:
                 temperature=0.0,
                 tools=TOOLS,
                 tool_choice="auto",
-                x402_settlement_mode=og.x402SettlementMode.SETTLE_BATCH,
+                x402_settlement_mode=og.x402SettlementMode.BATCH_HASHED,
             )
         except Exception as e:
             print(f"  LLM call failed: {e}")
@@ -376,7 +376,7 @@ def run_agent(user_query: str) -> str:
             result = client.llm.chat(
                 model=og.TEE_LLM.GPT_5, messages=messages, max_tokens=600,
                 temperature=0.0, tools=TOOLS, tool_choice="auto",
-                x402_settlement_mode=og.x402SettlementMode.SETTLE_BATCH,
+                x402_settlement_mode=og.x402SettlementMode.BATCH_HASHED,
             )
         except Exception as e:
             return f"Error: {e}"
@@ -409,5 +409,5 @@ if __name__ == "__main__":
   even during multi-turn tool loops. See **Tutorial 2** for streaming basics.
 - **Use different providers**: Swap `og.TEE_LLM.GPT_5` for `CLAUDE_SONNET_4_6` or
   `GEMINI_2_5_FLASH` -- tool calling works across all providers.
-- **Add settlement transparency**: Switch to `SETTLE_METADATA` to store the full
+- **Add settlement transparency**: Switch to `INDIVIDUAL_FULL` to store the full
   tool-calling reasoning chain on-chain for audit purposes.

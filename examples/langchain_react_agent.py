@@ -24,7 +24,7 @@ llm = og.agents.langchain_adapter(
     private_key=os.environ.get("OG_PRIVATE_KEY"),
     model_cid=og.TEE_LLM.GPT_4_1_2025_04_14,
     max_tokens=300,
-    x402_settlement_mode=og.x402SettlementMode.SETTLE_METADATA,
+    x402_settlement_mode=og.x402SettlementMode.INDIVIDUAL_FULL,
 )
 
 

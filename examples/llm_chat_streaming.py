@@ -16,7 +16,7 @@ messages = [
 stream = client.llm.chat(
     model=og.TEE_LLM.GPT_4_1_2025_04_14,
     messages=messages,
-    x402_settlement_mode=og.x402SettlementMode.SETTLE_METADATA,
+    x402_settlement_mode=og.x402SettlementMode.INDIVIDUAL_FULL,
     stream=True,
     max_tokens=300,
 )
