@@ -69,9 +69,9 @@ InferenceModes = {
 }
 
 x402SettlementModes = {
-    "settle-batch": x402SettlementMode.SETTLE_BATCH,
-    "settle": x402SettlementMode.SETTLE,
-    "settle-metadata": x402SettlementMode.SETTLE_METADATA,
+    "batch-hashed": x402SettlementMode.BATCH_HASHED,
+    "private": x402SettlementMode.PRIVATE,
+    "individual-full": x402SettlementMode.INDIVIDUAL_FULL,
 }
 
 
@@ -375,8 +375,8 @@ def infer(ctx, model_cid: str, inference_mode: str, input_data, input_file: Path
     "--x402-settlement-mode",
     "x402_settlement_mode",
     type=click.Choice(x402SettlementModes.keys()),
-    default="settle-batch",
-    help="Settlement mode for x402 payments: settle (payment only), settle-batch (batched, default), settle-metadata (full data)",
+    default="batch-hashed",
+    help="Settlement mode for x402 payments: private (payment only), batch-hashed (default), individual-full (full data with verification)",
 )
 @click.pass_context
 def completion(
@@ -468,8 +468,8 @@ def print_llm_completion_result(model_cid, tx_hash, llm_output, is_vanilla=True)
 @click.option(
     "--x402-settlement-mode",
     type=click.Choice(x402SettlementModes.keys()),
-    default="settle-batch",
-    help="Settlement mode for x402 payments: settle (payment only), settle-batch (batched, default), settle-metadata (full data)",
+    default="batch-hashed",
+    help="Settlement mode for x402 payments: private (payment only), batch-hashed (default), individual-full (full data with verification)",
 )
 @click.option("--stream", is_flag=True, default=False, help="Stream the output from the LLM")
 @click.pass_context
@@ -611,10 +611,7 @@ def print_llm_chat_result(model_cid, tx_hash, finish_reason, chat_output, is_van
         if value is not None and value not in ("", "[]", []):
             # Normalize list-of-blocks content (e.g. Gemini 3 thought signatures)
             if key == "content" and isinstance(value, list):
-                text = " ".join(
-                    block.get("text", "") for block in value
-                    if isinstance(block, dict) and block.get("type") == "text"
-                ).strip()
+                text = " ".join(block.get("text", "") for block in value if isinstance(block, dict) and block.get("type") == "text").strip()
                 click.echo(f"{key}: {text}")
             else:
                 click.echo(f"{key}: {value}")

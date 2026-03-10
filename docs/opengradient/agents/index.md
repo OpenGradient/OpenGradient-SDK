@@ -23,7 +23,7 @@ def langchain_adapter(
     private_key: str,
     model_cid: `TEE_LLM`,
     max_tokens: int = 300,
-    x402_settlement_mode: `x402SettlementMode` = x402SettlementMode.SETTLE_BATCH
+    x402_settlement_mode: `x402SettlementMode` = x402SettlementMode.BATCH_HASHED
 ) ‑> [OpenGradientChatModel](./og_langchain)
 ```
 Returns an OpenGradient LLM that implements LangChain's LLM interface

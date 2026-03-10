@@ -71,7 +71,7 @@ class OpenGradientChatModel(BaseChatModel):
 
     model_cid: str
     max_tokens: int = 300
-    x402_settlement_mode: Optional[str] = x402SettlementMode.SETTLE_BATCH
+    x402_settlement_mode: Optional[str] = x402SettlementMode.BATCH_HASHED
 
     _client: Client = PrivateAttr()
     _tools: List[Dict] = PrivateAttr(default_factory=list)
@@ -81,7 +81,7 @@ class OpenGradientChatModel(BaseChatModel):
         private_key: str,
         model_cid: TEE_LLM,
         max_tokens: int = 300,
-        x402_settlement_mode: Optional[x402SettlementMode] = x402SettlementMode.SETTLE_BATCH,
+        x402_settlement_mode: Optional[x402SettlementMode] = x402SettlementMode.BATCH_HASHED,
         **kwargs,
     ):
         super().__init__(

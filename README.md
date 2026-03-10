@@ -293,16 +293,16 @@ Manage, host, and execute models through the Model Hub with direct integration i
 
 OpenGradient supports multiple settlement modes through the x402 payment protocol:
 
-- **SETTLE**: Records cryptographic hashes only (maximum privacy)
-- **SETTLE_METADATA**: Records complete input/output data (maximum transparency)
-- **SETTLE_BATCH**: Aggregates multiple inferences (most cost-efficient)
+- **PRIVATE**: Payment only, no input/output data on-chain (maximum privacy)
+- **BATCH_HASHED**: Aggregates inferences into a Merkle tree with input/output hashes and signatures (most cost-efficient, default)
+- **INDIVIDUAL_FULL**: Records input, output, timestamp, and verification on-chain (maximum auditability)
 
 Specify settlement mode in your requests:
 ```python
 result = client.llm.chat(
     model=og.TEE_LLM.GPT_5,
     messages=[{"role": "user", "content": "Hello"}],
-    x402_settlement_mode=og.x402SettlementMode.SETTLE_BATCH,
+    x402_settlement_mode=og.x402SettlementMode.BATCH_HASHED,
 )
 ```
 
