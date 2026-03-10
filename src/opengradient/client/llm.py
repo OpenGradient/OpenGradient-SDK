@@ -2,13 +2,10 @@
 
 import asyncio
 import json
-import logging
 import ssl
 import threading
 from queue import Queue
 from typing import AsyncGenerator, Dict, List, Optional, Union
-
-logger = logging.getLogger(__name__)
 
 import httpx
 from eth_account.account import LocalAccount
