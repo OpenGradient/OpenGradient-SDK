@@ -22,21 +22,21 @@ from src.opengradient.client.tee_registry import (
 def _make_tee_info(
     endpoint="https://tee.example.com",
     payment_address="0xPayment",
+    pub_key=b"pubkey",
     tls_cert_der=b"\x01\x02\x03",
-    active=True,
 ):
-    """Build a tuple matching the TEEInfo struct order from the contract."""
+    """Build a tuple matching the TEEInfo struct order from the new contract."""
     return (
         "0xOwner",          # owner
         payment_address,    # paymentAddress
         endpoint,           # endpoint
-        b"pubkey",          # publicKey
+        pub_key,            # publicKey
         tls_cert_der,       # tlsCertificate
-        b"pcrhash",         # pcrHash
+        b"\x00" * 32,      # pcrHash
         0,                  # teeType
-        active,             # active
+        True,               # enabled (always True from getActiveTEEs)
         1000,               # registeredAt
-        2000,               # lastUpdatedAt
+        2000,               # lastHeartbeatAt
     )
 
 
@@ -78,6 +78,7 @@ def mock_contract():
         mock_web3_cls.return_value = mock_web3
         mock_web3_cls.HTTPProvider.return_value = MagicMock()
         mock_web3_cls.to_checksum_address.side_effect = lambda x: x
+        mock_web3_cls.keccak.side_effect = lambda data: b"\xaa" * 32 if data == b"pubkey" else b"\xbb" * 32
 
         contract = MagicMock()
         mock_web3.eth.contract.return_value = contract
@@ -93,34 +94,20 @@ class TestGetActiveTeesByType:
     def test_returns_active_tees(self, mock_contract):
         registry, contract = mock_contract
 
-        tee_id = b"\xaa" * 32
-        contract.functions.getTEEsByType.return_value.call.return_value = [tee_id]
-        contract.functions.getTEE.return_value.call.return_value = _make_tee_info()
+        contract.functions.getActiveTEEs.return_value.call.return_value = [_make_tee_info()]
 
         result = registry.get_active_tees_by_type(TEE_TYPE_LLM_PROXY)
 
         assert len(result) == 1
-        assert result[0].tee_id == tee_id.hex()
         assert result[0].endpoint == "https://tee.example.com"
         assert result[0].payment_address == "0xPayment"
         assert result[0].tls_cert_der == b"\x01\x02\x03"
-
-    def test_skips_inactive_tees(self, mock_contract):
-        registry, contract = mock_contract
-
-        tee_id = b"\xbb" * 32
-        contract.functions.getTEEsByType.return_value.call.return_value = [tee_id]
-        contract.functions.getTEE.return_value.call.return_value = _make_tee_info(active=False)
-
-        result = registry.get_active_tees_by_type(TEE_TYPE_LLM_PROXY)
-        assert len(result) == 0
+        contract.functions.getActiveTEEs.assert_called_once_with(TEE_TYPE_LLM_PROXY)
 
     def test_skips_tee_with_empty_endpoint(self, mock_contract):
         registry, contract = mock_contract
 
-        tee_id = b"\xcc" * 32
-        contract.functions.getTEEsByType.return_value.call.return_value = [tee_id]
-        contract.functions.getTEE.return_value.call.return_value = _make_tee_info(endpoint="")
+        contract.functions.getActiveTEEs.return_value.call.return_value = [_make_tee_info(endpoint="")]
 
         result = registry.get_active_tees_by_type(TEE_TYPE_LLM_PROXY)
         assert len(result) == 0
@@ -128,9 +115,7 @@ class TestGetActiveTeesByType:
     def test_skips_tee_with_empty_cert(self, mock_contract):
         registry, contract = mock_contract
 
-        tee_id = b"\xdd" * 32
-        contract.functions.getTEEsByType.return_value.call.return_value = [tee_id]
-        contract.functions.getTEE.return_value.call.return_value = _make_tee_info(tls_cert_der=b"")
+        contract.functions.getActiveTEEs.return_value.call.return_value = [_make_tee_info(tls_cert_der=b"")]
 
         result = registry.get_active_tees_by_type(TEE_TYPE_LLM_PROXY)
         assert len(result) == 0
@@ -138,46 +123,19 @@ class TestGetActiveTeesByType:
     def test_returns_empty_on_rpc_failure(self, mock_contract):
         registry, contract = mock_contract
 
-        contract.functions.getTEEsByType.return_value.call.side_effect = Exception("RPC error")
+        contract.functions.getActiveTEEs.return_value.call.side_effect = Exception("RPC error")
 
         result = registry.get_active_tees_by_type(TEE_TYPE_LLM_PROXY)
         assert result == []
 
-    def test_skips_individual_tee_on_lookup_failure(self, mock_contract):
-        registry, contract = mock_contract
-
-        good_id = b"\xaa" * 32
-        bad_id = b"\xbb" * 32
-        contract.functions.getTEEsByType.return_value.call.return_value = [bad_id, good_id]
-
-        def get_tee_side_effect(tee_id):
-            mock = MagicMock()
-            if tee_id == bad_id:
-                mock.call.side_effect = Exception("lookup failed")
-            else:
-                mock.call.return_value = _make_tee_info()
-            return mock
-
-        contract.functions.getTEE.side_effect = get_tee_side_effect
-
-        result = registry.get_active_tees_by_type(TEE_TYPE_LLM_PROXY)
-        assert len(result) == 1
-        assert result[0].tee_id == good_id.hex()
-
     def test_multiple_active_tees(self, mock_contract):
         registry, contract = mock_contract
 
-        ids = [b"\x01" * 32, b"\x02" * 32, b"\x03" * 32]
-        contract.functions.getTEEsByType.return_value.call.return_value = ids
-
-        def get_tee_side_effect(tee_id):
-            mock = MagicMock()
-            mock.call.return_value = _make_tee_info(
-                endpoint=f"https://tee-{tee_id.hex()[:4]}.example.com"
-            )
-            return mock
-
-        contract.functions.getTEE.side_effect = get_tee_side_effect
+        infos = [
+            _make_tee_info(endpoint=f"https://tee-{i}.example.com", pub_key=f"pubkey{i}".encode())
+            for i in range(3)
+        ]
+        contract.functions.getActiveTEEs.return_value.call.return_value = infos
 
         result = registry.get_active_tees_by_type(TEE_TYPE_LLM_PROXY)
         assert len(result) == 3
@@ -186,30 +144,31 @@ class TestGetActiveTeesByType:
         """Ensure validator type queries work the same way."""
         registry, contract = mock_contract
 
-        contract.functions.getTEEsByType.return_value.call.return_value = []
+        contract.functions.getActiveTEEs.return_value.call.return_value = []
 
         result = registry.get_active_tees_by_type(TEE_TYPE_VALIDATOR)
         assert result == []
-        contract.functions.getTEEsByType.assert_called_once_with(TEE_TYPE_VALIDATOR)
+        contract.functions.getActiveTEEs.assert_called_once_with(TEE_TYPE_VALIDATOR)
 
 
 class TestGetLlmTee:
     def test_returns_first_active_tee(self, mock_contract):
         registry, contract = mock_contract
 
-        ids = [b"\x01" * 32, b"\x02" * 32]
-        contract.functions.getTEEsByType.return_value.call.return_value = ids
-        contract.functions.getTEE.return_value.call.return_value = _make_tee_info()
+        contract.functions.getActiveTEEs.return_value.call.return_value = [
+            _make_tee_info(endpoint="https://tee-1.example.com"),
+            _make_tee_info(endpoint="https://tee-2.example.com"),
+        ]
 
         result = registry.get_llm_tee()
 
         assert result is not None
-        assert result.tee_id == ids[0].hex()
+        assert result.endpoint == "https://tee-1.example.com"
 
     def test_returns_none_when_no_tees(self, mock_contract):
         registry, contract = mock_contract
 
-        contract.functions.getTEEsByType.return_value.call.return_value = []
+        contract.functions.getActiveTEEs.return_value.call.return_value = []
 
         result = registry.get_llm_tee()
         assert result is None
@@ -217,10 +176,10 @@ class TestGetLlmTee:
     def test_queries_llm_proxy_type(self, mock_contract):
         registry, contract = mock_contract
 
-        contract.functions.getTEEsByType.return_value.call.return_value = []
+        contract.functions.getActiveTEEs.return_value.call.return_value = []
         registry.get_llm_tee()
 
-        contract.functions.getTEEsByType.assert_called_once_with(TEE_TYPE_LLM_PROXY)
+        contract.functions.getActiveTEEs.assert_called_once_with(TEE_TYPE_LLM_PROXY)
 
 
 # --- build_ssl_context_from_der Tests ---

@@ -3,7 +3,7 @@
 import logging
 import ssl
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List, NamedTuple, Optional
 
 from web3 import Web3
 
@@ -14,6 +14,21 @@ logger = logging.getLogger(__name__)
 # TEE types as defined in the registry contract
 TEE_TYPE_LLM_PROXY = 0
 TEE_TYPE_VALIDATOR = 1
+
+
+class TEEInfo(NamedTuple):
+    """Mirrors the on-chain TEERegistry.TEEInfo struct."""
+
+    owner: str
+    payment_address: str
+    endpoint: str
+    public_key: bytes
+    tls_certificate: bytes
+    pcr_hash: bytes
+    tee_type: int
+    enabled: bool
+    registered_at: int
+    last_heartbeat_at: int
 
 
 @dataclass
@@ -53,6 +68,10 @@ class TEERegistry:
         """
         Return all active TEEs of the given type with their endpoints and TLS certs.
 
+        Uses the contract's ``getActiveTEEs(teeType)`` which returns only TEEs that
+        are enabled, have a valid (non-revoked) PCR, and a fresh heartbeat — all in
+        a single on-chain call.
+
         Args:
             tee_type: Integer TEE type (0=LLMProxy, 1=Validator).
 
@@ -62,45 +81,35 @@ class TEERegistry:
         type_label = {TEE_TYPE_LLM_PROXY: "LLMProxy", TEE_TYPE_VALIDATOR: "Validator"}.get(tee_type, str(tee_type))
 
         try:
-            tee_ids: List[bytes] = self._contract.functions.getTEEsByType(tee_type).call()
+            tee_infos = self._contract.functions.getActiveTEEs(tee_type).call()
         except Exception as e:
-            logger.warning("Failed to fetch TEE IDs from registry (type=%s): %s", type_label, e)
+            logger.warning("Failed to fetch active TEEs from registry (type=%s): %s", type_label, e)
             return []
 
-        logger.debug("Registry returned %d TEE ID(s) for type=%s", len(tee_ids), type_label)
+        logger.debug("Registry returned %d active TEE(s) for type=%s", len(tee_infos), type_label)
 
         endpoints: List[TEEEndpoint] = []
-        for tee_id in tee_ids:
-            tee_id_hex = tee_id.hex()
-            try:
-                info = self._contract.functions.getTEE(tee_id).call()
-                # TEEInfo tuple order: owner, paymentAddress, endpoint, publicKey,
-                #                     tlsCertificate, pcrHash, teeType, active,
-                #                     registeredAt, lastUpdatedAt
-                owner, payment_address, endpoint, _pub_key, tls_cert_der, _pcr_hash, _tee_type, active, _reg_at, _upd_at = info
-                if not active:
-                    logger.debug("  teeId=%s  status=inactive  endpoint=%s  (skipped)", tee_id_hex, endpoint)
-                    continue
-                if not endpoint or not tls_cert_der:
-                    logger.warning("  teeId=%s  missing endpoint or TLS cert  (skipped)", tee_id_hex)
-                    continue
-                logger.info(
-                    "  teeId=%s  endpoint=%s  paymentAddress=%s  certBytes=%d",
-                    tee_id_hex,
-                    endpoint,
-                    payment_address,
-                    len(tls_cert_der),
+        for raw in tee_infos:
+            tee = TEEInfo(*raw)
+            tee_id_hex = Web3.keccak(tee.public_key).hex()
+            if not tee.endpoint or not tee.tls_certificate:
+                logger.warning("  teeId=%s  missing endpoint or TLS cert  (skipped)", tee_id_hex)
+                continue
+            logger.info(
+                "  teeId=%s  endpoint=%s  paymentAddress=%s  certBytes=%d",
+                tee_id_hex,
+                tee.endpoint,
+                tee.payment_address,
+                len(tee.tls_certificate),
+            )
+            endpoints.append(
+                TEEEndpoint(
+                    tee_id=tee_id_hex,
+                    endpoint=tee.endpoint,
+                    tls_cert_der=bytes(tee.tls_certificate),
+                    payment_address=tee.payment_address,
                 )
-                endpoints.append(
-                    TEEEndpoint(
-                        tee_id=tee_id_hex,
-                        endpoint=endpoint,
-                        tls_cert_der=bytes(tls_cert_der),
-                        payment_address=payment_address,
-                    )
-                )
-            except Exception as e:
-                logger.warning("Failed to fetch TEE info for teeId=%s: %s", tee_id_hex, e)
+            )
 
         logger.info("Discovered %d active %s TEE(s) from registry", len(endpoints), type_label)
         return endpoints
