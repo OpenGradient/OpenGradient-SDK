@@ -69,9 +69,9 @@ InferenceModes = {
 }
 
 x402SettlementModes = {
-    "settle-batch": x402SettlementMode.SETTLE_BATCH,
-    "settle": x402SettlementMode.SETTLE,
-    "settle-metadata": x402SettlementMode.SETTLE_METADATA,
+    "batch": x402SettlementMode.BATCH,
+    "private": x402SettlementMode.PRIVATE,
+    "metadata": x402SettlementMode.METADATA,
 }
 
 
@@ -375,8 +375,8 @@ def infer(ctx, model_cid: str, inference_mode: str, input_data, input_file: Path
     "--x402-settlement-mode",
     "x402_settlement_mode",
     type=click.Choice(x402SettlementModes.keys()),
-    default="settle-batch",
-    help="Settlement mode for x402 payments: settle (payment only), settle-batch (batched, default), settle-metadata (full data)",
+    default="batch",
+    help="Settlement mode for x402 payments: private (payment only), batch (default), metadata (full data with verification)",
 )
 @click.pass_context
 def completion(
@@ -468,8 +468,8 @@ def print_llm_completion_result(model_cid, tx_hash, llm_output, is_vanilla=True)
 @click.option(
     "--x402-settlement-mode",
     type=click.Choice(x402SettlementModes.keys()),
-    default="settle-batch",
-    help="Settlement mode for x402 payments: settle (payment only), settle-batch (batched, default), settle-metadata (full data)",
+    default="batch",
+    help="Settlement mode for x402 payments: private (payment only), batch (default), metadata (full data with verification)",
 )
 @click.option("--stream", is_flag=True, default=False, help="Stream the output from the LLM")
 @click.pass_context

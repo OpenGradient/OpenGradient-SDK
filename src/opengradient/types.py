@@ -19,41 +19,34 @@ class x402SettlementMode(str, Enum):
     privacy, and transaction costs.
 
     Attributes:
-        SETTLE: Most private settlement method.
-            Only the payment is settled on-chain — no input or output hashes are posted to the chain.
+        PRIVATE: Payment-only settlement.
+            Only the payment is settled on-chain — no input or output hashes are posted.
             Your inference data remains completely off-chain, ensuring maximum privacy.
-            Suitable for applications where payment settlement is required without any on-chain record of execution.
-            CLI usage: --settlement-mode settle
+            Suitable when payment settlement is required without any on-chain record of execution.
+            CLI usage: --settlement-mode private
 
-        SETTLE_METADATA: Individual settlement with full metadata.
-            Also known as SETTLE_INDIVIDUAL_WITH_METADATA in some documentation.
-            Records complete model information, full input and output data,
-            and all inference metadata on-chain.
+        METADATA: Individual settlement with full metadata.
+            Records input data, output data, timestamp, and verification on-chain.
             Provides maximum transparency and auditability.
             Higher gas costs due to larger data storage.
-            CLI usage: --settlement-mode settle-metadata
+            CLI usage: --settlement-mode metadata
 
-        SETTLE_BATCH: Batch settlement for multiple inferences.
-            Aggregates multiple inference requests into a single settlement transaction
-            using batch hashes.
+        BATCH: Batch settlement (default).
+            Aggregates multiple inferences into a single settlement transaction
+            using a Merkle tree containing input hashes, output hashes, and signatures.
             Most cost-efficient for high-volume applications.
-            Reduced per-inference transaction overhead.
-            CLI usage: --settlement-mode settle-batch
+            CLI usage: --settlement-mode batch
 
     Examples:
         >>> from opengradient import x402SettlementMode
-        >>> mode = x402SettlementMode.SETTLE
+        >>> mode = x402SettlementMode.PRIVATE
         >>> print(mode.value)
-        'settle'
+        'private'
     """
 
-    SETTLE = "private"
-    SETTLE_METADATA = "individual"
-    SETTLE_BATCH = "batch"
-
-    # Aliases for backward compatibility with glossary naming
-    SETTLE_INDIVIDUAL = SETTLE
-    SETTLE_INDIVIDUAL_WITH_METADATA = SETTLE_METADATA
+    PRIVATE = "private"
+    METADATA = "individual"
+    BATCH = "batch"
 
 
 class CandleOrder(IntEnum):

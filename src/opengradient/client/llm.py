@@ -205,7 +205,7 @@ class LLM:
         max_tokens: int = 100,
         stop_sequence: Optional[List[str]] = None,
         temperature: float = 0.0,
-        x402_settlement_mode: Optional[x402SettlementMode] = x402SettlementMode.SETTLE_BATCH,
+        x402_settlement_mode: Optional[x402SettlementMode] = x402SettlementMode.BATCH,
     ) -> TextGenerationOutput:
         """
         Perform inference on an LLM model using completions via TEE.
@@ -217,10 +217,10 @@ class LLM:
             stop_sequence (List[str], optional): List of stop sequences for LLM. Default is None.
             temperature (float): Temperature for LLM inference, between 0 and 1. Default is 0.0.
             x402_settlement_mode (x402SettlementMode, optional): Settlement mode for x402 payments.
-                - SETTLE: Records input/output hashes only (most privacy-preserving).
-                - SETTLE_BATCH: Aggregates multiple inferences into batch hashes (most cost-efficient).
-                - SETTLE_METADATA: Records full model info, complete input/output data, and all metadata.
-                Defaults to SETTLE_BATCH.
+                - PRIVATE: Payment only, no input/output data on-chain (most privacy-preserving).
+                - BATCH: Aggregates inferences into a Merkle tree with input/output hashes and signatures (default, most cost-efficient).
+                - METADATA: Records input, output, timestamp, and verification on-chain (maximum auditability).
+                Defaults to BATCH.
 
         Returns:
             TextGenerationOutput: Generated text results including:
@@ -247,7 +247,7 @@ class LLM:
         max_tokens: int = 100,
         stop_sequence: Optional[List[str]] = None,
         temperature: float = 0.0,
-        x402_settlement_mode: Optional[x402SettlementMode] = x402SettlementMode.SETTLE_BATCH,
+        x402_settlement_mode: Optional[x402SettlementMode] = x402SettlementMode.BATCH,
     ) -> TextGenerationOutput:
         """
         Route completion request to OpenGradient TEE LLM server with x402 payments.
@@ -304,7 +304,7 @@ class LLM:
         temperature: float = 0.0,
         tools: Optional[List[Dict]] = None,
         tool_choice: Optional[str] = None,
-        x402_settlement_mode: Optional[x402SettlementMode] = x402SettlementMode.SETTLE_BATCH,
+        x402_settlement_mode: Optional[x402SettlementMode] = x402SettlementMode.BATCH,
         stream: bool = False,
     ) -> Union[TextGenerationOutput, TextGenerationStream]:
         """
@@ -319,10 +319,10 @@ class LLM:
             tools (List[dict], optional): Set of tools for function calling.
             tool_choice (str, optional): Sets a specific tool to choose.
             x402_settlement_mode (x402SettlementMode, optional): Settlement mode for x402 payments.
-                - SETTLE: Records input/output hashes only (most privacy-preserving).
-                - SETTLE_BATCH: Aggregates multiple inferences into batch hashes (most cost-efficient).
-                - SETTLE_METADATA: Records full model info, complete input/output data, and all metadata.
-                Defaults to SETTLE_BATCH.
+                - PRIVATE: Payment only, no input/output data on-chain (most privacy-preserving).
+                - BATCH: Aggregates inferences into a Merkle tree with input/output hashes and signatures (default, most cost-efficient).
+                - METADATA: Records input, output, timestamp, and verification on-chain (maximum auditability).
+                Defaults to BATCH.
             stream (bool, optional): Whether to stream the response. Default is False.
 
         Returns:
@@ -367,7 +367,7 @@ class LLM:
         temperature: float = 0.0,
         tools: Optional[List[Dict]] = None,
         tool_choice: Optional[str] = None,
-        x402_settlement_mode: x402SettlementMode = x402SettlementMode.SETTLE_BATCH,
+        x402_settlement_mode: x402SettlementMode = x402SettlementMode.BATCH,
     ) -> TextGenerationOutput:
         """
         Route chat request to OpenGradient TEE LLM server with x402 payments.
@@ -443,7 +443,7 @@ class LLM:
         temperature: float = 0.0,
         tools: Optional[List[Dict]] = None,
         tool_choice: Optional[str] = None,
-        x402_settlement_mode: x402SettlementMode = x402SettlementMode.SETTLE_BATCH,
+        x402_settlement_mode: x402SettlementMode = x402SettlementMode.BATCH,
     ):
         """
         Sync streaming using threading bridge - TRUE real-time streaming.
@@ -499,7 +499,7 @@ class LLM:
         temperature: float = 0.0,
         tools: Optional[List[Dict]] = None,
         tool_choice: Optional[str] = None,
-        x402_settlement_mode: x402SettlementMode = x402SettlementMode.SETTLE_BATCH,
+        x402_settlement_mode: x402SettlementMode = x402SettlementMode.BATCH,
     ):
         """
         Internal async streaming implementation for TEE LLM with x402 payments.

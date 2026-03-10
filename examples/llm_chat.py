@@ -15,6 +15,6 @@ result = client.llm.chat(
     model=og.TEE_LLM.GEMINI_2_5_FLASH,
     messages=messages,
     max_tokens=300,
-    x402_settlement_mode=og.x402SettlementMode.SETTLE_METADATA,
+    x402_settlement_mode=og.x402SettlementMode.METADATA,
 )
 print(result.chat_output['content'])
