@@ -23,7 +23,12 @@ including on-chain ONNX model inference, workflow deployment, and execution.
 #### Constructor
 
 ```python
-def __init__(blockchain: `Web3`, wallet_account: `LocalAccount`, inference_hub_contract_address: str, api_url: str)
+def __init__(
+    blockchain: `Web3`,
+    wallet_account: `LocalAccount`,
+    inference_hub_contract_address: str,
+    api_url: str
+)
 ```
 
 #### Methods
@@ -33,7 +38,13 @@ def __init__(blockchain: `Web3`, wallet_account: `LocalAccount`, inference_hub
 #### `infer()`
 
 ```python
-def infer(self, model_cid: str, inference_mode: `InferenceMode`, model_input: Dict[str, Union[str, int, float, List, `ndarray`]], max_retries: Optional[int] = None) ‑> `InferenceResult`
+def infer(
+    self,
+    model_cid: str,
+    inference_mode: `InferenceMode`,
+    model_input: Dict[str, Union[str, int, float, List, `ndarray`]],
+    max_retries: Optional[int] = None
+) ‑> `InferenceResult`
 ```
 Perform inference on a model.
 
@@ -59,7 +70,13 @@ InferenceResult (InferenceResult): A dataclass object containing the transaction
 #### `new_workflow()`
 
 ```python
-def new_workflow(self, model_cid: str, input_query: `HistoricalInputQuery`, input_tensor_name: str, scheduler_params: Optional[`SchedulerParams`] = None) ‑> str
+def new_workflow(
+    self,
+    model_cid: str,
+    input_query: `HistoricalInputQuery`,
+    input_tensor_name: str,
+    scheduler_params: Optional[`SchedulerParams`] = None
+) ‑> str
 ```
 Deploy a new workflow contract with the specified parameters.
 
@@ -93,7 +110,11 @@ str: Deployed contract address. If scheduler_params was provided, the workflow
 #### `read_workflow_history()`
 
 ```python
-def read_workflow_history(self, contract_address: str, num_results: int) ‑> List[`ModelOutput`]
+def read_workflow_history(
+    self,
+    contract_address: str,
+    num_results: int
+) ‑> List[`ModelOutput`]
 ```
 Gets historical inference results from a workflow contract.
 

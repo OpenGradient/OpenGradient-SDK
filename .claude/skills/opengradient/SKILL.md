@@ -61,10 +61,10 @@ client.llm.ensure_opg_approval(opg_amount=5)
 
 | Provider   | Models |
 |------------|--------|
-| OpenAI     | `GPT_4_1_2025_04_14`, `GPT_4O`, `O4_MINI` |
-| Anthropic  | `CLAUDE_3_7_SONNET`, `CLAUDE_3_5_HAIKU`, `CLAUDE_4_0_SONNET` |
-| Google     | `GEMINI_2_5_FLASH`, `GEMINI_2_5_PRO`, `GEMINI_2_0_FLASH`, `GEMINI_2_5_FLASH_LITE` |
-| xAI        | `GROK_3_MINI_BETA`, `GROK_3_BETA`, `GROK_2_1212`, `GROK_4_1_FAST`, `GROK_4_1_FAST_NON_REASONING` |
+| OpenAI     | `GPT_4_1_2025_04_14`, `O4_MINI`, `GPT_5`, `GPT_5_MINI`, `GPT_5_2` |
+| Anthropic  | `CLAUDE_SONNET_4_5`, `CLAUDE_SONNET_4_6`, `CLAUDE_HAIKU_4_5`, `CLAUDE_OPUS_4_5`, `CLAUDE_OPUS_4_6` |
+| Google     | `GEMINI_2_5_FLASH`, `GEMINI_2_5_PRO`, `GEMINI_2_5_FLASH_LITE`, `GEMINI_3_PRO`, `GEMINI_3_FLASH` |
+| xAI        | `GROK_4`, `GROK_4_FAST`, `GROK_4_1_FAST`, `GROK_4_1_FAST_NON_REASONING` |
 
 ## Settlement Modes (`og.x402SettlementMode`)
 
@@ -117,7 +117,7 @@ tools = [{
 }]
 
 result = client.llm.chat(
-    model=og.TEE_LLM.GPT_4O,
+    model=og.TEE_LLM.GPT_5,
     messages=[{"role": "user", "content": "Weather in NYC?"}],
     tools=tools,
     max_tokens=200,
@@ -138,7 +138,7 @@ messages = [
 
 for _ in range(max_iterations):
     result = client.llm.chat(
-        model=og.TEE_LLM.GPT_4O,
+        model=og.TEE_LLM.GPT_5,
         messages=messages,
         tools=tools,
         tool_choice="auto",

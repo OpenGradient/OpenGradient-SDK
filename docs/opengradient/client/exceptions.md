@@ -47,7 +47,12 @@ Raised when the user has insufficient credits for the operation
 #### Constructor
 
 ```python
-def __init__(message='Insufficient credits', required_credits=None, available_credits=None, **kwargs)
+def __init__(
+    message='Insufficient credits',
+    required_credits=None,
+    available_credits=None,
+    **kwargs
+)
 ```
 
 ### `InvalidInputError`

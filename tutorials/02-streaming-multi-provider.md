@@ -55,7 +55,7 @@ client = og.init(private_key=private_key)
 client.llm.ensure_opg_approval(opg_amount=5)
 
 result = client.llm.chat(
-    model=og.TEE_LLM.GPT_4O,
+    model=og.TEE_LLM.GPT_5,
     messages=[{"role": "user", "content": "What is the x402 payment protocol?"}],
     max_tokens=200,
     temperature=0.0,
@@ -80,14 +80,14 @@ identical.
 ```python
 # OpenAI
 result_openai = client.llm.chat(
-    model=og.TEE_LLM.GPT_4O,
+    model=og.TEE_LLM.GPT_5,
     messages=[{"role": "user", "content": "Hello from OpenAI!"}],
     max_tokens=100,
 )
 
 # Anthropic
 result_anthropic = client.llm.chat(
-    model=og.TEE_LLM.CLAUDE_3_7_SONNET,
+    model=og.TEE_LLM.CLAUDE_SONNET_4_6,
     messages=[{"role": "user", "content": "Hello from Anthropic!"}],
     max_tokens=100,
 )
@@ -101,10 +101,11 @@ result_google = client.llm.chat(
 
 # xAI
 result_xai = client.llm.chat(
-    model=og.TEE_LLM.GROK_3_BETA,
+    model=og.TEE_LLM.GROK_4,
     messages=[{"role": "user", "content": "Hello from xAI!"}],
     max_tokens=100,
 )
+
 ```
 
 This makes A/B testing trivial -- run the same prompt across providers and compare
@@ -118,7 +119,7 @@ that yields `StreamChunk` objects.
 
 ```python
 stream = client.llm.chat(
-    model=og.TEE_LLM.GPT_4O,
+    model=og.TEE_LLM.GPT_5,
     messages=[
         {"role": "system", "content": "You are a concise technical writer."},
         {"role": "user", "content": "Explain TEEs in one paragraph."},
@@ -169,7 +170,7 @@ privacy/cost/transparency trade-off:
 ```python
 # Privacy-first: only hashes stored on-chain
 result_private = client.llm.chat(
-    model=og.TEE_LLM.CLAUDE_3_7_SONNET,
+    model=og.TEE_LLM.CLAUDE_SONNET_4_6,
     messages=[{"role": "user", "content": "Sensitive query here."}],
     max_tokens=100,
     x402_settlement_mode=og.x402SettlementMode.SETTLE,
@@ -178,7 +179,7 @@ print(f"Payment hash (SETTLE): {result_private.payment_hash}")
 
 # Cost-efficient: batched settlement (this is the default)
 result_batch = client.llm.chat(
-    model=og.TEE_LLM.CLAUDE_3_7_SONNET,
+    model=og.TEE_LLM.CLAUDE_SONNET_4_6,
     messages=[{"role": "user", "content": "Regular query."}],
     max_tokens=100,
     x402_settlement_mode=og.x402SettlementMode.SETTLE_BATCH,
@@ -187,7 +188,7 @@ print(f"Payment hash (SETTLE_BATCH): {result_batch.payment_hash}")
 
 # Full transparency: everything on-chain
 result_transparent = client.llm.chat(
-    model=og.TEE_LLM.CLAUDE_3_7_SONNET,
+    model=og.TEE_LLM.CLAUDE_SONNET_4_6,
     messages=[{"role": "user", "content": "Auditable query."}],
     max_tokens=100,
     x402_settlement_mode=og.x402SettlementMode.SETTLE_METADATA,
@@ -272,10 +273,10 @@ PROMPT = "Explain what a Trusted Execution Environment is in two sentences."
 
 # ── Multi-provider comparison ─────────────────────────────────────────────
 models = [
-    ("GPT-4o",           og.TEE_LLM.GPT_4O),
-    ("Claude 3.7 Sonnet", og.TEE_LLM.CLAUDE_3_7_SONNET),
-    ("Gemini 2.5 Flash", og.TEE_LLM.GEMINI_2_5_FLASH),
-    ("Grok 3 Beta",      og.TEE_LLM.GROK_3_BETA),
+    ("GPT-5",             og.TEE_LLM.GPT_5),
+    ("Claude Sonnet 4.6", og.TEE_LLM.CLAUDE_SONNET_4_6),
+    ("Gemini 2.5 Flash",  og.TEE_LLM.GEMINI_2_5_FLASH),
+    ("Grok 4",            og.TEE_LLM.GROK_4),
 ]
 
 for name, model in models:
@@ -292,9 +293,9 @@ for name, model in models:
         print(f"[{name}] Error: {e}\n")
 
 # ── Streaming ─────────────────────────────────────────────────────────────
-print("--- Streaming from GPT-4o ---")
+print("--- Streaming from GPT-5 ---")
 stream = client.llm.chat(
-    model=og.TEE_LLM.GPT_4O,
+    model=og.TEE_LLM.GPT_5,
     messages=[{"role": "user", "content": "What is x402? Keep it under 50 words."}],
     max_tokens=100,
     stream=True,
@@ -313,7 +314,7 @@ for mode_name, mode in [
 ]:
     try:
         r = client.llm.chat(
-            model=og.TEE_LLM.CLAUDE_3_7_SONNET,
+            model=og.TEE_LLM.CLAUDE_SONNET_4_6,
             messages=[{"role": "user", "content": "Say hello."}],
             max_tokens=50,
             x402_settlement_mode=mode,

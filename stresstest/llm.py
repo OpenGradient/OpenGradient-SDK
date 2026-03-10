@@ -7,7 +7,7 @@ import opengradient as og
 
 # Number of requests to run serially
 NUM_REQUESTS = 100
-MODEL = "anthropic/claude-3.5-haiku"
+MODEL = "anthropic/claude-haiku-4-5"
 
 
 def main(private_key: str):

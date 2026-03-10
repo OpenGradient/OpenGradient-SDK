@@ -33,7 +33,11 @@ Create block explorer link for transaction.
 ### `read_workflow_wrapper()`
 
 ```python
-def read_workflow_wrapper(alpha: `Alpha`, contract_address: str, format_function: Callable[..., str]) ‑> `WorkflowModelOutput`
+def read_workflow_wrapper(
+    alpha: `Alpha`,
+    contract_address: str,
+    format_function: Callable[..., str]
+) ‑> `WorkflowModelOutput`
 ```
 Wrapper function for reading from models through workflows.
 

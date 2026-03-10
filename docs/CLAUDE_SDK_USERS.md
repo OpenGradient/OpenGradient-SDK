@@ -25,7 +25,7 @@ client = og.Client(
 
 # LLM Chat (TEE-verified with x402 payments)
 result = client.llm.chat(
-    model=og.TEE_LLM.CLAUDE_3_5_HAIKU,
+    model=og.TEE_LLM.CLAUDE_HAIKU_4_5,
     messages=[{"role": "user", "content": "Hello!"}],
     max_tokens=100,
 )
@@ -108,25 +108,28 @@ All LLM models are TEE-verified. `og.LLM` and `og.TEE_LLM` contain the same mode
 ```python
 # OpenAI
 og.TEE_LLM.GPT_4_1_2025_04_14
-og.TEE_LLM.GPT_4O
 og.TEE_LLM.O4_MINI
+og.TEE_LLM.GPT_5
+og.TEE_LLM.GPT_5_MINI
+og.TEE_LLM.GPT_5_2
 
 # Anthropic
-og.TEE_LLM.CLAUDE_3_7_SONNET
-og.TEE_LLM.CLAUDE_3_5_HAIKU
-og.TEE_LLM.CLAUDE_4_0_SONNET
+og.TEE_LLM.CLAUDE_SONNET_4_5
+og.TEE_LLM.CLAUDE_SONNET_4_6
+og.TEE_LLM.CLAUDE_HAIKU_4_5
+og.TEE_LLM.CLAUDE_OPUS_4_5
+og.TEE_LLM.CLAUDE_OPUS_4_6
 
 # Google
 og.TEE_LLM.GEMINI_2_5_FLASH
 og.TEE_LLM.GEMINI_2_5_PRO
-og.TEE_LLM.GEMINI_2_0_FLASH
 og.TEE_LLM.GEMINI_2_5_FLASH_LITE
+og.TEE_LLM.GEMINI_3_PRO
+og.TEE_LLM.GEMINI_3_FLASH
 
 # xAI
-og.TEE_LLM.GROK_3_BETA
-og.TEE_LLM.GROK_3_MINI_BETA
-og.TEE_LLM.GROK_2_1212
-og.TEE_LLM.GROK_2_VISION_LATEST
+og.TEE_LLM.GROK_4
+og.TEE_LLM.GROK_4_FAST
 og.TEE_LLM.GROK_4_1_FAST
 og.TEE_LLM.GROK_4_1_FAST_NON_REASONING
 ```
@@ -137,7 +140,7 @@ All models are accessed through the OpenGradient TEE infrastructure with x402 pa
 
 ```python
 result = client.llm.chat(
-    model=og.TEE_LLM.GPT_4O,
+    model=og.TEE_LLM.GPT_5,
     messages=[{"role": "user", "content": "Hello"}],
 )
 ```
@@ -163,7 +166,7 @@ tools = [{
 }]
 
 result = client.llm.chat(
-    model=og.TEE_LLM.CLAUDE_3_7_SONNET,
+    model=og.TEE_LLM.CLAUDE_SONNET_4_6,
     messages=[{"role": "user", "content": "What's the weather in NYC?"}],
     tools=tools,
     tool_choice="auto",
@@ -178,7 +181,7 @@ if result.chat_output.get("tool_calls"):
 
 ```python
 stream = client.llm.chat(
-    model=og.TEE_LLM.CLAUDE_3_7_SONNET,
+    model=og.TEE_LLM.CLAUDE_SONNET_4_6,
     messages=[{"role": "user", "content": "Tell me a story"}],
     stream=True,
 )
@@ -197,7 +200,7 @@ from langgraph.prebuilt import create_react_agent
 # Create LangChain-compatible LLM
 llm = og.agents.langchain_adapter(
     private_key=os.environ["OG_PRIVATE_KEY"],
-    model_cid=og.LLM.CLAUDE_3_7_SONNET,
+    model_cid=og.LLM.CLAUDE_SONNET_4_6,
     max_tokens=300,
 )
 

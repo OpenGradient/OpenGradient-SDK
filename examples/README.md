@@ -169,7 +169,7 @@ LLM chat pattern:
 
 ```python
 completion = og_client.llm.chat(
-    model=og.TEE_LLM.CLAUDE_3_5_HAIKU,
+    model=og.TEE_LLM.CLAUDE_HAIKU_4_5,
     messages=[{"role": "user", "content": "Your message"}],
 )
 print(f"Response: {completion.chat_output['content']}")

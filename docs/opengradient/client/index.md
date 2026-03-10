@@ -40,7 +40,7 @@ client.llm.ensure_opg_approval(opg_amount=5)
 
 # LLM chat (TEE-verified, streamed)
 for chunk in client.llm.chat(
-    model=og.TEE_LLM.CLAUDE_3_5_HAIKU,
+    model=og.TEE_LLM.CLAUDE_HAIKU_4_5,
     messages=[{"role": "user", "content": "Hello!"}],
     max_tokens=200,
     stream=True,
@@ -69,7 +69,6 @@ repo = client.model_hub.create_model("my-model", "A price prediction model")
 * [model_hub](./model_hub): Model Hub for creating, versioning, and uploading ML models.
 * [opg_token](./opg_token): OPG token Permit2 approval utilities for x402 payments.
 * [twins](./twins): Digital twins chat via OpenGradient verifiable inference.
-* [x402_auth](./x402_auth): X402 Authentication handler for httpx streaming requests.
 
 ## Classes
 
@@ -91,7 +90,18 @@ The client operates across two chains:
 #### Constructor
 
 ```python
-def __init__(private_key: str, alpha_private_key: Optional[str] = None, email: Optional[str] = None, password: Optional[str] = None, twins_api_key: Optional[str] = None, wallet_address: str = None, rpc_url: str = 'https://ogevmdevnet.opengradient.ai', api_url: str = 'https://sdk-devnet.opengradient.ai', contract_address: str = '0x8383C9bD7462F12Eb996DD02F78234C0421A6FaE', og_llm_server_url: Optional[str] = 'https://llm.opengradient.ai', og_llm_streaming_server_url: Optional[str] = 'https://llm.opengradient.ai')
+def __init__(
+    private_key: str,
+    alpha_private_key: Optional[str] = None,
+    email: Optional[str] = None,
+    password: Optional[str] = None,
+    twins_api_key: Optional[str] = None,
+    rpc_url: str = 'https://ogevmdevnet.opengradient.ai',
+    api_url: str = 'https://sdk-devnet.opengradient.ai',
+    contract_address: str = '0x8383C9bD7462F12Eb996DD02F78234C0421A6FaE',
+    og_llm_server_url: Optional[str] = 'https://3.15.214.21:443',
+    og_llm_streaming_server_url: Optional[str] = 'https://3.15.214.21:443'
+)
 ```
 
 **Arguments**
@@ -126,4 +136,4 @@ Close underlying SDK resources.
 * [**`alpha`**](./alpha): Alpha Testnet features including on-chain inference, workflow management, and ML model execution.
 * [**`llm`**](./llm): LLM chat and completion via TEE-verified execution.
 * [**`model_hub`**](./model_hub): Model Hub for creating, versioning, and uploading ML models.
-* [**`twins`**](./twins): Digital twins chat via OpenGradient verifiable inference.
+* [**`twins`**](./twins): Digital twins chat via OpenGradient verifiable inference. ``None`` when no ``twins_api_key`` is provided.

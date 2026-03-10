@@ -33,7 +33,7 @@ client.llm.ensure_opg_approval(opg_amount=5)
 
 # LLM chat (TEE-verified, streamed)
 for chunk in client.llm.chat(
-    model=og.TEE_LLM.CLAUDE_3_5_HAIKU,
+    model=og.TEE_LLM.CLAUDE_HAIKU_4_5,
     messages=[{"role": "user", "content": "Hello!"}],
     max_tokens=200,
     stream=True,

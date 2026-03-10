@@ -349,7 +349,7 @@ if __name__ == "__main__":
 
 ## Next Steps
 
-- **Swap models**: Replace `GPT_4_1_2025_04_14` with `CLAUDE_4_0_SONNET` or
+- **Swap models**: Replace `GPT_4_1_2025_04_14` with `CLAUDE_SONNET_4_6` or
   `GEMINI_2_5_PRO` -- the rest of your code stays the same.
 - **Add more on-chain tools**: Use `create_run_model_tool` with different model CIDs
   to give your agent access to price prediction, sentiment analysis, or other ML

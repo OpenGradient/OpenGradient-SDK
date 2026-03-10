@@ -20,7 +20,7 @@ class TestLLM(unittest.TestCase):
             raise ValueError("PRIVATE_KEY environment variable is not set")
 
         self.client = og.Client(private_key=private_key)
-        self.llm = OpenGradientChatModel(private_key=private_key, model_cid=LLM.CLAUDE_3_7_SONNET)
+        self.llm = OpenGradientChatModel(private_key=private_key, model_cid=LLM.CLAUDE_SONNET_4_6)
 
     def test_simple_completion(self):
         message = self.llm.invoke("say 'hello'. literally")

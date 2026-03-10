@@ -60,8 +60,8 @@ class LLM:
         # One-time approval (idempotent — skips if allowance is already sufficient)
         client.llm.ensure_opg_approval(opg_amount=5)
 
-        result = client.llm.chat(model=TEE_LLM.CLAUDE_3_5_HAIKU, messages=[...])
-        result = client.llm.completion(model=TEE_LLM.CLAUDE_3_5_HAIKU, prompt="Hello")
+        result = client.llm.chat(model=TEE_LLM.CLAUDE_HAIKU_4_5, messages=[...])
+        result = client.llm.completion(model=TEE_LLM.CLAUDE_HAIKU_4_5, prompt="Hello")
     """
 
     def __init__(
@@ -182,7 +182,7 @@ class LLM:
         Perform inference on an LLM model using completions via TEE.
 
         Args:
-            model (TEE_LLM): The model to use (e.g., TEE_LLM.CLAUDE_3_5_HAIKU).
+            model (TEE_LLM): The model to use (e.g., TEE_LLM.CLAUDE_HAIKU_4_5).
             prompt (str): The input prompt for the LLM.
             max_tokens (int): Maximum number of tokens for LLM output. Default is 100.
             stop_sequence (List[str], optional): List of stop sequences for LLM. Default is None.
@@ -285,7 +285,7 @@ class LLM:
         Perform inference on an LLM model using chat via TEE.
 
         Args:
-            model (TEE_LLM): The model to use (e.g., TEE_LLM.CLAUDE_3_5_HAIKU).
+            model (TEE_LLM): The model to use (e.g., TEE_LLM.CLAUDE_HAIKU_4_5).
             messages (List[Dict]): The messages that will be passed into the chat.
             max_tokens (int): Maximum number of tokens for LLM output. Default is 100.
             stop_sequence (List[str], optional): List of stop sequences for LLM.

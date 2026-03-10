@@ -365,7 +365,7 @@ def infer(ctx, model_cid: str, inference_mode: str, input_data, input_file: Path
     "-m",
     "model_cid",
     required=True,
-    help="Model identifier (e.g., 'anthropic/claude-3.5-haiku', 'openai/gpt-4o')",
+    help="Model identifier (e.g., 'anthropic/claude-haiku-4-5', 'openai/gpt-5')",
 )
 @click.option("--prompt", "-p", required=True, help="Input prompt for the LLM completion")
 @click.option("--max-tokens", type=int, default=100, help="Maximum number of tokens for LLM completion output")
@@ -396,8 +396,8 @@ def completion(
     Example usage:
 
     \b
-    opengradient completion --model anthropic/claude-3.5-haiku --prompt "Hello, how are you?" --max-tokens 50
-    opengradient completion --model openai/gpt-4o --prompt "Write a haiku" --max-tokens 100
+    opengradient completion --model anthropic/claude-haiku-4-5 --prompt "Hello, how are you?" --max-tokens 50
+    opengradient completion --model openai/gpt-5 --prompt "Write a haiku" --max-tokens 100
     """
     client: Client = ctx.obj["client"]
 
@@ -467,7 +467,7 @@ def print_llm_completion_result(model_cid, tx_hash, llm_output, is_vanilla=True,
     "-m",
     "model_cid",
     required=True,
-    help="Model identifier (e.g., 'anthropic/claude-3.5-haiku', 'openai/gpt-4o')",
+    help="Model identifier (e.g., 'anthropic/claude-haiku-4-5', 'openai/gpt-5')",
 )
 @click.option("--messages", type=str, required=False, help="Input messages for the chat inference in JSON format")
 @click.option(
@@ -515,11 +515,11 @@ def chat(
     Example usage:
 
     \b
-    opengradient chat --model anthropic/claude-3.5-haiku --messages '[{"role":"user","content":"hello"}]' --max-tokens 50
-    opengradient chat --model openai/gpt-4o --messages '[{"role":"user","content":"hello"}]' --max-tokens 50
+    opengradient chat --model anthropic/claude-haiku-4-5 --messages '[{"role":"user","content":"hello"}]' --max-tokens 50
+    opengradient chat --model openai/gpt-5 --messages '[{"role":"user","content":"hello"}]' --max-tokens 50
 
     # With streaming
-    opengradient chat --model anthropic/claude-3.5-haiku --messages '[{"role":"user","content":"How are clouds formed?"}]' --max-tokens 250 --stream
+    opengradient chat --model anthropic/claude-haiku-4-5 --messages '[{"role":"user","content":"How are clouds formed?"}]' --max-tokens 250 --stream
     """
     client: Client = ctx.obj["client"]
 

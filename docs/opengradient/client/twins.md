@@ -30,7 +30,14 @@ def __init__(api_key: str)
 #### `chat()`
 
 ```python
-def chat(self, twin_id: str, model: `TEE_LLM`, messages: List[Dict], temperature: Optional[float] = None, max_tokens: Optional[int] = None) ‑> `TextGenerationOutput`
+def chat(
+    self,
+    twin_id: str,
+    model: `TEE_LLM`,
+    messages: List[Dict],
+    temperature: Optional[float] = None,
+    max_tokens: Optional[int] = None
+) ‑> `TextGenerationOutput`
 ```
 Chat with a digital twin.
 
@@ -45,6 +52,23 @@ Chat with a digital twin.
 **Returns**
 
 TextGenerationOutput: Generated text results including chat_output and finish_reason.
+
+**`TextGenerationOutput` fields:**
+
+* **`transaction_hash`**: Blockchain transaction hash.  Set to
+        ``"external"`` for TEE-routed providers.
+* **`finish_reason`**: Reason the model stopped generating
+        (e.g. ``"stop"``, ``"tool_call"``, ``"error"``).
+        Only populated for chat requests.
+* **`chat_output`**: Dictionary with the assistant message returned by
+        a chat request.  Contains ``role``, ``content``, and
+        optionally ``tool_calls``.
+* **`completion_output`**: Raw text returned by a completion request.
+* **`payment_hash`**: Payment hash for the x402 transaction.
+* **`tee_signature`**: RSA-PSS signature over the response produced
+        by the TEE enclave.
+* **`tee_timestamp`**: ISO-8601 timestamp from the TEE at signing
+        time.
 
 **Raises**
 

@@ -24,7 +24,7 @@ client.llm.ensure_opg_approval(opg_amount=5)
 
 # Chat with an LLM (TEE-verified)
 response = client.llm.chat(
-    model=og.TEE_LLM.CLAUDE_3_5_HAIKU,
+    model=og.TEE_LLM.CLAUDE_HAIKU_4_5,
     messages=[{"role": "user", "content": "Hello!"}],
     max_tokens=200,
 )
@@ -32,7 +32,7 @@ print(response.chat_output)
 
 # Stream a response
 for chunk in client.llm.chat(
-    model=og.TEE_LLM.GPT_4O,
+    model=og.TEE_LLM.GPT_5,
     messages=[{"role": "user", "content": "Explain TEE in one paragraph."}],
     max_tokens=300,
     stream=True,
@@ -141,7 +141,7 @@ def init(
         import opengradient as og
         client = og.init(private_key="0x...")
         client.llm.ensure_opg_approval(opg_amount=5)
-        response = client.llm.chat(model=og.TEE_LLM.GPT_4O, messages=[...])
+        response = client.llm.chat(model=og.TEE_LLM.GPT_5, messages=[...])
     """
     global global_client
     global_client = Client(

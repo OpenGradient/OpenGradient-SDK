@@ -30,7 +30,12 @@ def __init__(hub_user: Optional[Dict] = None)
 #### `create_model()`
 
 ```python
-def create_model(self, model_name: str, model_desc: str, version: str = '1.00') ‑> `ModelRepository`
+def create_model(
+    self,
+    model_name: str,
+    model_desc: str,
+    version: str = '1.00'
+) ‑> `ModelRepository`
 ```
 Create a new model with the given model_name and model_desc, and a specified version.
 
@@ -53,7 +58,12 @@ dict: The server response containing model details.
 #### `create_version()`
 
 ```python
-def create_version(self, model_name: str, notes: str = '', is_major: bool = False) ‑> dict
+def create_version(
+    self,
+    model_name: str,
+    notes: str = '',
+    is_major: bool = False
+) ‑> dict
 ```
 Create a new version for the specified model.
 
@@ -98,7 +108,12 @@ List[Dict]: A list of dictionaries containing file information.
 #### `upload()`
 
 ```python
-def upload(self, model_path: str, model_name: str, version: str) ‑> `FileUploadResult`
+def upload(
+    self,
+    model_path: str,
+    model_name: str,
+    version: str
+) ‑> `FileUploadResult`
 ```
 Upload a model file to the server.
 

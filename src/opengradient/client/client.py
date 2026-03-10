@@ -40,7 +40,7 @@ class Client:
         client = og.Client(private_key="0x...")
         client = og.Client(private_key="0xBASE_KEY", alpha_private_key="0xALPHA_KEY")
         client.llm.ensure_opg_approval(opg_amount=5)  # one-time Permit2 approval
-        result = client.llm.chat(model=TEE_LLM.CLAUDE_3_5_HAIKU, messages=[...])
+        result = client.llm.chat(model=TEE_LLM.CLAUDE_HAIKU_4_5, messages=[...])
         result = client.alpha.infer(model_cid, InferenceMode.VANILLA, input_data)
     """
 

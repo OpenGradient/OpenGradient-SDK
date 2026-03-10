@@ -100,7 +100,7 @@ See [Payment Settlement](#payment-settlement) for details on settlement modes.
 OpenGradient provides secure, verifiable inference through Trusted Execution Environments. All supported models include cryptographic attestation verified by the OpenGradient network:
 ```python
 completion = client.llm.chat(
-    model=og.TEE_LLM.GPT_4O,
+    model=og.TEE_LLM.GPT_5,
     messages=[{"role": "user", "content": "Hello!"}],
 )
 print(f"Response: {completion.chat_output['content']}")
@@ -112,7 +112,7 @@ print(f"Transaction hash: {completion.transaction_hash}")
 For real-time generation, enable streaming:
 ```python
 stream = client.llm.chat(
-    model=og.TEE_LLM.CLAUDE_3_7_SONNET,
+    model=og.TEE_LLM.CLAUDE_SONNET_4_6,
     messages=[{"role": "user", "content": "Explain quantum computing"}],
     max_tokens=500,
     stream=True,
@@ -133,7 +133,7 @@ import opengradient as og
 
 llm = og.agents.langchain_adapter(
     private_key=os.environ.get("OG_PRIVATE_KEY"),
-    model_cid=og.TEE_LLM.GPT_4O,
+    model_cid=og.TEE_LLM.GPT_5,
 )
 
 @tool
@@ -154,25 +154,28 @@ The SDK provides access to models from multiple providers via the `og.TEE_LLM` e
 
 #### OpenAI
 - GPT-4.1 (2025-04-14)
-- GPT-4o
 - o4-mini
+- GPT-5
+- GPT-5 Mini
+- GPT-5.2
 
 #### Anthropic
-- Claude 3.7 Sonnet
-- Claude 3.5 Haiku
-- Claude 4.0 Sonnet
+- Claude Sonnet 4.5
+- Claude Sonnet 4.6
+- Claude Haiku 4.5
+- Claude Opus 4.5
+- Claude Opus 4.6
 
 #### Google
 - Gemini 2.5 Flash
 - Gemini 2.5 Pro
-- Gemini 2.0 Flash
 - Gemini 2.5 Flash Lite
+- Gemini 3 Pro
+- Gemini 3 Flash
 
 #### xAI
-- Grok 3 Beta
-- Grok 3 Mini Beta
-- Grok 2 (1212)
-- Grok 2 Vision
+- Grok 4
+- Grok 4 Fast
 - Grok 4.1 Fast (reasoning and non-reasoning)
 
 For a complete list, reference the `og.TEE_LLM` enum or consult the [API documentation](https://docs.opengradient.ai/api_reference/python_sdk/).
@@ -262,7 +265,7 @@ opengradient infer -m QmbUqS93oc4JTLMHwpVxsE39mhNxy6hpf6Py3r9oANr8aZ \
 
 Run a chat completion:
 ```bash
-opengradient chat --model anthropic/claude-3.5-haiku \
+opengradient chat --model anthropic/claude-haiku-4-5 \
     --messages '[{"role":"user","content":"Hello"}]' \
     --max-tokens 100
 ```
@@ -297,7 +300,7 @@ OpenGradient supports multiple settlement modes through the x402 payment protoco
 Specify settlement mode in your requests:
 ```python
 result = client.llm.chat(
-    model=og.TEE_LLM.GPT_4O,
+    model=og.TEE_LLM.GPT_5,
     messages=[{"role": "user", "content": "Hello"}],
     x402_settlement_mode=og.x402SettlementMode.SETTLE_BATCH,
 )
@@ -337,6 +340,5 @@ Browse and discover AI models on the [OpenGradient Model Hub](https://hub.opengr
 
 ## Support
 
-- Execute `opengradient --help` for CLI command reference
 - Visit our [documentation](https://docs.opengradient.ai/) for detailed guides
 - Join our [community](https://discord.gg/axammqTRDz) for support and discussions

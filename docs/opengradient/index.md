@@ -6,7 +6,7 @@ opengradient
 
 # Package opengradient
 
-**Version: 0.7.4**
+**Version: 0.7.5**
 
 OpenGradient Python SDK for decentralized AI inference with end-to-end verification.
 
@@ -33,7 +33,7 @@ client.llm.ensure_opg_approval(opg_amount=5)
 
 # Chat with an LLM (TEE-verified)
 response = client.llm.chat(
-    model=og.TEE_LLM.CLAUDE_3_5_HAIKU,
+    model=og.TEE_LLM.CLAUDE_HAIKU_4_5,
     messages=[{"role": "user", "content": "Hello!"}],
     max_tokens=200,
 )
@@ -41,7 +41,7 @@ print(response.chat_output)
 
 # Stream a response
 for chunk in client.llm.chat(
-    model=og.TEE_LLM.GPT_4O,
+    model=og.TEE_LLM.GPT_5,
     messages=[{"role": "user", "content": "Explain TEE in one paragraph."}],
     max_tokens=300,
     stream=True,
@@ -111,7 +111,13 @@ The SDK includes adapters for popular AI frameworks -- see the `agents` submodul
 ### `init()`
 
 ```python
-def init(private_key: str, alpha_private_key: Optional[str] = None, email: Optional[str] = None, password: Optional[str] = None, **kwargs) ‑> `Client`
+def init(
+    private_key: str,
+    alpha_private_key: Optional[str] = None,
+    email: Optional[str] = None,
+    password: Optional[str] = None,
+    **kwargs
+) ‑> `Client`
 ```
 Initialize the global OpenGradient client.
 
@@ -153,7 +159,18 @@ The client operates across two chains:
 #### Constructor
 
 ```python
-def __init__(private_key: str, alpha_private_key: Optional[str] = None, email: Optional[str] = None, password: Optional[str] = None, twins_api_key: Optional[str] = None, wallet_address: str = None, rpc_url: str = 'https://ogevmdevnet.opengradient.ai', api_url: str = 'https://sdk-devnet.opengradient.ai', contract_address: str = '0x8383C9bD7462F12Eb996DD02F78234C0421A6FaE', og_llm_server_url: Optional[str] = 'https://llm.opengradient.ai', og_llm_streaming_server_url: Optional[str] = 'https://llm.opengradient.ai')
+def __init__(
+    private_key: str,
+    alpha_private_key: Optional[str] = None,
+    email: Optional[str] = None,
+    password: Optional[str] = None,
+    twins_api_key: Optional[str] = None,
+    rpc_url: str = 'https://ogevmdevnet.opengradient.ai',
+    api_url: str = 'https://sdk-devnet.opengradient.ai',
+    contract_address: str = '0x8383C9bD7462F12Eb996DD02F78234C0421A6FaE',
+    og_llm_server_url: Optional[str] = 'https://3.15.214.21:443',
+    og_llm_streaming_server_url: Optional[str] = 'https://3.15.214.21:443'
+)
 ```
 
 **Arguments**
@@ -188,7 +205,7 @@ Close underlying SDK resources.
 * [**`alpha`**](./client/alpha): Alpha Testnet features including on-chain inference, workflow management, and ML model execution.
 * [**`llm`**](./client/llm): LLM chat and completion via TEE-verified execution.
 * [**`model_hub`**](./client/model_hub): Model Hub for creating, versioning, and uploading ML models.
-* [**`twins`**](./client/twins): Digital twins chat via OpenGradient verifiable inference.
+* [**`twins`**](./client/twins): Digital twins chat via OpenGradient verifiable inference. ``None`` when no ``twins_api_key`` is provided.
 
 ### `InferenceMode`
 
@@ -210,47 +227,94 @@ auditability and tamper-proof AI inference.
 
 #### Variables
 
-* static `CLAUDE_3_5_HAIKU`
-* static `CLAUDE_3_7_SONNET`
-* static `CLAUDE_4_0_SONNET`
-* static `GEMINI_2_0_FLASH`
+* static `CLAUDE_HAIKU_4_5`
+* static `CLAUDE_OPUS_4_5`
+* static `CLAUDE_OPUS_4_6`
+* static `CLAUDE_SONNET_4_5`
+* static `CLAUDE_SONNET_4_6`
 * static `GEMINI_2_5_FLASH`
 * static `GEMINI_2_5_FLASH_LITE`
 * static `GEMINI_2_5_PRO`
-* static `GPT_4O`
+* static `GEMINI_3_FLASH`
+* static `GEMINI_3_PRO`
 * static `GPT_4_1_2025_04_14`
-* static `GROK_2_1212`
-* static `GROK_2_VISION_LATEST`
-* static `GROK_3_BETA`
-* static `GROK_3_MINI_BETA`
+* static `GPT_5`
+* static `GPT_5_2`
+* static `GPT_5_MINI`
+* static `GROK_4`
 * static `GROK_4_1_FAST`
 * static `GROK_4_1_FAST_NON_REASONING`
+* static `GROK_4_FAST`
 * static `O4_MINI`
 
 ### `TextGenerationOutput`
 
-Output structure for text generation requests.
+Output from a non-streaming ``chat()`` or ``completion()`` call.
+
+Returned by ``**`opengradient.client.llm`**.LLM.chat`` (when ``stream=False``)
+and ``**`opengradient.client.llm`**.LLM.completion``.
+
+For **chat** requests the response is in ``chat_output``; for
+**completion** requests it is in ``completion_output``.  Only the
+field that matches the request type will be populated.
+
+Every response includes a ``tee_signature`` and ``tee_timestamp``
+that can be used to cryptographically verify the inference was
+performed inside a TEE enclave.
+
+**Attributes**
+
+* **`transaction_hash`**: Blockchain transaction hash.  Set to
+        ``"external"`` for TEE-routed providers.
+* **`finish_reason`**: Reason the model stopped generating
+        (e.g. ``"stop"``, ``"tool_call"``, ``"error"``).
+        Only populated for chat requests.
+* **`chat_output`**: Dictionary with the assistant message returned by
+        a chat request.  Contains ``role``, ``content``, and
+        optionally ``tool_calls``.
+* **`completion_output`**: Raw text returned by a completion request.
+* **`payment_hash`**: Payment hash for the x402 transaction.
+* **`tee_signature`**: RSA-PSS signature over the response produced
+        by the TEE enclave.
+* **`tee_timestamp`**: ISO-8601 timestamp from the TEE at signing
+        time.
 
 #### Constructor
 
 ```python
-def __init__(transaction_hash: str, finish_reason: Optional[str] = None, chat_output: Optional[Dict] = None, completion_output: Optional[str] = None, payment_hash: Optional[str] = None)
+def __init__(
+    transaction_hash: str,
+    finish_reason: Optional[str] = None,
+    chat_output: Optional[Dict] = None,
+    completion_output: Optional[str] = None,
+    payment_hash: Optional[str] = None,
+    tee_signature: Optional[str] = None,
+    tee_timestamp: Optional[str] = None
+)
 ```
 
 #### Variables
 
-* static `chat_output` : Optional[Dict] - Dictionary of chat response containing role, message content, tool call parameters, etc.. Empty dict if not applicable.
-* static `completion_output` : Optional[str] - Raw text output from completion-style generation. Empty string if not applicable.
-* static `finish_reason` : Optional[str] - Reason for completion (e.g., 'tool_call', 'stop', 'error'). Empty string if not applicable.
-* static `payment_hash` : Optional[str] - Payment hash for x402 transaction
-* static `transaction_hash` : str - Blockchain hash for the transaction.
+* static `chat_output` : Optional[Dict] - Dictionary with the assistant message returned by a chat request. Contains ``role``, ``content``, and optionally ``tool_calls``.
+* static `completion_output` : Optional[str] - Raw text returned by a completion request.
+* static `finish_reason` : Optional[str] - Reason the model stopped generating (e.g. ``"stop"``, ``"tool_call"``, ``"error"``). Only populated for chat requests.
+* static `payment_hash` : Optional[str] - Payment hash for the x402 transaction.
+* static `tee_signature` : Optional[str] - RSA-PSS signature over the response produced by the TEE enclave.
+* static `tee_timestamp` : Optional[str] - ISO-8601 timestamp from the TEE at signing time.
+* static `transaction_hash` : str - Blockchain transaction hash. Set to ``"external"`` for TEE-routed providers.
 
 ### `TextGenerationStream`
 
-Iterator wrapper for streaming text generation responses.
+Iterator over ``StreamChunk`` objects from a streaming chat response.
 
-Provides a clean interface for iterating over stream chunks with
-automatic parsing of SSE format.
+Returned by ``**`opengradient.client.llm`**.LLM.chat`` when
+``stream=True``.  Iterate over the stream to receive incremental
+chunks as they arrive from the server.
+
+Each ``StreamChunk`` contains a list of ``StreamChoice`` objects.
+Access the incremental text via ``chunk.choices[0].delta.content``.
+The final chunk will have ``is_final=True`` and may include
+``usage`` and ``tee_signature`` / ``tee_timestamp`` fields.
 
 #### Constructor
 
@@ -268,11 +332,10 @@ privacy, and transaction costs.
 
 **Attributes**
 
-* **`SETTLE`**: Individual settlement with input/output hashes only.
-        Also known as SETTLE_INDIVIDUAL in some documentation.
-        Records cryptographic hashes of the inference input and output.
-        Most privacy-preserving option - actual data is not stored on-chain.
-        Suitable for applications where only proof of execution is needed.
+* **`SETTLE`**: Most private settlement method.
+        Only the payment is settled on-chain — no input or output hashes are posted to the chain.
+        Your inference data remains completely off-chain, ensuring maximum privacy.
+        Suitable for applications where payment settlement is required without any on-chain record of execution.
         CLI usage: --settlement-mode settle
 * **`SETTLE_METADATA`**: Individual settlement with full metadata.
         Also known as SETTLE_INDIVIDUAL_WITH_METADATA in some documentation.

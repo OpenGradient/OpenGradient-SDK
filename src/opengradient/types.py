@@ -299,13 +299,19 @@ class StreamChunk:
 @dataclass
 class TextGenerationStream:
     """
-    Iterator wrapper for streaming text generation responses.
+    Iterator over ``StreamChunk`` objects from a streaming chat response.
 
-    Provides a clean interface for iterating over stream chunks with
-    automatic parsing of SSE format.
+    Returned by ``**`opengradient.client.llm`**.LLM.chat`` when
+    ``stream=True``.  Iterate over the stream to receive incremental
+    chunks as they arrive from the server.
+
+    Each ``StreamChunk`` contains a list of ``StreamChoice`` objects.
+    Access the incremental text via ``chunk.choices[0].delta.content``.
+    The final chunk will have ``is_final=True`` and may include
+    ``usage`` and ``tee_signature`` / ``tee_timestamp`` fields.
 
     Usage:
-        stream = client.llm_chat(..., stream=True)
+        stream = client.llm.chat(model=og.TEE_LLM.CLAUDE_HAIKU_4_5, messages=[...], stream=True)
         for chunk in stream:
             if chunk.choices[0].delta.content:
                 print(chunk.choices[0].delta.content, end="")
@@ -380,29 +386,56 @@ class TextGenerationStream:
 @dataclass
 class TextGenerationOutput:
     """
-    Output structure for text generation requests.
+    Output from a non-streaming ``chat()`` or ``completion()`` call.
+
+    Returned by ``**`opengradient.client.llm`**.LLM.chat`` (when ``stream=False``)
+    and ``**`opengradient.client.llm`**.LLM.completion``.
+
+    For **chat** requests the response is in ``chat_output``; for
+    **completion** requests it is in ``completion_output``.  Only the
+    field that matches the request type will be populated.
+
+    Every response includes a ``tee_signature`` and ``tee_timestamp``
+    that can be used to cryptographically verify the inference was
+    performed inside a TEE enclave.
+
+    Attributes:
+        transaction_hash: Blockchain transaction hash.  Set to
+            ``"external"`` for TEE-routed providers.
+        finish_reason: Reason the model stopped generating
+            (e.g. ``"stop"``, ``"tool_call"``, ``"error"``).
+            Only populated for chat requests.
+        chat_output: Dictionary with the assistant message returned by
+            a chat request.  Contains ``role``, ``content``, and
+            optionally ``tool_calls``.
+        completion_output: Raw text returned by a completion request.
+        payment_hash: Payment hash for the x402 transaction.
+        tee_signature: RSA-PSS signature over the response produced
+            by the TEE enclave.
+        tee_timestamp: ISO-8601 timestamp from the TEE at signing
+            time.
     """
 
     transaction_hash: str
-    """Blockchain hash for the transaction."""
+    """Blockchain transaction hash. Set to ``"external"`` for TEE-routed providers."""
 
     finish_reason: Optional[str] = None
-    """Reason for completion (e.g., 'tool_call', 'stop', 'error'). Empty string if not applicable."""
+    """Reason the model stopped generating (e.g. ``"stop"``, ``"tool_call"``, ``"error"``). Only populated for chat requests."""
 
     chat_output: Optional[Dict] = None
-    """Dictionary of chat response containing role, message content, tool call parameters, etc.. Empty dict if not applicable."""
+    """Dictionary with the assistant message returned by a chat request. Contains ``role``, ``content``, and optionally ``tool_calls``."""
 
     completion_output: Optional[str] = None
-    """Raw text output from completion-style generation. Empty string if not applicable."""
+    """Raw text returned by a completion request."""
 
     payment_hash: Optional[str] = None
-    """Payment hash for x402 transaction"""
+    """Payment hash for the x402 transaction."""
 
     tee_signature: Optional[str] = None
     """RSA-PSS signature over the response produced by the TEE enclave."""
 
     tee_timestamp: Optional[str] = None
-    """ISO timestamp from the TEE at signing time."""
+    """ISO-8601 timestamp from the TEE at signing time."""
 
     tee_id: Optional[str] = None
     """On-chain TEE registry ID (keccak256 of the enclave's public key) of the TEE that served this request."""

@@ -106,25 +106,28 @@ Returned by `client.alpha.infer()`.
 
 ### OpenAI
 - `GPT_4_1_2025_04_14`
-- `GPT_4O`
 - `O4_MINI`
+- `GPT_5`
+- `GPT_5_MINI`
+- `GPT_5_2`
 
 ### Anthropic
-- `CLAUDE_3_7_SONNET`
-- `CLAUDE_3_5_HAIKU`
-- `CLAUDE_4_0_SONNET`
+- `CLAUDE_SONNET_4_5`
+- `CLAUDE_SONNET_4_6`
+- `CLAUDE_HAIKU_4_5`
+- `CLAUDE_OPUS_4_5`
+- `CLAUDE_OPUS_4_6`
 
 ### Google
 - `GEMINI_2_5_FLASH`
 - `GEMINI_2_5_PRO`
-- `GEMINI_2_0_FLASH`
 - `GEMINI_2_5_FLASH_LITE`
+- `GEMINI_3_PRO`
+- `GEMINI_3_FLASH`
 
 ### xAI (Grok)
-- `GROK_3_MINI_BETA`
-- `GROK_3_BETA`
-- `GROK_2_1212`
-- `GROK_2_VISION_LATEST`
+- `GROK_4`
+- `GROK_4_FAST`
 - `GROK_4_1_FAST`
 - `GROK_4_1_FAST_NON_REASONING`
 

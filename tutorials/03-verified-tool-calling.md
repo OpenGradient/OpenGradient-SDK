@@ -168,7 +168,7 @@ Pass the `tools` list and `tool_choice` parameter to any `client.llm.chat()` cal
 
 ```python
 result = client.llm.chat(
-    model=og.TEE_LLM.GPT_4O,
+    model=og.TEE_LLM.GPT_5,
     messages=[
         {"role": "system", "content": "You are a crypto portfolio assistant."},
         {"role": "user", "content": "What's my portfolio worth?"},
@@ -219,7 +219,7 @@ def run_agent(client: og.Client, user_query: str) -> str:
 
         try:
             result = client.llm.chat(
-                model=og.TEE_LLM.GPT_4O,
+                model=og.TEE_LLM.GPT_5,
                 messages=messages,
                 max_tokens=600,
                 temperature=0.0,
@@ -374,7 +374,7 @@ def run_agent(user_query: str) -> str:
     for i in range(5):
         try:
             result = client.llm.chat(
-                model=og.TEE_LLM.GPT_4O, messages=messages, max_tokens=600,
+                model=og.TEE_LLM.GPT_5, messages=messages, max_tokens=600,
                 temperature=0.0, tools=TOOLS, tool_choice="auto",
                 x402_settlement_mode=og.x402SettlementMode.SETTLE_BATCH,
             )
@@ -407,7 +407,7 @@ if __name__ == "__main__":
   ML predictions alongside local function calls.
 - **Stream tool-calling responses**: Pass `stream=True` to get incremental tokens
   even during multi-turn tool loops. See **Tutorial 2** for streaming basics.
-- **Use different providers**: Swap `og.TEE_LLM.GPT_4O` for `CLAUDE_3_7_SONNET` or
+- **Use different providers**: Swap `og.TEE_LLM.GPT_5` for `CLAUDE_SONNET_4_6` or
   `GEMINI_2_5_FLASH` -- tool calling works across all providers.
 - **Add settlement transparency**: Switch to `SETTLE_METADATA` to store the full
   tool-calling reasoning chain on-chain for audit purposes.
