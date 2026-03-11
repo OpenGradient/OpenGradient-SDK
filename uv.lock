@@ -1610,15 +1610,15 @@ wheels = [
 
 [[package]]
 name = "og-test-v2-x402"
-version = "0.0.9"
+version = "0.0.12"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pydantic" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/a0/de/fd26c297113c483f62f3a5ee5fc535e81f9413edc68d1bf9d2db4ba62dd4/og_test_v2_x402-0.0.9.tar.gz", hash = "sha256:f5353be907c7224371214d40ec8dc125ee0633e3dbd9deadf6e43c904a7a9328", size = 892006, upload-time = "2026-02-17T16:16:34.028Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/c2/4d/641b78b0925fa853da3fe897076e06116a2dd7c7294ae55735a7e58e245f/og_test_v2_x402-0.0.12.tar.gz", hash = "sha256:c8cc9ed4d7c3343388b6f27e1df160f3f187fb767f9a1f2629cdc95b3a239eee", size = 899838, upload-time = "2026-03-11T15:02:14.834Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/54/da/bd0f6670d9d577b10d13a9a68371b8fd40e1b24fd30dd690b2aa497eea81/og_test_v2_x402-0.0.9-py3-none-any.whl", hash = "sha256:80257701e8a1909ec5fba434482aa2cdcd9de2a7868b99cff70cf1763c8a53b0", size = 945014, upload-time = "2026-02-17T16:16:32.107Z" },
+    { url = "https://files.pythonhosted.org/packages/41/6b/8b5def710dea082f9ad6f41644bdd7794fc525582bcd9800bfceb886968c/og_test_v2_x402-0.0.12-py3-none-any.whl", hash = "sha256:759e2f25bbe92129537626a3075aa8d521bf4d936bfab10b1cf4b15ccf2cff88", size = 952806, upload-time = "2026-03-11T15:02:13.059Z" },
 ]
 
 [[package]]
@@ -1642,7 +1642,7 @@ wheels = [
 
 [[package]]
 name = "opengradient"
-version = "0.7.3"
+version = "0.7.5"
 source = { editable = "." }
 dependencies = [
     { name = "click" },
@@ -1664,7 +1664,7 @@ requires-dist = [
     { name = "firebase-rest-api", specifier = ">=1.11.0" },
     { name = "langchain", specifier = ">=0.3.7" },
     { name = "numpy", specifier = ">=1.26.4" },
-    { name = "og-test-v2-x402", specifier = "==0.0.9" },
+    { name = "og-test-v2-x402", specifier = "==0.0.12" },
     { name = "openai", specifier = ">=1.58.1" },
     { name = "pydantic", specifier = ">=2.9.2" },
     { name = "requests", specifier = ">=2.32.3" },
