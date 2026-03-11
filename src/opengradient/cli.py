@@ -413,13 +413,31 @@ def completion(
             x402_settlement_mode=x402SettlementModes[x402_settlement_mode],
         )
 
-        print_llm_completion_result(model_cid, completion_output.transaction_hash, completion_output.completion_output, is_vanilla=False)
+        print_llm_completion_result(
+            model_cid, completion_output.transaction_hash, completion_output.completion_output, is_vanilla=False, result=completion_output
+        )
 
     except Exception as e:
         click.echo(f"Error running LLM completion: {str(e)}")
 
 
-def print_llm_completion_result(model_cid, tx_hash, llm_output, is_vanilla=True):
+def _print_tee_info(tee_id, tee_endpoint, tee_payment_address):
+    """Print TEE node info if available."""
+    if not any([tee_id, tee_endpoint, tee_payment_address]):
+        return
+    click.secho("TEE Node:", fg="magenta", bold=True)
+    if tee_endpoint:
+        click.echo("  Endpoint:        ", nl=False)
+        click.secho(tee_endpoint, fg="magenta")
+    if tee_id:
+        click.echo("  TEE ID:          ", nl=False)
+        click.secho(tee_id, fg="magenta")
+    if tee_payment_address:
+        click.echo("  Payment address: ", nl=False)
+        click.secho(tee_payment_address, fg="magenta")
+
+
+def print_llm_completion_result(model_cid, tx_hash, llm_output, is_vanilla=True, result=None):
     click.secho("✅ LLM completion Successful", fg="green", bold=True)
     click.echo("──────────────────────────────────────")
     click.echo("Model: ", nl=False)
@@ -434,6 +452,9 @@ def print_llm_completion_result(model_cid, tx_hash, llm_output, is_vanilla=True)
     else:
         click.echo("Source: ", nl=False)
         click.secho("OpenGradient TEE", fg="cyan", bold=True)
+
+    if result is not None:
+        _print_tee_info(result.tee_id, result.tee_endpoint, result.tee_payment_address)
 
     click.echo("──────────────────────────────────────")
     click.secho("LLM Output:", fg="yellow", bold=True)
@@ -578,13 +599,15 @@ def chat(
         if stream:
             print_streaming_chat_result(model_cid, result, is_tee=True)
         else:
-            print_llm_chat_result(model_cid, result.transaction_hash, result.finish_reason, result.chat_output, is_vanilla=False)
+            print_llm_chat_result(
+                model_cid, result.transaction_hash, result.finish_reason, result.chat_output, is_vanilla=False, result=result
+            )
 
     except Exception as e:
         click.echo(f"Error running LLM chat inference: {str(e)}")
 
 
-def print_llm_chat_result(model_cid, tx_hash, finish_reason, chat_output, is_vanilla=True):
+def print_llm_chat_result(model_cid, tx_hash, finish_reason, chat_output, is_vanilla=True, result=None):
     click.secho("✅ LLM Chat Successful", fg="green", bold=True)
     click.echo("──────────────────────────────────────")
     click.echo("Model: ", nl=False)
@@ -600,6 +623,9 @@ def print_llm_chat_result(model_cid, tx_hash, finish_reason, chat_output, is_van
         click.echo("Source: ", nl=False)
         click.secho("OpenGradient TEE", fg="cyan", bold=True)
 
+    if result is not None:
+        _print_tee_info(result.tee_id, result.tee_endpoint, result.tee_payment_address)
+
     click.echo("──────────────────────────────────────")
     click.secho("Finish Reason: ", fg="yellow", bold=True)
     click.echo()
@@ -608,7 +634,16 @@ def print_llm_chat_result(model_cid, tx_hash, finish_reason, chat_output, is_van
     click.secho("Chat Output:", fg="yellow", bold=True)
     click.echo()
     for key, value in chat_output.items():
-        if value is not None and value not in ("", "[]", []):
+        if value is None or value in ("", "[]", []):
+            continue
+        if key == "tool_calls":
+            # Format tool calls the same way as the streaming path
+            click.secho("Tool Calls:", fg="yellow", bold=True)
+            for tool_call in value:
+                fn = tool_call.get("function", {})
+                click.echo(f"  Function: {fn.get('name', '')}")
+                click.echo(f"  Arguments: {fn.get('arguments', '')}")
+        elif key == "content" and isinstance(value, list):
             # Normalize list-of-blocks content (e.g. Gemini 3 thought signatures)
             if key == "content" and isinstance(value, list):
                 text = " ".join(block.get("text", "") for block in value if isinstance(block, dict) and block.get("type") == "text").strip()
@@ -638,20 +673,21 @@ def print_streaming_chat_result(model_cid, stream, is_tee=True):
         for chunk in stream:
             chunk_count += 1
 
-            if chunk.choices[0].delta.content:
-                content = chunk.choices[0].delta.content
-                sys.stdout.write(content)
-                sys.stdout.flush()
-                content_parts.append(content)
+            if chunk.choices:
+                if chunk.choices[0].delta.content:
+                    content = chunk.choices[0].delta.content
+                    sys.stdout.write(content)
+                    sys.stdout.flush()
+                    content_parts.append(content)
 
-            # Handle tool calls
-            if chunk.choices[0].delta.tool_calls:
-                sys.stdout.write("\n")
-                sys.stdout.flush()
-                click.secho("Tool Calls:", fg="yellow", bold=True)
-                for tool_call in chunk.choices[0].delta.tool_calls:
-                    click.echo(f"  Function: {tool_call['function']['name']}")
-                    click.echo(f"  Arguments: {tool_call['function']['arguments']}")
+                # Handle tool calls
+                if chunk.choices[0].delta.tool_calls:
+                    sys.stdout.write("\n")
+                    sys.stdout.flush()
+                    click.secho("Tool Calls:", fg="yellow", bold=True)
+                    for tool_call in chunk.choices[0].delta.tool_calls:
+                        click.echo(f"  Function: {tool_call['function']['name']}")
+                        click.echo(f"  Arguments: {tool_call['function']['arguments']}")
 
             # Print final info when stream completes
             if chunk.is_final:
@@ -666,9 +702,11 @@ def print_streaming_chat_result(model_cid, stream, is_tee=True):
                     click.echo(f"  Total tokens: {chunk.usage.total_tokens}")
                     click.echo()
 
-                if chunk.choices[0].finish_reason:
+                if chunk.choices and chunk.choices[0].finish_reason:
                     click.echo("Finish reason: ", nl=False)
                     click.secho(chunk.choices[0].finish_reason, fg="green")
+
+                _print_tee_info(chunk.tee_id, chunk.tee_endpoint, chunk.tee_payment_address)
 
                 click.echo("──────────────────────────────────────")
                 click.echo(f"Chunks received: {chunk_count}")

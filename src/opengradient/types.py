@@ -234,6 +234,9 @@ class StreamChunk:
         is_final: Whether this is the final chunk (before [DONE])
         tee_signature: RSA-PSS signature over the response, present on the final chunk
         tee_timestamp: ISO timestamp from the TEE at signing time, present on the final chunk
+        tee_id: On-chain TEE registry ID of the enclave that served this request (final chunk only)
+        tee_endpoint: Endpoint URL of the TEE that served this request (final chunk only)
+        tee_payment_address: Payment address registered for the TEE (final chunk only)
     """
 
     choices: List[StreamChoice]
@@ -242,6 +245,9 @@ class StreamChunk:
     is_final: bool = False
     tee_signature: Optional[str] = None
     tee_timestamp: Optional[str] = None
+    tee_id: Optional[str] = None
+    tee_endpoint: Optional[str] = None
+    tee_payment_address: Optional[str] = None
 
     @classmethod
     def from_sse_data(cls, data: Dict) -> "StreamChunk":
@@ -256,7 +262,9 @@ class StreamChunk:
         """
         choices = []
         for choice_data in data.get("choices", []):
-            delta_data = choice_data.get("delta", {})
+            # The TEE proxy sometimes sends SSE events using the non-streaming "message"
+            # key instead of the standard streaming "delta" key.  Fall back gracefully.
+            delta_data = choice_data.get("delta") or choice_data.get("message") or {}
             delta = StreamDelta(content=delta_data.get("content"), role=delta_data.get("role"), tool_calls=delta_data.get("tool_calls"))
             choice = StreamChoice(delta=delta, index=choice_data.get("index", 0), finish_reason=choice_data.get("finish_reason"))
             choices.append(choice)
@@ -422,6 +430,15 @@ class TextGenerationOutput:
 
     tee_timestamp: Optional[str] = None
     """ISO-8601 timestamp from the TEE at signing time."""
+
+    tee_id: Optional[str] = None
+    """On-chain TEE registry ID (keccak256 of the enclave's public key) of the TEE that served this request."""
+
+    tee_endpoint: Optional[str] = None
+    """Endpoint URL of the TEE that served this request, as registered on-chain."""
+
+    tee_payment_address: Optional[str] = None
+    """Payment address registered for the TEE that served this request."""
 
 
 @dataclass

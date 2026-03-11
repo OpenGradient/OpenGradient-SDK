@@ -21,7 +21,10 @@ from src.opengradient.types import (
 @pytest.fixture
 def mock_web3():
     """Create a mock Web3 instance."""
-    with patch("src.opengradient.client.client.Web3") as mock:
+    with (
+        patch("src.opengradient.client.client.Web3") as mock,
+        patch("src.opengradient.client.client.TEERegistry") as mock_tee_registry,
+    ):
         mock_instance = MagicMock()
         mock.return_value = mock_instance
         mock.HTTPProvider.return_value = MagicMock()
@@ -30,6 +33,14 @@ def mock_web3():
         mock_instance.eth.get_transaction_count.return_value = 0
         mock_instance.eth.gas_price = 1000000000
         mock_instance.eth.contract.return_value = MagicMock()
+
+        # Return a fake active TEE endpoint so Client.__init__ doesn't need a live registry
+        mock_tee = MagicMock()
+        mock_tee.endpoint = "https://test.tee.server"
+        mock_tee.tls_cert_der = None
+        mock_tee.tee_id = "test-tee-id"
+        mock_tee.payment_address = "0xTestPaymentAddress"
+        mock_tee_registry.return_value.get_llm_tee.return_value = mock_tee
 
         yield mock_instance
 
@@ -103,9 +114,8 @@ class TestClientInitialization:
             assert client.model_hub._hub_user["idToken"] == "test_token"
 
     def test_client_initialization_custom_llm_urls(self, mock_web3, mock_abi_files):
-        """Test client initialization with custom LLM server URLs."""
+        """Test client initialization with custom LLM server URL."""
         custom_llm_url = "https://custom.llm.server"
-        custom_streaming_url = "https://custom.streaming.server"
 
         client = Client(
             private_key="0x" + "a" * 64,
@@ -113,11 +123,9 @@ class TestClientInitialization:
             api_url="https://test.api.url",
             contract_address="0x" + "b" * 40,
             og_llm_server_url=custom_llm_url,
-            og_llm_streaming_server_url=custom_streaming_url,
         )
 
         assert client.llm._og_llm_server_url == custom_llm_url
-        assert client.llm._og_llm_streaming_server_url == custom_streaming_url
 
 
 class TestAlphaProperty:

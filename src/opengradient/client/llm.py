@@ -2,13 +2,10 @@
 
 import asyncio
 import json
+import ssl
 import threading
 from queue import Queue
 from typing import AsyncGenerator, Dict, List, Optional, Union
-import ssl
-import socket
-import tempfile
-from urllib.parse import urlparse
 
 import httpx
 from eth_account.account import LocalAccount
@@ -18,9 +15,10 @@ from x402v2.mechanisms.evm import EthAccountSigner as EthAccountSignerv2
 from x402v2.mechanisms.evm.exact.register import register_exact_evm_client as register_exact_evm_clientv2
 from x402v2.mechanisms.evm.upto.register import register_upto_evm_client as register_upto_evm_clientv2
 
-from ..types import TEE_LLM, StreamChunk, TextGenerationOutput, TextGenerationStream, x402SettlementMode
+from ..types import TEE_LLM, StreamChunk, StreamChoice, StreamDelta, TextGenerationOutput, TextGenerationStream, x402SettlementMode
 from .exceptions import OpenGradientError
 from .opg_token import Permit2ApprovalResult, ensure_opg_approval
+from .tee_registry import build_ssl_context_from_der
 
 X402_PROCESSING_HASH_HEADER = "x-processing-hash"
 X402_PLACEHOLDER_API_KEY = "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
@@ -38,51 +36,6 @@ LIMITS = httpx.Limits(
     max_connections=500,
     keepalive_expiry=60 * 20,  # 20 minutes
 )
-
-
-def _fetch_tls_cert_as_ssl_context(server_url: str) -> Optional[ssl.SSLContext]:
-    """
-    Connect to a server, retrieve its TLS certificate (TOFU),
-    and return an ssl.SSLContext that trusts ONLY that certificate.
-
-    Hostname verification is disabled because the TEE server's cert
-    is typically issued for a hostname but we may connect via IP address.
-    The pinned certificate itself provides the trust anchor.
-
-    Returns None if the server is not HTTPS or unreachable.
-    """
-    parsed = urlparse(server_url)
-    if parsed.scheme != "https":
-        return None
-
-    hostname = parsed.hostname
-    port = parsed.port or 443
-
-    # Connect without verification to retrieve the server's certificate
-    fetch_ctx = ssl.create_default_context()
-    fetch_ctx.check_hostname = False
-    fetch_ctx.verify_mode = ssl.CERT_NONE
-
-    try:
-        with socket.create_connection((hostname, port), timeout=10) as sock:
-            with fetch_ctx.wrap_socket(sock, server_hostname=hostname) as ssock:
-                der_cert = ssock.getpeercert(binary_form=True)
-                pem_cert = ssl.DER_cert_to_PEM_cert(der_cert)
-    except Exception:
-        return None
-
-    # Write PEM to a temp file so we can load it into the SSLContext
-    cert_file = tempfile.NamedTemporaryFile(prefix="og_tee_tls_", suffix=".pem", delete=False, mode="w")
-    cert_file.write(pem_cert)
-    cert_file.flush()
-    cert_file.close()
-
-    # Build an SSLContext that trusts ONLY this cert, with hostname check disabled
-    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-    ctx.load_verify_locations(cert_file.name)
-    ctx.check_hostname = False  # Cert is for a hostname, but we connect via IP
-    ctx.verify_mode = ssl.CERT_REQUIRED  # Still verify the cert itself
-    return ctx
 
 
 class LLM:
@@ -108,13 +61,32 @@ class LLM:
         result = client.llm.completion(model=TEE_LLM.CLAUDE_HAIKU_4_5, prompt="Hello")
     """
 
-    def __init__(self, wallet_account: LocalAccount, og_llm_server_url: str, og_llm_streaming_server_url: str):
+    def __init__(
+        self,
+        wallet_account: LocalAccount,
+        og_llm_server_url: str,
+        tls_cert_der: Optional[bytes] = None,
+        tee_id: Optional[str] = None,
+        tee_payment_address: Optional[str] = None,
+    ):
         self._wallet_account = wallet_account
         self._og_llm_server_url = og_llm_server_url
-        self._og_llm_streaming_server_url = og_llm_streaming_server_url
 
-        self._tls_verify: Union[ssl.SSLContext, bool] = _fetch_tls_cert_as_ssl_context(self._og_llm_server_url) or True
-        self._streaming_tls_verify: Union[ssl.SSLContext, bool] = _fetch_tls_cert_as_ssl_context(self._og_llm_streaming_server_url) or True
+        # TEE metadata surfaced on every response so callers can verify/audit which
+        # enclave served the request.
+        self._tee_id = tee_id
+        self._tee_endpoint = og_llm_server_url
+        self._tee_payment_address = tee_payment_address
+
+        if tls_cert_der:
+            # Use the registry-verified certificate as the sole trust anchor.
+            ssl_ctx = build_ssl_context_from_der(tls_cert_der)
+            self._tls_verify: Union[ssl.SSLContext, bool] = ssl_ctx
+            self._streaming_tls_verify: Union[ssl.SSLContext, bool] = ssl_ctx
+        else:
+            # No cert from registry — fall back to default system CA verification.
+            self._tls_verify = True
+            self._streaming_tls_verify = True
 
         signer = EthAccountSignerv2(self._wallet_account)
         self._x402_client = x402Clientv2()
@@ -199,7 +171,7 @@ class LLM:
         max_tokens: int = 100,
         stop_sequence: Optional[List[str]] = None,
         temperature: float = 0.0,
-        x402_settlement_mode: Optional[x402SettlementMode] = x402SettlementMode.BATCH_HASHED,
+        x402_settlement_mode: x402SettlementMode = x402SettlementMode.BATCH_HASHED,
     ) -> TextGenerationOutput:
         """
         Perform inference on an LLM model using completions via TEE.
@@ -241,7 +213,7 @@ class LLM:
         max_tokens: int = 100,
         stop_sequence: Optional[List[str]] = None,
         temperature: float = 0.0,
-        x402_settlement_mode: Optional[x402SettlementMode] = x402SettlementMode.BATCH_HASHED,
+        x402_settlement_mode: x402SettlementMode = x402SettlementMode.BATCH_HASHED,
     ) -> TextGenerationOutput:
         """
         Route completion request to OpenGradient TEE LLM server with x402 payments.
@@ -277,6 +249,9 @@ class LLM:
                     completion_output=result.get("completion"),
                     tee_signature=result.get("tee_signature"),
                     tee_timestamp=result.get("tee_timestamp"),
+                    tee_id=self._tee_id,
+                    tee_endpoint=self._tee_endpoint,
+                    tee_payment_address=self._tee_payment_address,
                 )
 
             except Exception as e:
@@ -298,7 +273,7 @@ class LLM:
         temperature: float = 0.0,
         tools: Optional[List[Dict]] = None,
         tool_choice: Optional[str] = None,
-        x402_settlement_mode: Optional[x402SettlementMode] = x402SettlementMode.BATCH_HASHED,
+        x402_settlement_mode: x402SettlementMode = x402SettlementMode.BATCH_HASHED,
         stream: bool = False,
     ) -> Union[TextGenerationOutput, TextGenerationStream]:
         """
@@ -328,6 +303,20 @@ class LLM:
             OpenGradientError: If the inference fails.
         """
         if stream:
+            if tools:
+                # The TEE streaming endpoint omits tool call content from SSE events.
+                # Fall back transparently to the non-streaming endpoint and emit a
+                # single final StreamChunk so callers get the complete tool call data.
+                return self._tee_llm_chat_tools_as_stream(
+                    model=model.split("/")[1],
+                    messages=messages,
+                    max_tokens=max_tokens,
+                    stop_sequence=stop_sequence,
+                    temperature=temperature,
+                    tools=tools,
+                    tool_choice=tool_choice,
+                    x402_settlement_mode=x402_settlement_mode,
+                )
             # Use threading bridge for true sync streaming
             return self._tee_llm_chat_stream_sync(
                 model=model.split("/")[1],
@@ -413,6 +402,9 @@ class LLM:
                     chat_output=message,
                     tee_signature=result.get("tee_signature"),
                     tee_timestamp=result.get("tee_timestamp"),
+                    tee_id=self._tee_id,
+                    tee_endpoint=self._tee_endpoint,
+                    tee_payment_address=self._tee_payment_address,
                 )
 
             except Exception as e:
@@ -424,6 +416,59 @@ class LLM:
             raise
         except Exception as e:
             raise OpenGradientError(f"TEE LLM chat failed: {str(e)}")
+
+    def _tee_llm_chat_tools_as_stream(
+        self,
+        model: str,
+        messages: List[Dict],
+        max_tokens: int = 100,
+        stop_sequence: Optional[List[str]] = None,
+        temperature: float = 0.0,
+        tools: Optional[List[Dict]] = None,
+        tool_choice: Optional[str] = None,
+        x402_settlement_mode: x402SettlementMode = x402SettlementMode.BATCH_HASHED,
+    ) -> TextGenerationStream:
+        """
+        Transparent non-streaming fallback for tool-call requests with stream=True.
+
+        The TEE streaming endpoint returns an empty delta when tools are present —
+        tool call content is not emitted as SSE events.  This method calls the
+        non-streaming endpoint instead and emits a single final StreamChunk that
+        carries the complete tool call response, preserving the streaming interface
+        for callers (including the CLI).
+        """
+        result = self._tee_llm_chat(
+            model=model,
+            messages=messages,
+            max_tokens=max_tokens,
+            stop_sequence=stop_sequence,
+            temperature=temperature,
+            tools=tools,
+            tool_choice=tool_choice,
+            x402_settlement_mode=x402_settlement_mode,
+        )
+
+        chat_output = result.chat_output or {}
+        delta = StreamDelta(
+            role=chat_output.get("role"),
+            content=chat_output.get("content"),
+            tool_calls=chat_output.get("tool_calls"),
+        )
+        choice = StreamChoice(
+            delta=delta,
+            index=0,
+            finish_reason=result.finish_reason,
+        )
+        yield StreamChunk(
+            choices=[choice],
+            model=model,
+            is_final=True,
+            tee_signature=result.tee_signature,
+            tee_timestamp=result.tee_timestamp,
+            tee_id=result.tee_id,
+            tee_endpoint=result.tee_endpoint,
+            tee_payment_address=result.tee_payment_address,
+        )
 
     def _tee_llm_chat_stream_sync(
         self,
@@ -551,14 +596,19 @@ class LLM:
 
                     try:
                         data = json.loads(data_str)
-                        yield StreamChunk.from_sse_data(data)
+                        chunk = StreamChunk.from_sse_data(data)
+                        if chunk.is_final:
+                            chunk.tee_id = self._tee_id
+                            chunk.tee_endpoint = self._tee_endpoint
+                            chunk.tee_payment_address = self._tee_payment_address
+                        yield chunk
                     except json.JSONDecodeError:
                         continue
 
         endpoint = "/v1/chat/completions"
         async with self._stream_client.stream(
             "POST",
-            self._og_llm_streaming_server_url + endpoint,
+            self._og_llm_server_url + endpoint,
             json=payload,
             headers=headers,
             timeout=60,
