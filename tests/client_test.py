@@ -114,9 +114,8 @@ class TestClientInitialization:
             assert client.model_hub._hub_user["idToken"] == "test_token"
 
     def test_client_initialization_custom_llm_urls(self, mock_web3, mock_abi_files):
-        """Test client initialization with custom LLM server URLs."""
+        """Test client initialization with custom LLM server URL."""
         custom_llm_url = "https://custom.llm.server"
-        custom_streaming_url = "https://custom.streaming.server"
 
         client = Client(
             private_key="0x" + "a" * 64,
@@ -124,11 +123,9 @@ class TestClientInitialization:
             api_url="https://test.api.url",
             contract_address="0x" + "b" * 40,
             og_llm_server_url=custom_llm_url,
-            og_llm_streaming_server_url=custom_streaming_url,
         )
 
         assert client.llm._og_llm_server_url == custom_llm_url
-        assert client.llm._og_llm_streaming_server_url == custom_streaming_url
 
 
 class TestAlphaProperty:

@@ -65,14 +65,12 @@ class LLM:
         self,
         wallet_account: LocalAccount,
         og_llm_server_url: str,
-        og_llm_streaming_server_url: str,
         tls_cert_der: Optional[bytes] = None,
         tee_id: Optional[str] = None,
         tee_payment_address: Optional[str] = None,
     ):
         self._wallet_account = wallet_account
         self._og_llm_server_url = og_llm_server_url
-        self._og_llm_streaming_server_url = og_llm_streaming_server_url
 
         # TEE metadata surfaced on every response so callers can verify/audit which
         # enclave served the request.
@@ -610,7 +608,7 @@ class LLM:
         endpoint = "/v1/chat/completions"
         async with self._stream_client.stream(
             "POST",
-            self._og_llm_streaming_server_url + endpoint,
+            self._og_llm_server_url + endpoint,
             json=payload,
             headers=headers,
             timeout=60,

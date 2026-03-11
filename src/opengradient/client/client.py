@@ -66,7 +66,6 @@ class Client:
         api_url: str = DEFAULT_API_URL,
         contract_address: str = DEFAULT_INFERENCE_CONTRACT_ADDRESS,
         og_llm_server_url: Optional[str] = None,
-        og_llm_streaming_server_url: Optional[str] = None,
         tee_registry_address: str = DEFAULT_TEE_REGISTRY_ADDRESS,
     ):
         """
@@ -98,8 +97,6 @@ class Client:
             og_llm_server_url: Override the LLM server URL instead of using the
                 registry-discovered endpoint. When set, the TLS certificate is
                 validated against the system CA bundle rather than the registry.
-            og_llm_streaming_server_url: Override the LLM streaming server URL.
-                Defaults to ``og_llm_server_url`` when that is provided.
             tee_registry_address: Address of the TEERegistry contract used to
                 discover active LLM proxy endpoints and their verified TLS certs.
         """
@@ -130,7 +127,6 @@ class Client:
                 tee = registry.get_llm_tee()
                 if tee is not None:
                     og_llm_server_url = tee.endpoint
-                    og_llm_streaming_server_url = og_llm_streaming_server_url or tee.endpoint
                     llm_tls_cert_der = tee.tls_cert_der
                     logger.info("Using TEE endpoint from registry: %s (teeId=%s)", tee.endpoint, tee.tee_id)
                 else:
@@ -142,8 +138,6 @@ class Client:
                     f"Failed to fetch LLM TEE endpoint from registry ({tee_registry_address} on {rpc_url}): {e}. "
                     "Pass og_llm_server_url explicitly to override."
                 ) from e
-        else:
-            og_llm_streaming_server_url = og_llm_streaming_server_url or og_llm_server_url
 
         # Create namespaces
         self.model_hub = ModelHub(hub_user=hub_user)
@@ -152,7 +146,6 @@ class Client:
         self.llm = LLM(
             wallet_account=wallet_account,
             og_llm_server_url=og_llm_server_url,
-            og_llm_streaming_server_url=og_llm_streaming_server_url,
             tls_cert_der=llm_tls_cert_der,
             tee_id=tee.tee_id if tee is not None else None,
             tee_payment_address=tee.payment_address if tee is not None else None,
