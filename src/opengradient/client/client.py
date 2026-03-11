@@ -10,7 +10,6 @@ from ..defaults import (
     DEFAULT_INFERENCE_CONTRACT_ADDRESS,
     DEFAULT_RPC_URL,
     DEFAULT_TEE_REGISTRY_ADDRESS,
-    DEFAULT_TEE_REGISTRY_RPC_URL,
 )
 from .alpha import Alpha
 from .llm import LLM
@@ -69,7 +68,6 @@ class Client:
         og_llm_server_url: Optional[str] = None,
         og_llm_streaming_server_url: Optional[str] = None,
         tee_registry_address: str = DEFAULT_TEE_REGISTRY_ADDRESS,
-        tee_registry_rpc_url: str = DEFAULT_TEE_REGISTRY_RPC_URL,
     ):
         """
         Initialize the OpenGradient client.
@@ -104,8 +102,6 @@ class Client:
                 Defaults to ``og_llm_server_url`` when that is provided.
             tee_registry_address: Address of the TEERegistry contract used to
                 discover active LLM proxy endpoints and their verified TLS certs.
-            tee_registry_rpc_url: RPC endpoint for the chain that hosts the
-                TEERegistry contract.
         """
         blockchain = Web3(Web3.HTTPProvider(rpc_url))
         wallet_account = blockchain.eth.account.from_key(private_key)
@@ -128,7 +124,7 @@ class Client:
         if og_llm_server_url is None:
             try:
                 registry = TEERegistry(
-                    rpc_url=tee_registry_rpc_url,
+                    rpc_url=rpc_url,
                     registry_address=tee_registry_address,
                 )
                 tee = registry.get_llm_tee()
@@ -143,7 +139,7 @@ class Client:
                 raise
             except Exception as e:
                 raise RuntimeError(
-                    f"Failed to fetch LLM TEE endpoint from registry ({tee_registry_address}): {e}. "
+                    f"Failed to fetch LLM TEE endpoint from registry ({tee_registry_address} on {rpc_url}): {e}. "
                     "Pass og_llm_server_url explicitly to override."
                 ) from e
         else:
