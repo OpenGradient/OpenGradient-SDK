@@ -3,15 +3,19 @@ OpenGradient Python SDK for decentralized AI inference with end-to-end verificat
 
 ## Overview
 
-The OpenGradient SDK provides programmatic access to decentralized AI infrastructure, including:
+The OpenGradient SDK provides programmatic access to decentralized AI infrastructure.
+All LLM inference runs inside Trusted Execution Environments (TEEs) and settles
+on-chain via the x402 payment protocol, giving you cryptographic proof that
+inference was performed correctly.
 
-- **LLM Inference** -- Chat and completion with major LLM providers (OpenAI, Anthropic, Google, xAI) through TEE-verified execution
-- **On-chain Model Inference** -- Run ONNX models via blockchain smart contracts with VANILLA, TEE, or ZKML verification
-- **Model Hub** -- Create, version, and upload ML models to the OpenGradient Model Hub
+The SDK operates across two chains with separate private keys:
 
-All LLM inference runs inside Trusted Execution Environments (TEEs) and settles on-chain via the x402 payment protocol, giving you cryptographic proof that inference was performed correctly.
+- **`opengradient.client.llm`** (``og.LLM``) -- LLM chat and completion with TEE-verified execution. Pays via x402 on **Base Sepolia** (requires OPG tokens).
+- **`opengradient.client.alpha`** (``og.Alpha``) -- On-chain ONNX model inference with VANILLA, TEE, or ZKML verification. Pays gas on the **OpenGradient testnet**.
+- **`opengradient.client.model_hub`** (``og.ModelHub``) -- Model repository management: create, version, and upload ML models. Requires email/password auth.
+- **`opengradient.client.twins`** (``og.Twins``) -- Digital twins chat via verifiable inference. Requires a twins API key.
 
-## Quick Start
+## LLM Chat
 
 ```python
 import asyncio
@@ -19,19 +23,23 @@ import opengradient as og
 
 llm = og.LLM(private_key="0x...")
 
-# One-time approval (idempotent — skips if allowance is already sufficient)
+# One-time OPG token approval (idempotent -- skips if allowance is sufficient)
 llm.ensure_opg_approval(opg_amount=5)
 
 # Chat with an LLM (TEE-verified)
 response = asyncio.run(llm.chat(
-    model=og.TEE_LLM.CLAUDE_HAIKU_4_5,
+    model=og.TEE_LLM.CLAUDE_SONNET_4_6,
     messages=[{"role": "user", "content": "Hello!"}],
     max_tokens=200,
 ))
 print(response.chat_output)
+```
 
-# Stream a response
+## Streaming
+
+```python
 async def stream_example():
+    llm = og.LLM(private_key="0x...")
     stream = await llm.chat(
         model=og.TEE_LLM.GPT_5,
         messages=[{"role": "user", "content": "Explain TEE in one paragraph."}],
@@ -43,8 +51,11 @@ async def stream_example():
             print(chunk.choices[0].delta.content, end="")
 
 asyncio.run(stream_example())
+```
 
-# Run on-chain ONNX model inference
+## On-chain Model Inference
+
+```python
 alpha = og.Alpha(private_key="0x...")
 result = alpha.infer(
     model_cid="your_model_cid",
@@ -54,31 +65,13 @@ result = alpha.infer(
 print(result.model_output)
 ```
 
-## Private Keys
-
-The SDK operates across two chains. Use separate keys for each:
-
-- **LLM** (``og.LLM``) -- pays for inference via x402 on **Base Sepolia** (requires OPG tokens)
-- **Alpha** (``og.Alpha``) -- pays gas for on-chain inference on the **OpenGradient network** (requires testnet gas tokens)
-
-## Modules
-
-- **`opengradient.client.llm`** -- Verifiable LLM chat and completion via TEE-verified execution with x402 payments (Base Sepolia OPG tokens)
-- **`opengradient.client.alpha`** -- On-chain ONNX model inference, workflow deployment, and scheduled ML model execution (OpenGradient testnet gas tokens)
-- **`opengradient.client.model_hub`** -- Model repository management
-- **`opengradient.client.twins`** -- Digital twins chat via OpenGradient verifiable inference (requires twins API key)
-
-## Model Hub (requires email auth)
+## Model Hub
 
 ```python
 hub = og.ModelHub(email="you@example.com", password="...")
 repo = hub.create_model("my-model", "A price prediction model")
 hub.upload("model.onnx", repo.name, repo.initialVersion)
 ```
-
-## Framework Integrations
-
-The SDK includes adapters for popular AI frameworks -- see the `agents` submodule for LangChain and OpenAI integration.
 """
 
 from . import agents, alphasense
@@ -125,7 +118,20 @@ __pdoc__ = {
     "agents": True,
     "alphasense": True,
     "types": True,
-    # Hide niche types from the top-level page -- they are documented under the types submodule
+    # Hide re-exported classes from the top-level page -- they are documented on their own submodule pages
+    "LLM": False,
+    "Alpha": False,
+    "ModelHub": False,
+    "Twins": False,
+    "TEE_LLM": False,
+    "InferenceMode": False,
+    "TextGenerationOutput": False,
+    "TextGenerationStream": False,
+    "x402SettlementMode": False,
+    "InferenceResult": False,
+    "ModelOutput": False,
+    "FileUploadResult": False,
+    "ModelRepository": False,
     "CandleOrder": False,
     "CandleType": False,
     "HistoricalInputQuery": False,

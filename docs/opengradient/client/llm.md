@@ -1,5 +1,5 @@
 ---
-outline: [2,3]
+outline: [2,4]
 ---
 
 [opengradient](../index) / [client](./index) / llm
@@ -173,7 +173,7 @@ TextGenerationOutput: Generated text results including:
 #### `ensure_opg_approval()`
 
 ```python
-def ensure_opg_approval(self, opg_amount: float) ‑> `Permit2ApprovalResult`
+def ensure_opg_approval(self, opg_amount: float) ‑> [Permit2ApprovalResult](./opg_token)
 ```
 Ensure the Permit2 allowance for OPG is at least ``opg_amount``.
 
@@ -191,12 +191,6 @@ a transaction. Otherwise, sends an ERC-20 approve transaction.
 Permit2ApprovalResult: Contains ``allowance_before``,
     ``allowance_after``, and ``tx_hash`` (None when no approval
     was needed).
-
-**`Permit2ApprovalResult` fields:**
-
-* **`allowance_before`**: The Permit2 allowance before the method ran.
-* **`allowance_after`**: The Permit2 allowance after the method ran.
-* **`tx_hash`**: Transaction hash of the approval, or None if no transaction was needed.
 
 **Raises**
 

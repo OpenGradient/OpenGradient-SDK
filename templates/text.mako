@@ -1,5 +1,5 @@
 ---
-outline: [2,3]
+outline: [2,4]
 ---
 <%
 import pdoc
@@ -301,7 +301,7 @@ ${header('Package ' + module.name, 1)}
 % endif
 
 ${linkify(module.docstring, module)}
-% if submodules:
+% if submodules and module.supermodule and '## Modules' not in (module.docstring or ''):
 
 ${header('Submodules', 2)}
 
@@ -393,7 +393,7 @@ ${header('Methods', 4)}
 
 ${show_funcs(methods, '', 4)}\
 % endif
-% if class_vars or inst_vars:
+% if (class_vars or inst_vars) and not _class_sections.get('Attributes'):
 
 ${header('Variables', 4)}
 

@@ -40,4 +40,8 @@ __pdoc__ = {
     "LLM": False,
     "ModelHub": False,
     "Twins": False,
+    "client": False,
+    "exceptions": False,
+    "opg_token": False,
+    "tee_registry": False,
 }

@@ -1,5 +1,5 @@
 ---
-outline: [2,3]
+outline: [2,4]
 ---
 
 [opengradient](../index) / client
@@ -33,12 +33,3 @@ result = alpha.infer(model_cid, og.InferenceMode.VANILLA, model_input)
 hub = og.ModelHub(email="you@example.com", password="...")
 repo = hub.create_model("my-model", "A price prediction model")
 ```
-
-## Submodules
-
-* [alpha](./alpha): Alpha Testnet features for OpenGradient SDK.
-* [llm](./llm): LLM chat and completion via TEE-verified execution with x402 payments.
-* [model_hub](./model_hub): Model Hub for creating, versioning, and uploading ML models.
-* [opg_token](./opg_token): OPG token Permit2 approval utilities for x402 payments.
-* [tee_registry](./tee_registry): TEE Registry client for fetching verified TEE endpoints and TLS certificates.
-* [twins](./twins): Digital twins chat via OpenGradient verifiable inference.

@@ -1,5 +1,5 @@
 ---
-outline: [2,3]
+outline: [2,4]
 ---
 
 [opengradient](./index) / types
@@ -164,11 +164,6 @@ A collection of tensor inputs required for ONNX model inference.
 def __init__(numbers: List[`NumberTensor`], strings: List[`StringTensor`])
 ```
 
-#### Variables
-
-* static `numbers` : List[`NumberTensor`]
-* static `strings` : List[`StringTensor`]
-
 ### `ModelOutput`
 
 Model output struct based on translations from smart contract.
@@ -232,11 +227,6 @@ A container for numeric tensor data used as input for ONNX models.
 def __init__(name: str, values: List[Tuple[int, int]])
 ```
 
-#### Variables
-
-* static `name` : str
-* static `values` : List[Tuple[int, int]]
-
 ### `SchedulerParams`
 
 #### Constructor
@@ -276,12 +266,6 @@ Represents a choice in a streaming response.
 ```python
 def __init__(delta: `StreamDelta`, index: int = 0, finish_reason: Optional[str] = None)
 ```
-
-#### Variables
-
-* static `delta` : `StreamDelta`
-* static `finish_reason` : Optional[str]
-* static `index` : int
 
 ### `StreamChunk`
 
@@ -349,18 +333,6 @@ StreamChunk instance
 * **`tee_endpoint`**: Endpoint URL of the TEE that served this request (final chunk only)
 * **`tee_payment_address`**: Payment address registered for the TEE (final chunk only)
 
-#### Variables
-
-* static `choices` : List[`StreamChoice`]
-* static `is_final` : bool
-* static `model` : str
-* static `tee_endpoint` : Optional[str]
-* static `tee_id` : Optional[str]
-* static `tee_payment_address` : Optional[str]
-* static `tee_signature` : Optional[str]
-* static `tee_timestamp` : Optional[str]
-* static `usage` : Optional[`StreamUsage`]
-
 ### `StreamDelta`
 
 Represents a delta (incremental change) in a streaming response.
@@ -381,12 +353,6 @@ def __init__(
 )
 ```
 
-#### Variables
-
-* static `content` : Optional[str]
-* static `role` : Optional[str]
-* static `tool_calls` : Optional[List[Dict]]
-
 ### `StreamUsage`
 
 Token usage information for a streaming response.
@@ -403,12 +369,6 @@ Token usage information for a streaming response.
 def __init__(prompt_tokens: int, completion_tokens: int, total_tokens: int)
 ```
 
-#### Variables
-
-* static `completion_tokens` : int
-* static `prompt_tokens` : int
-* static `total_tokens` : int
-
 ### `StringTensor`
 
 A container for string tensor data used as input for ONNX models.
@@ -423,11 +383,6 @@ A container for string tensor data used as input for ONNX models.
 ```python
 def __init__(name: str, values: List[str])
 ```
-
-#### Variables
-
-* static `name` : str
-* static `values` : List[str]
 
 ### `TEE_LLM`
 
@@ -508,19 +463,6 @@ def __init__(
 )
 ```
 
-#### Variables
-
-* static `chat_output` : Optional[Dict] - Dictionary with the assistant message returned by a chat request. Contains ``role``, ``content``, and optionally ``tool_calls``.
-* static `completion_output` : Optional[str] - Raw text returned by a completion request.
-* static `finish_reason` : Optional[str] - Reason the model stopped generating (e.g. ``"stop"``, ``"tool_call"``, ``"error"``). Only populated for chat requests.
-* static `payment_hash` : Optional[str] - Payment hash for the x402 transaction.
-* static `tee_endpoint` : Optional[str] - Endpoint URL of the TEE that served this request, as registered on-chain.
-* static `tee_id` : Optional[str] - On-chain TEE registry ID (keccak256 of the enclave's public key) of the TEE that served this request.
-* static `tee_payment_address` : Optional[str] - Payment address registered for the TEE that served this request.
-* static `tee_signature` : Optional[str] - RSA-PSS signature over the response produced by the TEE enclave.
-* static `tee_timestamp` : Optional[str] - ISO-8601 timestamp from the TEE at signing time.
-* static `transaction_hash` : str - Blockchain transaction hash. Set to ``"external"`` for TEE-routed providers.
-
 ### `TextGenerationStream`
 
 Iterator over ``StreamChunk`` objects from a streaming chat response.
@@ -565,9 +507,3 @@ privacy, and transaction costs.
         Provides maximum transparency and auditability.
         Higher gas costs due to larger data storage.
         CLI usage: --settlement-mode individual-full
-
-#### Variables
-
-* static `BATCH_HASHED`
-* static `INDIVIDUAL_FULL`
-* static `PRIVATE`
