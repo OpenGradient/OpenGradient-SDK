@@ -9,7 +9,6 @@ from dataclasses import dataclass
 from queue import Queue
 from typing import AsyncGenerator, Dict, List, Optional, Union
 
-import httpx
 from eth_account.account import LocalAccount
 from x402v2 import x402Client as x402Clientv2
 from x402v2.http.clients import x402HttpxClient as x402HttpxClientv2
@@ -17,7 +16,7 @@ from x402v2.mechanisms.evm import EthAccountSigner as EthAccountSignerv2
 from x402v2.mechanisms.evm.exact.register import register_exact_evm_client as register_exact_evm_clientv2
 from x402v2.mechanisms.evm.upto.register import register_upto_evm_client as register_upto_evm_clientv2
 
-from ..types import TEE_LLM, StreamChunk, StreamChoice, StreamDelta, TextGenerationOutput, TextGenerationStream, x402SettlementMode
+from ..types import TEE_LLM, StreamChoice, StreamChunk, StreamDelta, TextGenerationOutput, TextGenerationStream, x402SettlementMode
 from .exceptions import OpenGradientError
 from .opg_token import Permit2ApprovalResult, ensure_opg_approval
 from .tee_registry import TEERegistry, build_ssl_context_from_der
@@ -79,7 +78,9 @@ class LLM:
         self._wallet_account = wallet_account
 
         endpoint, tls_cert_der, tee_id, tee_payment_address = self._resolve_tee(
-            og_llm_server_url, rpc_url, tee_registry_address,
+            og_llm_server_url,
+            rpc_url,
+            tee_registry_address,
         )
 
         self._og_llm_server_url = endpoint
@@ -123,9 +124,7 @@ class LLM:
             return og_llm_server_url, None, None, None
 
         if rpc_url is None or tee_registry_address is None:
-            raise ValueError(
-                "Either og_llm_server_url or both rpc_url and tee_registry_address must be provided."
-            )
+            raise ValueError("Either og_llm_server_url or both rpc_url and tee_registry_address must be provided.")
 
         try:
             registry = TEERegistry(rpc_url=rpc_url, registry_address=tee_registry_address)
@@ -138,10 +137,7 @@ class LLM:
             ) from e
 
         if tee is None:
-            raise ValueError(
-                "No active LLM proxy TEE found in the registry. "
-                "Pass og_llm_server_url explicitly to override."
-            )
+            raise ValueError("No active LLM proxy TEE found in the registry. Pass og_llm_server_url explicitly to override.")
 
         logger.info("Using TEE endpoint from registry: %s (teeId=%s)", tee.endpoint, tee.tee_id)
         return tee.endpoint, tee.tls_cert_der, tee.tee_id, tee.payment_address
@@ -289,7 +285,9 @@ class LLM:
         async def _request():
             response = await self._request_client.post(
                 self._og_llm_server_url + _COMPLETION_ENDPOINT,
-                json=payload, headers=headers, timeout=_REQUEST_TIMEOUT,
+                json=payload,
+                headers=headers,
+                timeout=_REQUEST_TIMEOUT,
             )
             content = await response.aread()
             result = json.loads(content.decode())
@@ -376,7 +374,9 @@ class LLM:
         async def _request():
             response = await self._request_client.post(
                 self._og_llm_server_url + _CHAT_ENDPOINT,
-                json=payload, headers=headers, timeout=_REQUEST_TIMEOUT,
+                json=payload,
+                headers=headers,
+                timeout=_REQUEST_TIMEOUT,
             )
             response.raise_for_status()
             content = await response.aread()
@@ -414,15 +414,17 @@ class LLM:
         result = self._chat_request(params, messages)
         chat_output = result.chat_output or {}
         yield StreamChunk(
-            choices=[StreamChoice(
-                delta=StreamDelta(
-                    role=chat_output.get("role"),
-                    content=chat_output.get("content"),
-                    tool_calls=chat_output.get("tool_calls"),
-                ),
-                index=0,
-                finish_reason=result.finish_reason,
-            )],
+            choices=[
+                StreamChoice(
+                    delta=StreamDelta(
+                        role=chat_output.get("role"),
+                        content=chat_output.get("content"),
+                        tool_calls=chat_output.get("tool_calls"),
+                    ),
+                    index=0,
+                    finish_reason=result.finish_reason,
+                )
+            ],
             model=params.model,
             is_final=True,
             tee_signature=result.tee_signature,
@@ -484,10 +486,7 @@ class LLM:
         status_code = getattr(response, "status_code", None)
         if status_code is not None and status_code >= 400:
             body = await response.aread()
-            raise OpenGradientError(
-                f"TEE LLM streaming request failed with status {status_code}: "
-                f"{body.decode('utf-8', errors='replace')}"
-            )
+            raise OpenGradientError(f"TEE LLM streaming request failed with status {status_code}: {body.decode('utf-8', errors='replace')}")
 
         buffer = b""
         async for raw_chunk in response.aiter_raw():
