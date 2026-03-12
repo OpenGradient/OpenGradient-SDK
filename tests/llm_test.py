@@ -7,7 +7,7 @@ so LLM builds normally — no test-only constructor params, no mocking of privat
 import json
 from contextlib import asynccontextmanager
 from typing import List
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
@@ -361,6 +361,32 @@ class TestChat:
         with pytest.raises(RuntimeError, match="TEE LLM chat failed"):
             await llm.chat(model=TEE_LLM.GPT_5, messages=[{"role": "user", "content": "Hi"}])
 
+    async def test_retries_once_on_invalid_payment_required(self, fake_http):
+        fake_http.set_response(
+            200,
+            {
+                "choices": [{"message": {"role": "assistant", "content": "recovered"}, "finish_reason": "stop"}],
+            },
+        )
+        llm = _make_llm()
+        llm._reset_x402_stack = AsyncMock(return_value=None)
+        original_post = llm._http_client.post
+        attempts = {"count": 0}
+
+        async def flaky_post(*args, **kwargs):
+            attempts["count"] += 1
+            if attempts["count"] == 1:
+                raise RuntimeError("Failed to handle payment: Invalid payment required response")
+            return await original_post(*args, **kwargs)
+
+        llm._http_client.post = flaky_post
+
+        result = await llm.chat(model=TEE_LLM.GPT_5, messages=[{"role": "user", "content": "Hi"}])
+
+        assert result.chat_output["content"] == "recovered"
+        assert attempts["count"] == 2
+        llm._reset_x402_stack.assert_awaited_once()
+
 
 # ── Streaming tests ──────────────────────────────────────────────────
 
@@ -468,6 +494,40 @@ class TestChatStreaming:
         assert chunks[0].is_final
         assert chunks[0].choices[0].delta.tool_calls == [{"id": "tc1"}]
         assert chunks[0].choices[0].finish_reason == "tool_calls"
+
+    async def test_stream_retries_once_on_invalid_payment_required(self, fake_http):
+        fake_http.set_stream_response(
+            200,
+            [
+                b'data: {"model":"gpt-5","choices":[{"index":0,"delta":{"content":"ok"},"finish_reason":"stop"}]}\n\n',
+                b"data: [DONE]\n\n",
+            ],
+        )
+        llm = _make_llm()
+        llm._reset_x402_stack = AsyncMock(return_value=None)
+        original_stream = llm._http_client.stream
+        attempts = {"count": 0}
+
+        @asynccontextmanager
+        async def flaky_stream(*args, **kwargs):
+            attempts["count"] += 1
+            if attempts["count"] == 1:
+                raise RuntimeError("Failed to handle payment: Invalid payment required response")
+            async with original_stream(*args, **kwargs) as response:
+                yield response
+
+        llm._http_client.stream = flaky_stream
+
+        gen = await llm.chat(
+            model=TEE_LLM.GPT_5,
+            messages=[{"role": "user", "content": "Hi"}],
+            stream=True,
+        )
+        chunks = [chunk async for chunk in gen]
+
+        assert attempts["count"] == 2
+        assert chunks[-1].choices[0].delta.content == "ok"
+        llm._reset_x402_stack.assert_awaited_once()
 
 
 # ── ensure_opg_approval tests ────────────────────────────────────────

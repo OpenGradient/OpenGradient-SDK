@@ -3,8 +3,9 @@
 import json
 import logging
 import ssl
+import threading
 from dataclasses import dataclass
-from typing import AsyncGenerator, Dict, List, Optional, Union
+from typing import Any, AsyncGenerator, Awaitable, Callable, Dict, List, Optional, TypeVar, Union
 
 from eth_account import Account
 from eth_account.account import LocalAccount
@@ -19,6 +20,7 @@ from .opg_token import Permit2ApprovalResult, ensure_opg_approval
 from .tee_registry import TEERegistry, build_ssl_context_from_der
 
 logger = logging.getLogger(__name__)
+T = TypeVar("T")
 
 DEFAULT_RPC_URL = "https://ogevmdevnet.opengradient.ai"
 DEFAULT_TEE_REGISTRY_ADDRESS = "0x4e72238852f3c918f4E4e57AeC9280dDB0c80248"
@@ -91,14 +93,64 @@ class LLM:
 
         ssl_ctx = build_ssl_context_from_der(tls_cert_der) if tls_cert_der else None
         self._tls_verify: Union[ssl.SSLContext, bool] = ssl_ctx if ssl_ctx else True
+        self._reset_lock = threading.Lock()
 
-        # x402 client and signer
+        # x402 client/signer/http stack
+        self._init_x402_stack()
+
+    def _init_x402_stack(self) -> None:
+        """Initialize x402 signer/client/http stack."""
         signer = EthAccountSignerv2(self._wallet_account)
         self._x402_client = x402Clientv2()
         register_exact_evm_clientv2(self._x402_client, signer, networks=[BASE_TESTNET_NETWORK])
         register_upto_evm_clientv2(self._x402_client, signer, networks=[BASE_TESTNET_NETWORK])
         # httpx.AsyncClient subclass - construction is sync, connections open lazily
         self._http_client = x402HttpxClientv2(self._x402_client, verify=self._tls_verify)
+
+    async def _reset_x402_stack(self) -> None:
+        """Reset x402 state and underlying HTTP client."""
+        with self._reset_lock:
+            old_http_client = self._http_client
+            self._init_x402_stack()
+
+        try:
+            await old_http_client.aclose()
+        except Exception:
+            logger.debug("Failed to close previous x402 HTTP client during reset.", exc_info=True)
+
+    @staticmethod
+    def _is_invalid_payment_required_error(exc: Exception) -> bool:
+        """Detect the known stale-session x402 failure mode."""
+        visited: set[int] = set()
+        current: Optional[BaseException] = exc
+
+        while current is not None and id(current) not in visited:
+            visited.add(id(current))
+            msg = str(current).lower()
+            if "invalid payment required response" in msg:
+                return True
+            current = current.__cause__ or current.__context__
+        return False
+
+    async def _retry_once_on_invalid_payment_required(
+        self,
+        operation_name: str,
+        call: Callable[[], Awaitable[T]],
+    ) -> T:
+        """Retry once after resetting x402 state for recoverable payment errors."""
+        try:
+            return await call()
+        except Exception as first_error:
+            if not self._is_invalid_payment_required_error(first_error):
+                raise
+
+            logger.warning(
+                "Recoverable x402 payment error during %s; resetting x402 client and retrying once: %s",
+                operation_name,
+                first_error,
+            )
+            await self._reset_x402_stack()
+            return await call()
 
     # ── TEE resolution ──────────────────────────────────────────────────
 
@@ -239,7 +291,7 @@ class LLM:
         if stop_sequence:
             payload["stop"] = stop_sequence
 
-        try:
+        async def _request() -> TextGenerationOutput:
             response = await self._http_client.post(
                 self._tee_endpoint + _COMPLETION_ENDPOINT,
                 json=payload,
@@ -256,6 +308,9 @@ class LLM:
                 tee_timestamp=result.get("tee_timestamp"),
                 **self._tee_metadata(),
             )
+
+        try:
+            return await self._retry_once_on_invalid_payment_required("completion", _request)
         except RuntimeError:
             raise
         except Exception as e:
@@ -326,7 +381,7 @@ class LLM:
         headers = self._headers(params.x402_settlement_mode)
         payload = self._chat_payload(params, messages)
 
-        try:
+        async def _request() -> TextGenerationOutput:
             response = await self._http_client.post(
                 self._tee_endpoint + _CHAT_ENDPOINT,
                 json=payload,
@@ -356,6 +411,9 @@ class LLM:
                 tee_timestamp=result.get("tee_timestamp"),
                 **self._tee_metadata(),
             )
+
+        try:
+            return await self._retry_once_on_invalid_payment_required("chat", _request)
         except RuntimeError:
             raise
         except Exception as e:
@@ -391,15 +449,29 @@ class LLM:
         headers = self._headers(params.x402_settlement_mode)
         payload = self._chat_payload(params, messages, stream=True)
 
-        async with self._http_client.stream(
-            "POST",
-            self._tee_endpoint + _CHAT_ENDPOINT,
-            json=payload,
-            headers=headers,
-            timeout=_REQUEST_TIMEOUT,
-        ) as response:
-            async for chunk in self._parse_sse_response(response):
-                yield chunk
+        retried = False
+        while True:
+            try:
+                async with self._http_client.stream(
+                    "POST",
+                    self._tee_endpoint + _CHAT_ENDPOINT,
+                    json=payload,
+                    headers=headers,
+                    timeout=_REQUEST_TIMEOUT,
+                ) as response:
+                    async for chunk in self._parse_sse_response(response):
+                        yield chunk
+                return
+            except Exception as e:
+                if (not retried) and self._is_invalid_payment_required_error(e):
+                    retried = True
+                    logger.warning(
+                        "Recoverable x402 payment error during stream; resetting x402 client and retrying once: %s",
+                        e,
+                    )
+                    await self._reset_x402_stack()
+                    continue
+                raise
 
     async def _parse_sse_response(self, response) -> AsyncGenerator[StreamChunk, None]:
         """Parse an SSE response stream into StreamChunk objects."""

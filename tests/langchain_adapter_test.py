@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 import sys
@@ -11,7 +12,7 @@ from langchain_core.tools import tool
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 from src.opengradient.agents.og_langchain import OpenGradientChatModel, _extract_content, _parse_tool_call
-from src.opengradient.types import TEE_LLM, TextGenerationOutput, x402SettlementMode
+from src.opengradient.types import StreamChoice, StreamChunk, StreamDelta, TEE_LLM, TextGenerationOutput, x402SettlementMode
 
 
 @pytest.fixture
@@ -52,9 +53,24 @@ class TestOpenGradientChatModel:
         )
         assert model.x402_settlement_mode == x402SettlementMode.PRIVATE
 
+    def test_initialization_with_existing_client(self):
+        with patch("src.opengradient.agents.og_langchain.LLM") as MockLLM:
+            existing_client = MagicMock()
+            model = OpenGradientChatModel(private_key=None, client=existing_client, model_cid=TEE_LLM.GPT_5)
+            assert model._llm is existing_client
+            MockLLM.assert_not_called()
+
+    def test_initialization_without_private_key_or_client_raises(self):
+        with pytest.raises(ValueError, match="private_key is required"):
+            OpenGradientChatModel(private_key=None, model_cid=TEE_LLM.GPT_5)
+
+    def test_initialization_with_invalid_model_string_raises(self):
+        with pytest.raises(ValueError, match="provider/model format"):
+            OpenGradientChatModel(private_key="0x" + "a" * 64, model_cid="gpt-5")
+
     def test_identifying_params(self, model):
         """Test _identifying_params returns model name."""
-        assert model._identifying_params == {"model_name": TEE_LLM.GPT_5}
+        assert model._identifying_params == {"model_name": TEE_LLM.GPT_5, "temperature": 0.0, "max_tokens": 300}
 
 
 class TestGenerate:
@@ -156,6 +172,24 @@ class TestGenerate:
 
         assert result.generations[0].message.content == ""
 
+    def test_generate_with_invalid_model_kwarg_raises(self, model):
+        with pytest.raises(ValueError, match="provider/model format"):
+            model._generate([HumanMessage(content="Hi")], model="gpt-5")
+
+    def test_sync_generate_inside_running_loop_raises(self, model):
+        async def run_test():
+            with pytest.raises(RuntimeError, match="Use `ainvoke`/`astream`"):
+                model._generate([HumanMessage(content="Hi")])
+
+        asyncio.run(run_test())
+
+    def test_sync_stream_inside_running_loop_raises(self, model):
+        async def run_test():
+            with pytest.raises(RuntimeError, match="Use `astream`"):
+                next(model._stream([HumanMessage(content="Hi")]))
+
+        asyncio.run(run_test())
+
 
 class TestMessageConversion:
     def test_converts_all_message_types(self, model, mock_llm_client):
@@ -215,8 +249,11 @@ class TestMessageConversion:
             messages=[{"role": "user", "content": "Hi"}],
             stop_sequence=["END"],
             max_tokens=300,
+            temperature=0.0,
             tools=[],
+            tool_choice=None,
             x402_settlement_mode=x402SettlementMode.BATCH_HASHED,
+            stream=False,
         )
 
 
@@ -306,3 +343,77 @@ class TestParseToolCall:
         assert tc["name"] == "bar"
         assert tc["args"] == {"y": 2}
         assert tc["id"] == "2"
+
+
+class TestAsyncPaths:
+    def test_agenerate(self, model, mock_llm_client):
+        mock_llm_client.chat.return_value = TextGenerationOutput(
+            transaction_hash="external",
+            finish_reason="stop",
+            chat_output={"role": "assistant", "content": "Hello async!"},
+        )
+
+        result = asyncio.run(model._agenerate([HumanMessage(content="Hi")]))
+        assert result.generations[0].message.content == "Hello async!"
+
+    def test_ainvoke(self, model, mock_llm_client):
+        mock_llm_client.chat.return_value = TextGenerationOutput(
+            transaction_hash="external",
+            finish_reason="stop",
+            chat_output={"role": "assistant", "content": "pong"},
+        )
+
+        message = asyncio.run(model.ainvoke([HumanMessage(content="ping")]))
+        assert message.content == "pong"
+
+    def test_astream(self, model, mock_llm_client):
+        async def stream():
+            yield StreamChunk(
+                choices=[StreamChoice(delta=StreamDelta(role="assistant", content="Hel"), index=0)],
+                model="gpt-5",
+            )
+            yield StreamChunk(
+                choices=[StreamChoice(delta=StreamDelta(content="lo"), index=0, finish_reason="stop")],
+                model="gpt-5",
+                is_final=True,
+            )
+
+        mock_llm_client.chat.return_value = stream()
+
+        async def collect_chunks():
+            return [chunk async for chunk in model.astream([HumanMessage(content="Hi")])]
+
+        chunks = asyncio.run(collect_chunks())
+        output_text = "".join(chunk.content for chunk in chunks if chunk.content)
+        assert output_text == "Hello"
+
+    def test_astream_tool_call_chunk(self, model, mock_llm_client):
+        async def stream():
+            yield StreamChunk(
+                choices=[
+                    StreamChoice(
+                        delta=StreamDelta(
+                            tool_calls=[
+                                {
+                                    "id": "call_1",
+                                    "type": "function",
+                                    "function": {"name": "search", "arguments": '{"q":"test"}'},
+                                }
+                            ]
+                        ),
+                        index=0,
+                        finish_reason="tool_calls",
+                    )
+                ],
+                model="gpt-5",
+                is_final=True,
+            )
+
+        mock_llm_client.chat.return_value = stream()
+
+        async def collect_chunks():
+            return [chunk async for chunk in model.astream([HumanMessage(content="Hi")])]
+
+        chunks = asyncio.run(collect_chunks())
+        assert chunks[0].tool_call_chunks[0]["id"] == "call_1"
+        assert chunks[0].tool_call_chunks[0]["name"] == "search"
