@@ -57,6 +57,7 @@ exclude = ["tests*", "stresstest*"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
+asyncio_mode = "auto"
 
 [tool.ruff]
 line-length = 140
