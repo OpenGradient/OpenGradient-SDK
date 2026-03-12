@@ -134,7 +134,7 @@ class TestClientInitialization:
             og_llm_server_url=custom_llm_url,
         )
 
-        assert client.llm._og_llm_server_url == custom_llm_url
+        assert client.llm._tee_endpoint == custom_llm_url
 
 
 class TestAlphaProperty:

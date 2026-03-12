@@ -82,7 +82,6 @@ class LLM:
             tee_registry_address,
         )
 
-        self._og_llm_server_url = endpoint
         self._tee_id = tee_id
         self._tee_endpoint = endpoint
         self._tee_payment_address = tee_payment_address
@@ -243,13 +242,14 @@ class LLM:
 
         try:
             response = await self._http_client.post(
-                self._og_llm_server_url + _COMPLETION_ENDPOINT,
+                self._tee_endpoint + _COMPLETION_ENDPOINT,
                 json=payload,
                 headers=headers,
                 timeout=_REQUEST_TIMEOUT,
             )
-            content = await response.aread()
-            result = json.loads(content.decode())
+            response.raise_for_status()
+            raw_body = await response.aread()
+            result = json.loads(raw_body.decode())
             return TextGenerationOutput(
                 transaction_hash="external",
                 completion_output=result.get("completion"),
@@ -329,14 +329,14 @@ class LLM:
 
         try:
             response = await self._http_client.post(
-                self._og_llm_server_url + _CHAT_ENDPOINT,
+                self._tee_endpoint + _CHAT_ENDPOINT,
                 json=payload,
                 headers=headers,
                 timeout=_REQUEST_TIMEOUT,
             )
             response.raise_for_status()
-            content = await response.aread()
-            result = json.loads(content.decode())
+            raw_body = await response.aread()
+            result = json.loads(raw_body.decode())
 
             choices = result.get("choices")
             if not choices:
@@ -394,7 +394,7 @@ class LLM:
 
         async with self._http_client.stream(
             "POST",
-            self._og_llm_server_url + _CHAT_ENDPOINT,
+            self._tee_endpoint + _CHAT_ENDPOINT,
             json=payload,
             headers=headers,
             timeout=_REQUEST_TIMEOUT,
