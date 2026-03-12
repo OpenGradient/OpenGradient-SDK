@@ -70,7 +70,6 @@ make chat-tool
    - `twins.py` — Digital twins chat integration (twin.fun)
    - `alpha.py` — Alpha Testnet on-chain inference and workflows
    - `opg_token.py` — OPG token Permit2 approval
-   - `exceptions.py` — Custom exception classes
 
 2. **CLI (`src/opengradient/cli.py`)**: Command-line interface using Click
    - Commands: `config`, `infer`, `completion`, `chat`
