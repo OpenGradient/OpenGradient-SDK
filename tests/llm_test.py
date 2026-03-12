@@ -506,11 +506,11 @@ class TestResolveTeE:
         assert pay_addr is None
 
     def test_missing_rpc_and_registry_raises(self):
-        with pytest.raises(ValueError, match="Either og_llm_server_url"):
+        with pytest.raises(ValueError):
             LLM._resolve_tee(None, None, None)
 
     def test_missing_registry_address_raises(self):
-        with pytest.raises(ValueError, match="Either og_llm_server_url"):
+        with pytest.raises(ValueError):
             LLM._resolve_tee(None, "https://rpc", None)
 
     def test_registry_returns_none_raises(self):

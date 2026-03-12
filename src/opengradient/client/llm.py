@@ -70,15 +70,15 @@ class LLM:
     def __init__(
         self,
         wallet_account: LocalAccount,
-        og_rpc_url: Optional[str] = None,
+        rpc_url: Optional[str] = None,
         tee_registry_address: Optional[str] = None,
-        tee_endpoint_override: Optional[str] = None,
+        og_llm_server_url: Optional[str] = None,
     ):
         self._wallet_account = wallet_account
 
         endpoint, tls_cert_der, tee_id, tee_payment_address = self._resolve_tee(
-            tee_endpoint_override,
-            og_rpc_url,
+            og_llm_server_url,
+            rpc_url,
             tee_registry_address,
         )
 
@@ -101,8 +101,8 @@ class LLM:
 
     @staticmethod
     def _resolve_tee(
-        og_rpc_url: Optional[str],
         tee_endpoint_override: Optional[str],
+        og_rpc_url: Optional[str],
         tee_registry_address: Optional[str],
     ) -> tuple:
         """Resolve TEE endpoint and metadata from the on-chain registry or explicit URL.
@@ -114,7 +114,7 @@ class LLM:
             return tee_endpoint_override, None, None, None
 
         if og_rpc_url is None or tee_registry_address is None:
-            raise ValueError("Either tee_endpoint_override or both og_rpc_url and tee_registry_address must be provided.")
+            raise ValueError("Either og_llm_server_url or both og_rpc_url and tee_registry_address must be provided.")
 
         try:
             registry = TEERegistry(rpc_url=og_rpc_url, registry_address=tee_registry_address)
