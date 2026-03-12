@@ -1,9 +1,8 @@
 # mypy: ignore-errors
 import asyncio
 import json
-from queue import Queue
-from threading import Thread
-from typing import Any, AsyncIterator, Callable, Dict, Iterator, List, Optional, Sequence, Union, cast
+from enum import Enum
+from typing import Any, AsyncIterator, Awaitable, Callable, Dict, Iterator, List, Optional, Sequence, Union, cast
 
 from langchain_core.callbacks.manager import AsyncCallbackManagerForLLMRun, CallbackManagerForLLMRun
 from langchain_core.language_models.base import LanguageModelInput
@@ -32,8 +31,6 @@ from ..client.llm import LLM
 from ..types import StreamChunk, TEE_LLM, TextGenerationOutput, x402SettlementMode
 
 __all__ = ["OpenGradientChatModel"]
-
-_STREAM_END = object()
 
 
 def _extract_content(content: Any) -> str:
@@ -122,28 +119,29 @@ def _parse_tool_call_chunk(tool_call: Dict[str, Any], default_index: int) -> Too
     )
 
 
-def _run_coro_sync(coro: Any) -> Any:
+def _run_coro_sync(coro_factory: Callable[[], Awaitable[Any]]) -> Any:
     try:
         asyncio.get_running_loop()
     except RuntimeError:
-        return asyncio.run(coro)
+        return asyncio.run(coro_factory())
 
-    queue: Queue[Any] = Queue(maxsize=1)
+    raise RuntimeError(
+        "Synchronous LangChain calls cannot run inside an active event loop for this adapter. "
+        "Use `ainvoke`/`astream` instead of `invoke`/`stream`."
+    )
 
-    def _runner() -> None:
-        try:
-            queue.put(asyncio.run(coro))
-        except BaseException as exc:  # noqa: BLE001
-            queue.put(exc)
 
-    thread = Thread(target=_runner, daemon=True)
-    thread.start()
-    outcome = queue.get()
-    thread.join()
-
-    if isinstance(outcome, BaseException):
-        raise outcome
-    return outcome
+def _validate_model_string(model: Union[TEE_LLM, str]) -> Union[TEE_LLM, str]:
+    if isinstance(model, Enum):
+        model_str = str(model.value)
+    else:
+        model_str = str(model)
+    if "/" not in model_str:
+        raise ValueError(
+            f"Unsupported model value '{model_str}'. "
+            "Expected provider/model format (for example: 'openai/gpt-5')."
+        )
+    return model
 
 
 class OpenGradientChatModel(BaseChatModel):
@@ -176,6 +174,7 @@ class OpenGradientChatModel(BaseChatModel):
         resolved_model_cid = model_cid or model
         if resolved_model_cid is None:
             raise ValueError("model_cid (or model) is required.")
+        resolved_model_cid = _validate_model_string(resolved_model_cid)
         super().__init__(
             model_cid=resolved_model_cid,
             max_tokens=max_tokens,
@@ -213,7 +212,7 @@ class OpenGradientChatModel(BaseChatModel):
 
     def close(self) -> None:
         if self._owns_client:
-            _run_coro_sync(self._llm.close())
+            _run_coro_sync(self._llm.close)
 
     def bind_tools(
         self,
@@ -309,9 +308,11 @@ class OpenGradientChatModel(BaseChatModel):
         x402_settlement_mode = kwargs.get("x402_settlement_mode", self.x402_settlement_mode)
         if isinstance(x402_settlement_mode, str):
             x402_settlement_mode = x402SettlementMode(x402_settlement_mode)
+        model = kwargs.get("model", self.model_cid)
+        model = _validate_model_string(model)
 
         return {
-            "model": kwargs.get("model", self.model_cid),
+            "model": model,
             "messages": sdk_messages,
             "stop_sequence": stop,
             "max_tokens": kwargs.get("max_tokens", self.max_tokens),
@@ -346,7 +347,7 @@ class OpenGradientChatModel(BaseChatModel):
     ) -> ChatResult:
         sdk_messages = self._convert_messages_to_sdk(messages)
         chat_kwargs = self._build_chat_kwargs(sdk_messages, stop, stream=False, **kwargs)
-        chat_output = _run_coro_sync(self._llm.chat(**chat_kwargs))
+        chat_output = _run_coro_sync(lambda: self._llm.chat(**chat_kwargs))
         if not isinstance(chat_output, TextGenerationOutput):
             raise RuntimeError("Expected non-streaming chat output but received streaming generator.")
         return self._build_chat_result(chat_output)
@@ -374,33 +375,30 @@ class OpenGradientChatModel(BaseChatModel):
     ) -> Iterator[ChatGenerationChunk]:
         sdk_messages = self._convert_messages_to_sdk(messages)
         chat_kwargs = self._build_chat_kwargs(sdk_messages, stop, stream=True, **kwargs)
-        queue: Queue[Any] = Queue()
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            pass
+        else:
+            raise RuntimeError(
+                "Synchronous stream cannot run inside an active event loop for this adapter. "
+                "Use `astream` instead."
+            )
 
-        def _runner() -> None:
-            async def _run() -> None:
-                stream = await self._llm.chat(**chat_kwargs)
-                async for chunk in cast(AsyncIterator[StreamChunk], stream):
-                    queue.put(self._stream_chunk_to_generation(chunk))
+        loop = asyncio.new_event_loop()
+        try:
+            stream = loop.run_until_complete(self._llm.chat(**chat_kwargs))
+            stream_iter = cast(AsyncIterator[StreamChunk], stream)
 
-            try:
-                asyncio.run(_run())
-            except BaseException as exc:  # noqa: BLE001
-                queue.put(exc)
-            finally:
-                queue.put(_STREAM_END)
-
-        thread = Thread(target=_runner, daemon=True)
-        thread.start()
-
-        while True:
-            item = queue.get()
-            if item is _STREAM_END:
-                break
-            if isinstance(item, BaseException):
-                raise item
-            yield cast(ChatGenerationChunk, item)
-
-        thread.join()
+            while True:
+                try:
+                    chunk = loop.run_until_complete(stream_iter.__anext__())
+                except StopAsyncIteration:
+                    break
+                yield self._stream_chunk_to_generation(chunk)
+        finally:
+            loop.run_until_complete(loop.shutdown_asyncgens())
+            loop.close()
 
     async def _astream(
         self,

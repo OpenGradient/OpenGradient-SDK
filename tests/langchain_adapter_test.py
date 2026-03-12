@@ -64,6 +64,10 @@ class TestOpenGradientChatModel:
         with pytest.raises(ValueError, match="private_key is required"):
             OpenGradientChatModel(private_key=None, model_cid=TEE_LLM.GPT_5)
 
+    def test_initialization_with_invalid_model_string_raises(self):
+        with pytest.raises(ValueError, match="provider/model format"):
+            OpenGradientChatModel(private_key="0x" + "a" * 64, model_cid="gpt-5")
+
     def test_identifying_params(self, model):
         """Test _identifying_params returns model name."""
         assert model._identifying_params == {"model_name": TEE_LLM.GPT_5, "temperature": 0.0, "max_tokens": 300}
@@ -167,6 +171,24 @@ class TestGenerate:
         result = model._generate([HumanMessage(content="Hi")])
 
         assert result.generations[0].message.content == ""
+
+    def test_generate_with_invalid_model_kwarg_raises(self, model):
+        with pytest.raises(ValueError, match="provider/model format"):
+            model._generate([HumanMessage(content="Hi")], model="gpt-5")
+
+    def test_sync_generate_inside_running_loop_raises(self, model):
+        async def run_test():
+            with pytest.raises(RuntimeError, match="Use `ainvoke`/`astream`"):
+                model._generate([HumanMessage(content="Hi")])
+
+        asyncio.run(run_test())
+
+    def test_sync_stream_inside_running_loop_raises(self, model):
+        async def run_test():
+            with pytest.raises(RuntimeError, match="Use `astream`"):
+                next(model._stream([HumanMessage(content="Hi")]))
+
+        asyncio.run(run_test())
 
 
 class TestMessageConversion:
