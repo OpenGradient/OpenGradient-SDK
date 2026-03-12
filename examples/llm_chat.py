@@ -1,6 +1,10 @@
+import logging
 import os
 
 import opengradient as og
+
+logging.basicConfig()
+logging.getLogger("opengradient").setLevel(logging.DEBUG)
 
 client = og.Client(
     private_key=os.environ.get("OG_PRIVATE_KEY"),

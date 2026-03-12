@@ -1,6 +1,5 @@
 """Main Client class that unifies all OpenGradient service namespaces."""
 
-import logging
 from typing import Optional
 
 from web3 import Web3
@@ -14,10 +13,7 @@ from ..defaults import (
 from .alpha import Alpha
 from .llm import LLM
 from .model_hub import ModelHub
-from .tee_registry import TEERegistry
 from .twins import Twins
-
-logger = logging.getLogger(__name__)
 
 
 class Client:
@@ -113,32 +109,6 @@ class Client:
         if email is not None:
             hub_user = ModelHub._login_to_hub(email, password)
 
-        # Resolve LLM server URL and TLS certificate.
-        # If the caller provided explicit URLs, use those with standard CA verification.
-        # Otherwise, discover the endpoint and registry-verified cert from the TEE Registry.
-        llm_tls_cert_der: Optional[bytes] = None
-        tee = None
-        if og_llm_server_url is None:
-            try:
-                registry = TEERegistry(
-                    rpc_url=rpc_url,
-                    registry_address=tee_registry_address,
-                )
-                tee = registry.get_llm_tee()
-                if tee is not None:
-                    og_llm_server_url = tee.endpoint
-                    llm_tls_cert_der = tee.tls_cert_der
-                    logger.info("Using TEE endpoint from registry: %s (teeId=%s)", tee.endpoint, tee.tee_id)
-                else:
-                    raise ValueError("No active LLM proxy TEE found in the registry. Pass og_llm_server_url explicitly to override.")
-            except ValueError:
-                raise
-            except Exception as e:
-                raise RuntimeError(
-                    f"Failed to fetch LLM TEE endpoint from registry ({tee_registry_address} on {rpc_url}): {e}. "
-                    "Pass og_llm_server_url explicitly to override."
-                ) from e
-
         # Create namespaces
         self.model_hub = ModelHub(hub_user=hub_user)
         self.wallet_address = wallet_account.address
@@ -146,9 +116,8 @@ class Client:
         self.llm = LLM(
             wallet_account=wallet_account,
             og_llm_server_url=og_llm_server_url,
-            tls_cert_der=llm_tls_cert_der,
-            tee_id=tee.tee_id if tee is not None else None,
-            tee_payment_address=tee.payment_address if tee is not None else None,
+            rpc_url=rpc_url,
+            tee_registry_address=tee_registry_address,
         )
 
         self.alpha = Alpha(

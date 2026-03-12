@@ -23,7 +23,7 @@ def mock_web3():
     """Create a mock Web3 instance."""
     with (
         patch("src.opengradient.client.client.Web3") as mock,
-        patch("src.opengradient.client.client.TEERegistry") as mock_tee_registry,
+        patch("src.opengradient.client.llm.TEERegistry") as mock_tee_registry,
     ):
         mock_instance = MagicMock()
         mock.return_value = mock_instance
@@ -194,8 +194,8 @@ class TestAuthentication:
 class TestLLMCompletion:
     def test_llm_completion_success(self, client):
         """Test successful LLM completion."""
-        with patch.object(client.llm, "_tee_llm_completion") as mock_tee:
-            mock_tee.return_value = TextGenerationOutput(
+        with patch.object(client.llm, "_run_coroutine") as mock_run:
+            mock_run.return_value = TextGenerationOutput(
                 transaction_hash="external",
                 completion_output="Hello! How can I help?",
                 payment_hash="0xpayment123",
@@ -208,14 +208,14 @@ class TestLLMCompletion:
             )
 
             assert result.completion_output == "Hello! How can I help?"
-            mock_tee.assert_called_once()
+            mock_run.assert_called_once()
 
 
 class TestLLMChat:
     def test_llm_chat_success_non_streaming(self, client):
         """Test successful non-streaming LLM chat."""
-        with patch.object(client.llm, "_tee_llm_chat") as mock_tee:
-            mock_tee.return_value = TextGenerationOutput(
+        with patch.object(client.llm, "_chat_request") as mock_chat:
+            mock_chat.return_value = TextGenerationOutput(
                 transaction_hash="external",
                 chat_output={"role": "assistant", "content": "Hi there!"},
                 finish_reason="stop",
@@ -229,11 +229,11 @@ class TestLLMChat:
             )
 
             assert result.chat_output["content"] == "Hi there!"
-            mock_tee.assert_called_once()
+            mock_chat.assert_called_once()
 
     def test_llm_chat_streaming(self, client):
         """Test streaming LLM chat."""
-        with patch.object(client.llm, "_tee_llm_chat_stream_sync") as mock_stream:
+        with patch.object(client.llm, "_chat_stream_sync") as mock_stream:
             mock_chunks = [
                 StreamChunk(choices=[], model="gpt-4o"),
                 StreamChunk(choices=[], model="gpt-4o", is_final=True),
