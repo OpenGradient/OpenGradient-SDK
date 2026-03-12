@@ -2,7 +2,7 @@ import os
 
 import opengradient as og
 
-og_client = og.Client(private_key=os.environ.get("OG_PRIVATE_KEY"))
+alpha = og.Alpha(private_key=os.environ.get("OG_PRIVATE_KEY"))
 
 # Define model input
 input_query = og.HistoricalInputQuery(
@@ -21,7 +21,7 @@ scheduler_params = og.SchedulerParams(frequency=60, duration_hours=2)
 model_cid = "hJD2Ja3akZFt1A2LT-D_1oxOCz_OtuGYw4V9eE1m39M"
 
 # Deploy schedule
-contract_address = og_client.alpha.new_workflow(
+contract_address = alpha.new_workflow(
     model_cid=model_cid,
     input_query=input_query,
     # Input name in ONNX model

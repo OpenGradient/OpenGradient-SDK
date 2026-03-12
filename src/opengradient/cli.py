@@ -12,16 +12,14 @@ from typing import Dict, List, Optional
 import click
 
 from .account import EthAccount, generate_eth_account
-from .client import Client
-from .defaults import (
-    DEFAULT_API_URL,
-    DEFAULT_BLOCKCHAIN_EXPLORER,
-    DEFAULT_HUB_SIGNUP_URL,
-    DEFAULT_INFERENCE_CONTRACT_ADDRESS,
-    DEFAULT_OG_FAUCET_URL,
-    DEFAULT_RPC_URL,
-)
+from .client.alpha import Alpha
+from .client.llm import LLM
+from .client.model_hub import ModelHub
 from .types import InferenceMode, x402SettlementMode
+
+DEFAULT_BLOCKCHAIN_EXPLORER = "https://explorer.opengradient.ai/tx/"
+DEFAULT_OG_FAUCET_URL = "https://faucet.opengradient.ai/?address="
+DEFAULT_HUB_SIGNUP_URL = "https://hub.opengradient.ai/signup"
 
 OG_CONFIG_FILE = Path.home() / ".opengradient_config.json"
 
@@ -140,12 +138,12 @@ def cli(ctx):
 
     if all(key in ctx.obj for key in ["private_key"]):
         try:
-            ctx.obj["client"] = Client(
-                private_key=ctx.obj["private_key"],
-                alpha_private_key=ctx.obj.get("alpha_private_key"),
-                rpc_url=DEFAULT_RPC_URL,
-                api_url=DEFAULT_API_URL,
-                contract_address=DEFAULT_INFERENCE_CONTRACT_ADDRESS,
+            private_key = ctx.obj["private_key"]
+            alpha_private_key = ctx.obj.get("alpha_private_key") or private_key
+
+            ctx.obj["llm"] = LLM(private_key=private_key)
+            ctx.obj["alpha"] = Alpha(private_key=alpha_private_key)
+            ctx.obj["model_hub"] = ModelHub(
                 email=ctx.obj.get("email"),
                 password=ctx.obj.get("password"),
             )
@@ -225,10 +223,10 @@ def create_model_repo(obj, repo_name: str, description: str):
     opengradient create-model-repo --name "my_new_model" --description "A new model for XYZ task"
     opengradient create-model-repo -n "my_new_model" -d "A new model for XYZ task"
     """
-    client: Client = obj["client"]
+    model_hub: ModelHub = obj["model_hub"]
 
     try:
-        result = client.create_model(repo_name, description)
+        result = model_hub.create_model(repo_name, description)
         click.echo(f"Model repository created successfully: {result}")
     except Exception as e:
         click.echo(f"Error creating model: {str(e)}")
@@ -251,10 +249,10 @@ def create_version(obj, repo_name: str, notes: str, major: bool):
     opengradient create-version --repo my_model_repo --notes "Added new feature X" --major
     opengradient create-version -r my_model_repo -n "Bug fixes"
     """
-    client: Client = obj["client"]
+    model_hub: ModelHub = obj["model_hub"]
 
     try:
-        result = client.create_version(repo_name, notes, major)
+        result = model_hub.create_version(repo_name, notes, major)
         click.echo(f"New version created successfully: {result}")
     except Exception as e:
         click.echo(f"Error creating version: {str(e)}")
@@ -279,10 +277,10 @@ def upload_file(obj, file_path: Path, repo_name: str, version: str):
     opengradient upload-file path/to/model.onnx --repo my_model_repo --version 0.01
     opengradient upload-file path/to/model.onnx -r my_model_repo -v 0.01
     """
-    client: Client = obj["client"]
+    model_hub: ModelHub = obj["model_hub"]
 
     try:
-        result = client.upload(file_path, repo_name, version)
+        result = model_hub.upload(file_path, repo_name, version)
         click.echo(f"File uploaded successfully: {result}")
     except Exception as e:
         click.echo(f"Error uploading model: {str(e)}")
@@ -314,7 +312,7 @@ def infer(ctx, model_cid: str, inference_mode: str, input_data, input_file: Path
     opengradient infer --model Qm... --mode VANILLA --input '{"key": "value"}'
     opengradient infer -m Qm... -i ZKML -f input_data.json
     """
-    client: Client = ctx.obj["client"]
+    alpha: Alpha = ctx.obj["alpha"]
 
     try:
         if not input_data and not input_file:
@@ -335,7 +333,7 @@ def infer(ctx, model_cid: str, inference_mode: str, input_data, input_file: Path
                 model_input = json.load(file)
 
         click.echo(f'Running {inference_mode} inference for model "{model_cid}"')
-        inference_result = client.alpha.infer(model_cid=model_cid, inference_mode=InferenceModes[inference_mode], model_input=model_input)
+        inference_result = alpha.infer(model_cid=model_cid, inference_mode=InferenceModes[inference_mode], model_input=model_input)
 
         click.echo()  # Add a newline for better spacing
         click.secho("✅ Transaction successful", fg="green", bold=True)
@@ -400,13 +398,13 @@ def completion(
     opengradient completion --model anthropic/claude-haiku-4-5 --prompt "Hello, how are you?" --max-tokens 50
     opengradient completion --model openai/gpt-5 --prompt "Write a haiku" --max-tokens 100
     """
-    client: Client = ctx.obj["client"]
+    llm: LLM = ctx.obj["llm"]
 
     try:
         click.echo(f'Running TEE LLM completion for model "{model_cid}"\n')
 
         completion_output = asyncio.run(
-            client.llm.completion(
+            llm.completion(
                 model=model_cid,
                 prompt=prompt,
                 max_tokens=max_tokens,
@@ -526,7 +524,7 @@ def chat(
     # With streaming
     opengradient chat --model anthropic/claude-haiku-4-5 --messages '[{"role":"user","content":"How are clouds formed?"}]' --max-tokens 250 --stream
     """
-    client: Client = ctx.obj["client"]
+    llm: LLM = ctx.obj["llm"]
 
     try:
         click.echo(f'Running TEE LLM chat for model "{model_cid}"\n')
@@ -587,7 +585,7 @@ def chat(
             parsed_tools = None
 
         result = asyncio.run(
-            client.llm.chat(
+            llm.chat(
                 model=model_cid,
                 messages=messages,
                 max_tokens=max_tokens,
@@ -781,7 +779,7 @@ def create_account_impl() -> EthAccount:
 @click.option("--repo", "-r", "repo_name", required=True, help="Name of the model repository")
 @click.option("--version", "-v", required=True, help='Version of the model (e.g., "0.01")')
 @click.pass_obj
-def list_files(client: Client, repo_name: str, version: str):
+def list_files(obj, repo_name: str, version: str):
     """
     List files for a specific version of a model repository.
 
@@ -793,8 +791,9 @@ def list_files(client: Client, repo_name: str, version: str):
     opengradient list-files --repo my_model_repo --version 0.01
     opengradient list-files -r my_model_repo -v 0.01
     """
+    model_hub: ModelHub = obj["model_hub"]
     try:
-        files = client.list_files(repo_name, version)
+        files = model_hub.list_files(repo_name, version)
         if files:
             click.echo(f"Files for {repo_name} version {version}:")
             for file in files:
@@ -820,10 +819,9 @@ def generate_image(ctx, model: str, prompt: str, output_path: Path, width: int, 
     opengradient generate-image --model stabilityai/stable-diffusion-xl-base-1.0
         --prompt "A beautiful sunset over mountains" --output-path sunset.png
     """
-    client: Client = ctx.obj["client"]
     try:
         click.echo(f'Generating image with model "{model}"')
-        image_data = client.generate_image(model_cid=model, prompt=prompt, width=width, height=height)
+        raise NotImplementedError("Image generation is not yet supported.")
 
         # Save the image
         with open(output_path, "wb") as f:

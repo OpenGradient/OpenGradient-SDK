@@ -9,16 +9,14 @@ logging.getLogger("opengradient").setLevel(logging.DEBUG)
 
 
 async def main():
-    client = og.Client(
-        private_key=os.environ.get("OG_PRIVATE_KEY"),
-    )
-    client.llm.ensure_opg_approval(opg_amount=2)
+    llm = og.LLM(private_key=os.environ.get("OG_PRIVATE_KEY"))
+    llm.ensure_opg_approval(opg_amount=2)
 
     messages = [
         {"role": "user", "content": "What is the capital of France?"},
     ]
 
-    result = await client.llm.chat(
+    result = await llm.chat(
         model=og.TEE_LLM.GEMINI_2_5_FLASH,
         messages=messages,
         max_tokens=300,

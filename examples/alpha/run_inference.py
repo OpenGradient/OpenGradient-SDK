@@ -2,9 +2,9 @@ import os
 
 import opengradient as og
 
-og_client = og.Client(private_key=os.environ.get("OG_PRIVATE_KEY"))
+alpha = og.Alpha(private_key=os.environ.get("OG_PRIVATE_KEY"))
 
-inference_result = og_client.alpha.infer(
+inference_result = alpha.infer(
     model_cid="hJD2Ja3akZFt1A2LT-D_1oxOCz_OtuGYw4V9eE1m39M",
     model_input={
         "open_high_low_close": [

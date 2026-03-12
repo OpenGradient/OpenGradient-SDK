@@ -37,7 +37,7 @@ class TestWorkflowModels(unittest.TestCase):
         if not private_key:
             raise ValueError("PRIVATE_KEY environment variable is not set")
 
-        self.client = og.Client(private_key=private_key)
+        self.alpha = og.Alpha(private_key=private_key)
 
     def test_models(self):
         model_functions = {
@@ -55,9 +55,9 @@ class TestWorkflowModels(unittest.TestCase):
         }
 
         for function, model_info in model_functions.items():
-            workflow_result = function(self.client.alpha)
+            workflow_result = function(self.alpha)
             expected_result = format(
-                float(self.client.alpha.read_workflow_result(model_info.address).numbers[model_info.output_name].item()), ".10%"
+                float(self.alpha.read_workflow_result(model_info.address).numbers[model_info.output_name].item()), ".10%"
             )
             print(function)
             print("Workflow result: ", workflow_result)

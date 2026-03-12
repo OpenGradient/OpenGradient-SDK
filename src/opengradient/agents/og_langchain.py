@@ -22,7 +22,7 @@ from langchain_core.runnables import Runnable
 from langchain_core.tools import BaseTool
 from pydantic import PrivateAttr
 
-from ..client import Client
+from ..client.llm import LLM
 from ..types import TEE_LLM, x402SettlementMode
 
 __all__ = ["OpenGradientChatModel"]
@@ -74,7 +74,7 @@ class OpenGradientChatModel(BaseChatModel):
     max_tokens: int = 300
     x402_settlement_mode: Optional[str] = x402SettlementMode.BATCH_HASHED
 
-    _client: Client = PrivateAttr()
+    _llm: LLM = PrivateAttr()
     _tools: List[Dict] = PrivateAttr(default_factory=list)
 
     def __init__(
@@ -91,7 +91,7 @@ class OpenGradientChatModel(BaseChatModel):
             x402_settlement_mode=x402_settlement_mode,
             **kwargs,
         )
-        self._client = Client(private_key=private_key)
+        self._llm = LLM(private_key=private_key)
 
     @property
     def _llm_type(self) -> str:
@@ -167,7 +167,7 @@ class OpenGradientChatModel(BaseChatModel):
                 raise ValueError(f"Unexpected message type: {message}")
 
         chat_output = asyncio.run(
-            self._client.llm.chat(
+            self._llm.chat(
                 model=self.model_cid,
                 messages=sdk_messages,
                 stop_sequence=stop,

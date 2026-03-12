@@ -17,8 +17,8 @@ class Twins:
     verifiable inference. Browse available twins at https://twin.fun.
 
     Usage:
-        client = og.init(private_key="0x...", twins_api_key="your-api-key")
-        response = client.twins.chat(
+        twins = og.Twins(api_key="your-api-key")
+        response = twins.chat(
             twin_id="0x1abd463fd6244be4a1dc0f69e0b70cd5",
             model=og.TEE_LLM.GROK_4_1_FAST_NON_REASONING,
             messages=[{"role": "user", "content": "What do you think about AI?"}],

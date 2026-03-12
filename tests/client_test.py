@@ -7,22 +7,35 @@ import pytest
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
-from src.opengradient.client import Client
+from src.opengradient.client.llm import LLM
+from src.opengradient.client.model_hub import ModelHub
 from src.opengradient.types import (
     StreamChunk,
     x402SettlementMode,
 )
 
+FAKE_PRIVATE_KEY = "0x" + "a" * 64
+
 # --- Fixtures ---
 
 
 @pytest.fixture
+def mock_tee_registry():
+    """Mock the TEE registry so LLM.__init__ doesn't need a live registry."""
+    with patch("src.opengradient.client.llm.TEERegistry") as mock_tee_registry:
+        mock_tee = MagicMock()
+        mock_tee.endpoint = "https://test.tee.server"
+        mock_tee.tls_cert_der = None
+        mock_tee.tee_id = "test-tee-id"
+        mock_tee.payment_address = "0xTestPaymentAddress"
+        mock_tee_registry.return_value.get_llm_tee.return_value = mock_tee
+        yield mock_tee_registry
+
+
+@pytest.fixture
 def mock_web3():
-    """Create a mock Web3 instance."""
-    with (
-        patch("src.opengradient.client.client.Web3") as mock,
-        patch("src.opengradient.client.llm.TEERegistry") as mock_tee_registry,
-    ):
+    """Create a mock Web3 instance for Alpha."""
+    with patch("src.opengradient.client.alpha.Web3") as mock:
         mock_instance = MagicMock()
         mock.return_value = mock_instance
         mock.HTTPProvider.return_value = MagicMock()
@@ -31,14 +44,6 @@ def mock_web3():
         mock_instance.eth.get_transaction_count.return_value = 0
         mock_instance.eth.gas_price = 1000000000
         mock_instance.eth.contract.return_value = MagicMock()
-
-        # Return a fake active TEE endpoint so Client.__init__ doesn't need a live registry
-        mock_tee = MagicMock()
-        mock_tee.endpoint = "https://test.tee.server"
-        mock_tee.tls_cert_der = None
-        mock_tee.tee_id = "test-tee-id"
-        mock_tee.payment_address = "0xTestPaymentAddress"
-        mock_tee_registry.return_value.get_llm_tee.return_value = mock_tee
 
         yield mock_instance
 
@@ -60,66 +65,27 @@ def mock_abi_files():
         yield
 
 
-# --- Client Initialization Tests ---
+# --- LLM Initialization Tests ---
 
 
-class TestClientInitialization:
-    def test_client_initialization_without_auth(self, mock_web3, mock_abi_files):
-        """Test basic client initialization without authentication."""
-        client = Client(
-            private_key="0x" + "a" * 64,
-            rpc_url="https://test.rpc.url",
-            api_url="https://test.api.url",
-            inference_contract_address="0x" + "b" * 40,
-        )
+class TestLLMInitialization:
+    def test_llm_initialization(self, mock_tee_registry):
+        """Test basic LLM initialization."""
+        llm = LLM(private_key=FAKE_PRIVATE_KEY)
+        assert llm._tee_endpoint == "https://test.tee.server"
 
-        assert client.model_hub._hub_user is None
-
-    def test_client_initialization_with_auth(self, mock_web3, mock_abi_files):
-        """Test client initialization with email/password authentication."""
-        with (
-            patch("src.opengradient.client.model_hub._FIREBASE_CONFIG", {"apiKey": "fake"}),
-            patch("src.opengradient.client.model_hub.firebase") as mock_firebase,
-        ):
-            mock_auth = MagicMock()
-            mock_auth.sign_in_with_email_and_password.return_value = {
-                "idToken": "test_token",
-                "email": "test@test.com",
-            }
-            mock_firebase.initialize_app.return_value.auth.return_value = mock_auth
-
-            client = Client(
-                private_key="0x" + "a" * 64,
-                rpc_url="https://test.rpc.url",
-                api_url="https://test.api.url",
-                inference_contract_address="0x" + "b" * 40,
-                email="test@test.com",
-                password="test_password",
-            )
-
-            assert client.model_hub._hub_user is not None
-            assert client.model_hub._hub_user["idToken"] == "test_token"
-
-    def test_client_initialization_custom_llm_urls(self, mock_web3, mock_abi_files):
-        """Test client initialization with custom LLM server URL."""
+    def test_llm_initialization_custom_url(self, mock_tee_registry):
+        """Test LLM initialization with custom server URL."""
         custom_llm_url = "https://custom.llm.server"
-
-        client = Client(
-            private_key="0x" + "a" * 64,
-            rpc_url="https://test.rpc.url",
-            api_url="https://test.api.url",
-            inference_contract_address="0x" + "b" * 40,
-            llm_server_url=custom_llm_url,
-        )
-
-        assert client.llm._tee_endpoint == custom_llm_url
+        llm = LLM(private_key=FAKE_PRIVATE_KEY, llm_server_url=custom_llm_url)
+        assert llm._tee_endpoint == custom_llm_url
 
 
-# --- Authentication Tests ---
+# --- ModelHub Authentication Tests ---
 
 
 class TestAuthentication:
-    def test_login_to_hub_success(self, mock_web3, mock_abi_files):
+    def test_login_to_hub_success(self):
         """Test successful login to hub."""
         with (
             patch("src.opengradient.client.model_hub._FIREBASE_CONFIG", {"apiKey": "fake"}),
@@ -132,19 +98,12 @@ class TestAuthentication:
             }
             mock_firebase.initialize_app.return_value.auth.return_value = mock_auth
 
-            client = Client(
-                private_key="0x" + "a" * 64,
-                rpc_url="https://test.rpc.url",
-                api_url="https://test.api.url",
-                inference_contract_address="0x" + "b" * 40,
-                email="user@test.com",
-                password="password123",
-            )
+            hub = ModelHub(email="user@test.com", password="password123")
 
             mock_auth.sign_in_with_email_and_password.assert_called_once_with("user@test.com", "password123")
-            assert client.model_hub._hub_user["idToken"] == "success_token"
+            assert hub._hub_user["idToken"] == "success_token"
 
-    def test_login_to_hub_failure(self, mock_web3, mock_abi_files):
+    def test_login_to_hub_failure(self):
         """Test login failure raises exception."""
         with (
             patch("src.opengradient.client.model_hub._FIREBASE_CONFIG", {"apiKey": "fake"}),
@@ -155,14 +114,7 @@ class TestAuthentication:
             mock_firebase.initialize_app.return_value.auth.return_value = mock_auth
 
             with pytest.raises(Exception, match="Invalid credentials"):
-                Client(
-                    private_key="0x" + "a" * 64,
-                    rpc_url="https://test.rpc.url",
-                    api_url="https://test.api.url",
-                    inference_contract_address="0x" + "b" * 40,
-                    email="user@test.com",
-                    password="wrong_password",
-                )
+                ModelHub(email="user@test.com", password="wrong_password")
 
 
 # --- StreamChunk Tests ---

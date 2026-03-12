@@ -5,10 +5,8 @@ import opengradient as og
 
 
 async def main():
-    client = og.Client(
-        private_key=os.environ.get("OG_PRIVATE_KEY"),
-    )
-    client.llm.ensure_opg_approval(opg_amount=1)
+    llm = og.LLM(private_key=os.environ.get("OG_PRIVATE_KEY"))
+    llm.ensure_opg_approval(opg_amount=1)
 
     messages = [
         {"role": "user", "content": "What is Python?"},
@@ -16,7 +14,7 @@ async def main():
         {"role": "user", "content": "What makes it good for beginners?"},
     ]
 
-    stream = await client.llm.chat(
+    stream = await llm.chat(
         model=og.TEE_LLM.GPT_4_1_2025_04_14,
         messages=messages,
         x402_settlement_mode=og.x402SettlementMode.INDIVIDUAL_FULL,

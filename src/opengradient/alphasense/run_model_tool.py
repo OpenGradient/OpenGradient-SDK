@@ -112,14 +112,7 @@ def create_run_model_tool(
     """
 
     if inference is None:
-        import opengradient as og
-
-        if og.global_client is None:
-            raise ValueError(
-                "No inference instance provided and no global client initialized. "
-                "Either pass inference=client.alpha or call opengradient.init() first."
-            )
-        inference = og.global_client.alpha
+        raise ValueError("No inference instance provided. Pass inference=og.Alpha(private_key=...).")
 
     def model_executor(**llm_input):
         # Pass LLM input arguments (formatted based on tool_input_schema) as parameters into model_input_provider

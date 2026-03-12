@@ -11,10 +11,10 @@ MODEL = "QmbUqS93oc4JTLMHwpVxsE39mhNxy6hpf6Py3r9oANr8aZ"
 
 
 def main(private_key: str):
-    client = og.Client(private_key=private_key)
+    alpha = og.Alpha(private_key=private_key)
 
     def run_inference(input_data: dict):
-        client.alpha.infer(MODEL, og.InferenceMode.VANILLA, input_data)
+        alpha.infer(MODEL, og.InferenceMode.VANILLA, input_data)
 
     latencies, failures = stress_test_wrapper(run_inference, num_requests=NUM_REQUESTS)
 

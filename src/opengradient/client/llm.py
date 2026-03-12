@@ -6,6 +6,7 @@ import ssl
 from dataclasses import dataclass
 from typing import AsyncGenerator, Dict, List, Optional, Union
 
+from eth_account import Account
 from eth_account.account import LocalAccount
 from x402v2 import x402Client as x402Clientv2
 from x402v2.http.clients import x402HttpxClient as x402HttpxClientv2
@@ -18,6 +19,9 @@ from .opg_token import Permit2ApprovalResult, ensure_opg_approval
 from .tee_registry import TEERegistry, build_ssl_context_from_der
 
 logger = logging.getLogger(__name__)
+
+DEFAULT_RPC_URL = "https://ogevmdevnet.opengradient.ai"
+DEFAULT_TEE_REGISTRY_ADDRESS = "0x4e72238852f3c918f4E4e57AeC9280dDB0c80248"
 
 X402_PROCESSING_HASH_HEADER = "x-processing-hash"
 X402_PLACEHOLDER_API_KEY = "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
@@ -57,23 +61,23 @@ class LLM:
     below the requested amount.
 
     Usage:
-        client = og.Client(...)
+        llm = og.LLM(private_key="0x...")
 
         # One-time approval (idempotent — skips if allowance is already sufficient)
-        client.llm.ensure_opg_approval(opg_amount=5)
+        llm.ensure_opg_approval(opg_amount=5)
 
-        result = await client.llm.chat(model=TEE_LLM.CLAUDE_HAIKU_4_5, messages=[...])
-        result = await client.llm.completion(model=TEE_LLM.CLAUDE_HAIKU_4_5, prompt="Hello")
+        result = await llm.chat(model=TEE_LLM.CLAUDE_HAIKU_4_5, messages=[...])
+        result = await llm.completion(model=TEE_LLM.CLAUDE_HAIKU_4_5, prompt="Hello")
     """
 
     def __init__(
         self,
-        wallet_account: LocalAccount,
-        rpc_url: Optional[str] = None,
-        tee_registry_address: Optional[str] = None,
+        private_key: str,
+        rpc_url: str = DEFAULT_RPC_URL,
+        tee_registry_address: str = DEFAULT_TEE_REGISTRY_ADDRESS,
         llm_server_url: Optional[str] = None,
     ):
-        self._wallet_account = wallet_account
+        self._wallet_account: LocalAccount = Account.from_key(private_key)
 
         endpoint, tls_cert_der, tee_id, tee_payment_address = self._resolve_tee(
             llm_server_url,

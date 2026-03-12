@@ -11,10 +11,10 @@ MODEL = "anthropic/claude-haiku-4-5"
 
 
 def main(private_key: str):
-    client = og.Client(private_key=private_key)
+    llm = og.LLM(private_key=private_key)
 
     def run_prompt(prompt: str):
-        client.llm.completion(MODEL, prompt, max_tokens=50)
+        llm.completion(MODEL, prompt, max_tokens=50)
 
     latencies, failures = stress_test_wrapper(run_prompt, num_requests=NUM_REQUESTS, is_llm=True)
 

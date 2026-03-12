@@ -13,10 +13,7 @@ import opengradient as og
 
 
 async def main():
-    # Initialize client
-    client = og.Client(
-        private_key=os.environ.get("OG_PRIVATE_KEY"),
-    )
+    llm = og.LLM(private_key=os.environ.get("OG_PRIVATE_KEY"))
 
     # Define a simple tool
     tools = [
@@ -54,7 +51,7 @@ async def main():
     ]
 
     # One-time Permit2 approval for OPG spending (idempotent)
-    client.llm.ensure_opg_approval(opg_amount=5)
+    llm.ensure_opg_approval(opg_amount=5)
 
     print("Testing Gemini tool calls...")
     print(f"Model: {og.TEE_LLM.GEMINI_2_5_FLASH_LITE}")
@@ -62,7 +59,7 @@ async def main():
     print(f"Tools: {tools}")
     print("-" * 50)
 
-    result = await client.llm.chat(
+    result = await llm.chat(
         model=og.TEE_LLM.GEMINI_2_5_FLASH_LITE,
         messages=messages,
         tools=tools,

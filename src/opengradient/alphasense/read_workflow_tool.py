@@ -59,14 +59,7 @@ def create_read_workflow_tool(
     """
 
     if alpha is None:
-        import opengradient as og
-
-        if og.global_client is None:
-            raise ValueError(
-                "No alpha instance provided and no global client initialized. "
-                "Either pass alpha=client.alpha or call opengradient.init() first."
-            )
-        alpha = og.global_client.alpha
+        raise ValueError("No alpha instance provided. Pass alpha=og.Alpha(private_key=...).")
 
     # define runnable
     def read_workflow():

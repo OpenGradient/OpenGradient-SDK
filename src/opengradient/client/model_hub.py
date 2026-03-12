@@ -28,9 +28,9 @@ class ModelHub:
     and uploading ML models. Requires email/password authentication.
 
     Usage:
-        client = og.Client(private_key="0x...", email="user@example.com", password="...")
-        repo = client.model_hub.create_model("my-model", "A description")
-        client.model_hub.upload("model.onnx", repo.name, repo.version)
+        hub = og.ModelHub(email="user@example.com", password="...")
+        repo = hub.create_model("my-model", "A description")
+        hub.upload("model.onnx", repo.name, repo.version)
     """
 
     def __init__(self, email: Optional[str] = None, password: Optional[str] = None):

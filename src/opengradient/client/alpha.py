@@ -17,10 +17,14 @@ from web3 import Web3
 from web3.exceptions import ContractLogicError
 from web3.logs import DISCARD
 
-from ..defaults import DEFAULT_SCHEDULER_ADDRESS
 from ..types import HistoricalInputQuery, InferenceMode, InferenceResult, ModelOutput, SchedulerParams
 from ._conversions import convert_array_to_model_output, convert_to_model_input, convert_to_model_output
 from ._utils import get_abi, get_bin, run_with_retry
+
+DEFAULT_RPC_URL = "https://ogevmdevnet.opengradient.ai"
+DEFAULT_API_URL = "https://sdk-devnet.opengradient.ai"
+DEFAULT_INFERENCE_CONTRACT_ADDRESS = "0x8383C9bD7462F12Eb996DD02F78234C0421A6FaE"
+DEFAULT_SCHEDULER_ADDRESS = "0x7179724De4e7FF9271FA40C0337c7f90C0508eF6"
 
 # How much time we wait for txn to be included in chain
 INFERENCE_TX_TIMEOUT = 120
@@ -37,21 +41,21 @@ class Alpha:
     including on-chain ONNX model inference, workflow deployment, and execution.
 
     Usage:
-        client = og.Client(...)
-        result = client.alpha.infer(model_cid, InferenceMode.VANILLA, model_input)
-        result = client.alpha.new_workflow(model_cid, input_query, input_tensor_name)
+        alpha = og.Alpha(private_key="0x...")
+        result = alpha.infer(model_cid, InferenceMode.VANILLA, model_input)
+        result = alpha.new_workflow(model_cid, input_query, input_tensor_name)
     """
 
     def __init__(
         self,
-        blockchain: Web3,
-        wallet_account: LocalAccount,
-        inference_hub_contract_address: str,
-        api_url: str,
+        private_key: str,
+        rpc_url: str = DEFAULT_RPC_URL,
+        inference_contract_address: str = DEFAULT_INFERENCE_CONTRACT_ADDRESS,
+        api_url: str = DEFAULT_API_URL,
     ):
-        self._blockchain = blockchain
-        self._wallet_account = wallet_account
-        self._inference_hub_contract_address = inference_hub_contract_address
+        self._blockchain = Web3(Web3.HTTPProvider(rpc_url))
+        self._wallet_account: LocalAccount = self._blockchain.eth.account.from_key(private_key)
+        self._inference_hub_contract_address = inference_contract_address
         self._api_url = api_url
         self._inference_abi = None
         self._precompile_abi = None
