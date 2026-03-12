@@ -65,7 +65,6 @@ repo = client.model_hub.create_model("my-model", "A price prediction model")
 
 * [alpha](./alpha): Alpha Testnet features for OpenGradient SDK.
 * [client](./client): Main Client class that unifies all OpenGradient service namespaces.
-* [exceptions](./exceptions): Exception types for OpenGradient SDK errors.
 * [llm](./llm): LLM chat and completion via TEE-verified execution with x402 payments.
 * [model_hub](./model_hub): Model Hub for creating, versioning, and uploading ML models.
 * [opg_token](./opg_token): OPG token Permit2 approval utilities for x402 payments.

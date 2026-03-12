@@ -23,8 +23,8 @@ client = og.Client(
     private_key=os.environ["OG_PRIVATE_KEY"],  # Required: Ethereum private key
 )
 
-# LLM Chat (TEE-verified with x402 payments)
-result = client.llm.chat(
+# LLM Chat (TEE-verified with x402 payments, async)
+result = await client.llm.chat(
     model=og.TEE_LLM.CLAUDE_HAIKU_4_5,
     messages=[{"role": "user", "content": "Hello!"}],
     max_tokens=100,
@@ -51,7 +51,7 @@ og.init(private_key="0x...", email="...", password="...")
 ### LLM Chat
 
 ```python
-result = client.llm.chat(
+result = await client.llm.chat(
     model: TEE_LLM,                    # og.TEE_LLM enum value
     messages: List[Dict],              # [{"role": "user", "content": "..."}]
     max_tokens: int = 100,
@@ -62,7 +62,7 @@ result = client.llm.chat(
     x402_settlement_mode: x402SettlementMode = x402SettlementMode.BATCH_HASHED,
     stream: bool = False,              # Enable streaming responses
 )
-# Returns: TextGenerationOutput (or TextGenerationStream if stream=True)
+# Returns: TextGenerationOutput (or AsyncGenerator[StreamChunk] if stream=True)
 #   - chat_output: Dict with role, content, tool_calls
 #   - transaction_hash: str
 #   - finish_reason: str ("stop", "tool_call")
@@ -72,7 +72,7 @@ result = client.llm.chat(
 ### LLM Completion
 
 ```python
-result = client.llm.completion(
+result = await client.llm.completion(
     model: TEE_LLM,
     prompt: str,
     max_tokens: int = 100,
@@ -139,7 +139,7 @@ og.TEE_LLM.GROK_4_1_FAST_NON_REASONING
 All models are accessed through the OpenGradient TEE infrastructure with x402 payments:
 
 ```python
-result = client.llm.chat(
+result = await client.llm.chat(
     model=og.TEE_LLM.GPT_5,
     messages=[{"role": "user", "content": "Hello"}],
 )
@@ -165,7 +165,7 @@ tools = [{
     }
 }]
 
-result = client.llm.chat(
+result = await client.llm.chat(
     model=og.TEE_LLM.CLAUDE_SONNET_4_6,
     messages=[{"role": "user", "content": "What's the weather in NYC?"}],
     tools=tools,
@@ -180,13 +180,13 @@ if result.chat_output.get("tool_calls"):
 ### Streaming
 
 ```python
-stream = client.llm.chat(
+stream = await client.llm.chat(
     model=og.TEE_LLM.CLAUDE_SONNET_4_6,
     messages=[{"role": "user", "content": "Tell me a story"}],
     stream=True,
 )
 
-for chunk in stream:
+async for chunk in stream:
     for choice in chunk.choices:
         if choice.delta.content:
             print(choice.delta.content, end="")
@@ -283,28 +283,15 @@ og.CandleOrder.ASCENDING, .DESCENDING
 
 ## Error Handling
 
-```python
-from opengradient.client.exceptions import (
-    OpenGradientError,      # Base exception
-    AuthenticationError,
-    InferenceError,
-    InvalidInputError,
-    NetworkError,
-    RateLimitError,
-    TimeoutError,
-    ServerError,
-    UnsupportedModelError,
-    InsufficientCreditsError,
-)
+LLM methods raise `RuntimeError` on failure and `ValueError` for invalid arguments:
 
+```python
 try:
-    result = client.llm.chat(...)
-except RateLimitError:
-    # Retry with backoff
-except InferenceError as e:
-    print(f"Inference failed: {e.message}")
-except OpenGradientError as e:
-    print(f"Error {e.status_code}: {e.message}")
+    result = await client.llm.chat(...)
+except RuntimeError as e:
+    print(f"Inference failed: {e}")
+except ValueError as e:
+    print(f"Invalid input: {e}")
 ```
 
 ## Environment Variables

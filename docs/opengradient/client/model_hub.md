@@ -101,7 +101,7 @@ List[Dict]: A list of dictionaries containing file information.
 
 **Raises**
 
-* **`OpenGradientError`**: If the file listing fails.
+* **`RuntimeError`**: If the file listing fails.
 
 ---
 
@@ -129,4 +129,4 @@ dict: The processed result.
 
 **Raises**
 
-* **`OpenGradientError`**: If the upload fails.
+* **`RuntimeError`**: If the upload fails.

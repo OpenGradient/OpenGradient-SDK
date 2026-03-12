@@ -97,9 +97,9 @@ See [Payment Settlement](#payment-settlement) for details on settlement modes.
 
 ### TEE-Secured LLM Chat
 
-OpenGradient provides secure, verifiable inference through Trusted Execution Environments. All supported models include cryptographic attestation verified by the OpenGradient network:
+OpenGradient provides secure, verifiable inference through Trusted Execution Environments. All supported models include cryptographic attestation verified by the OpenGradient network. LLM methods are async:
 ```python
-completion = client.llm.chat(
+completion = await client.llm.chat(
     model=og.TEE_LLM.GPT_5,
     messages=[{"role": "user", "content": "Hello!"}],
 )
@@ -111,14 +111,14 @@ print(f"Transaction hash: {completion.transaction_hash}")
 
 For real-time generation, enable streaming:
 ```python
-stream = client.llm.chat(
+stream = await client.llm.chat(
     model=og.TEE_LLM.CLAUDE_SONNET_4_6,
     messages=[{"role": "user", "content": "Explain quantum computing"}],
     max_tokens=500,
     stream=True,
 )
 
-for chunk in stream:
+async for chunk in stream:
     if chunk.choices[0].delta.content:
         print(chunk.choices[0].delta.content, end="")
 ```
@@ -299,7 +299,7 @@ OpenGradient supports multiple settlement modes through the x402 payment protoco
 
 Specify settlement mode in your requests:
 ```python
-result = client.llm.chat(
+result = await client.llm.chat(
     model=og.TEE_LLM.GPT_5,
     messages=[{"role": "user", "content": "Hello"}],
     x402_settlement_mode=og.x402SettlementMode.BATCH_HASHED,

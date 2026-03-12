@@ -99,7 +99,7 @@ Union[TextGenerationOutput, AsyncGenerator[StreamChunk, None]]:
 
 **Raises**
 
-* **`OpenGradientError`**: If the inference fails.
+* **`RuntimeError`**: If the inference fails.
 
 ---
 
@@ -166,7 +166,7 @@ TextGenerationOutput: Generated text results including:
 
 **Raises**
 
-* **`OpenGradientError`**: If the inference fails.
+* **`RuntimeError`**: If the inference fails.
 
 ---
 
@@ -201,4 +201,4 @@ Permit2ApprovalResult: Contains ``allowance_before``,
 **Raises**
 
 * **`ValueError`**: If the OPG amount is less than 0.05.
-* **`OpenGradientError`**: If the approval transaction fails.
+* **`RuntimeError`**: If the approval transaction fails.

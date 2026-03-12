@@ -63,7 +63,7 @@ InferenceResult (InferenceResult): A dataclass object containing the transaction
 
 **Raises**
 
-* **`OpenGradientError`**: If the inference fails.
+* **`RuntimeError`**: If the inference fails.
 
 ---
 
