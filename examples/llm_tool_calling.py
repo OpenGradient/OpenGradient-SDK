@@ -1,5 +1,5 @@
 """
-Test Gemini models with tool calls.
+LLM tool/function calling example.
 
 Usage:
     export OG_PRIVATE_KEY="your_private_key"
@@ -13,7 +13,7 @@ import opengradient as og
 
 
 async def main():
-    # Initialize client with Google API key
+    # Initialize client
     client = og.Client(
         private_key=os.environ.get("OG_PRIVATE_KEY"),
     )
