@@ -643,13 +643,15 @@ def print_llm_chat_result(model_cid, tx_hash, finish_reason, chat_output, is_van
                 fn = tool_call.get("function", {})
                 click.echo(f"  Function: {fn.get('name', '')}")
                 click.echo(f"  Arguments: {fn.get('arguments', '')}")
-        elif key == "content" and isinstance(value, list):
-            # Normalize list-of-blocks content (e.g. Gemini 3 thought signatures)
-            if key == "content" and isinstance(value, list):
+        elif key == "content":
+            if isinstance(value, list):
+                # Normalize list-of-blocks content (e.g. Gemini 3 thought signatures)
                 text = " ".join(block.get("text", "") for block in value if isinstance(block, dict) and block.get("type") == "text").strip()
-                click.echo(f"{key}: {text}")
+                click.echo(text)
             else:
-                click.echo(f"{key}: {value}")
+                click.echo(value)
+        else:
+            click.echo(f"{key}: {value}")
     click.echo()
 
 
