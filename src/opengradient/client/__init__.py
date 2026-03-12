@@ -7,6 +7,8 @@ OpenGradient Client -- service modules for the SDK.
 - **`opengradient.client.model_hub`** -- Model repository management: create, version, and upload ML models
 - **`opengradient.client.alpha`** -- Alpha Testnet features: on-chain ONNX model inference (VANILLA, TEE, ZKML modes), workflow deployment, and scheduled ML model execution (OpenGradient testnet gas tokens)
 - **`opengradient.client.twins`** -- Digital twins chat via OpenGradient verifiable inference
+- **`opengradient.client.opg_token`** -- OPG token Permit2 approval utilities for x402 payments
+- **`opengradient.client.tee_registry`** -- TEE registry client for verified endpoints and TLS certificates
 
 ## Usage
 
