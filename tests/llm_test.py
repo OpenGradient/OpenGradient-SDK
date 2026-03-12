@@ -7,7 +7,7 @@ so LLM builds normally — no test-only constructor params, no mocking of privat
 import json
 from contextlib import asynccontextmanager
 from typing import List
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import MagicMock, patch
 
 import httpx
 import pytest
@@ -15,7 +15,6 @@ import pytest
 from src.opengradient.client.exceptions import OpenGradientError
 from src.opengradient.client.llm import LLM
 from src.opengradient.types import TEE_LLM, x402SettlementMode
-
 
 # ── Fake HTTP transport ──────────────────────────────────────────────
 
@@ -49,9 +48,7 @@ class FakeHTTPClient:
         self._post_calls.append({"url": url, "json": json, "headers": headers, "timeout": timeout})
         resp = _FakeResponse(self._response_status, self._response_body)
         if self._response_status >= 400:
-            resp.raise_for_status = MagicMock(
-                side_effect=httpx.HTTPStatusError("error", request=MagicMock(), response=MagicMock())
-            )
+            resp.raise_for_status = MagicMock(side_effect=httpx.HTTPStatusError("error", request=MagicMock(), response=MagicMock()))
         return resp
 
     @asynccontextmanager
@@ -136,11 +133,14 @@ def _make_llm(
 @pytest.mark.asyncio
 class TestCompletion:
     async def test_returns_completion_output(self, fake_http):
-        fake_http.set_response(200, {
-            "completion": "Hello world",
-            "tee_signature": "sig-abc",
-            "tee_timestamp": "2025-01-01T00:00:00Z",
-        })
+        fake_http.set_response(
+            200,
+            {
+                "completion": "Hello world",
+                "tee_signature": "sig-abc",
+                "tee_timestamp": "2025-01-01T00:00:00Z",
+            },
+        )
         llm = _make_llm()
 
         result = await llm.completion(model=TEE_LLM.GPT_5, prompt="Say hello")
@@ -216,11 +216,14 @@ class TestCompletion:
 @pytest.mark.asyncio
 class TestChat:
     async def test_returns_chat_output(self, fake_http):
-        fake_http.set_response(200, {
-            "choices": [{"message": {"role": "assistant", "content": "Hi there!"}, "finish_reason": "stop"}],
-            "tee_signature": "sig-xyz",
-            "tee_timestamp": "2025-06-01T00:00:00Z",
-        })
+        fake_http.set_response(
+            200,
+            {
+                "choices": [{"message": {"role": "assistant", "content": "Hi there!"}, "finish_reason": "stop"}],
+                "tee_signature": "sig-xyz",
+                "tee_timestamp": "2025-06-01T00:00:00Z",
+            },
+        )
         llm = _make_llm()
 
         result = await llm.chat(
@@ -234,18 +237,23 @@ class TestChat:
         assert result.tee_signature == "sig-xyz"
 
     async def test_flattens_content_blocks(self, fake_http):
-        fake_http.set_response(200, {
-            "choices": [{
-                "message": {
-                    "role": "assistant",
-                    "content": [
-                        {"type": "text", "text": "Hello"},
-                        {"type": "text", "text": "world"},
-                    ],
-                },
-                "finish_reason": "stop",
-            }],
-        })
+        fake_http.set_response(
+            200,
+            {
+                "choices": [
+                    {
+                        "message": {
+                            "role": "assistant",
+                            "content": [
+                                {"type": "text", "text": "Hello"},
+                                {"type": "text", "text": "world"},
+                            ],
+                        },
+                        "finish_reason": "stop",
+                    }
+                ],
+            },
+        )
         llm = _make_llm()
 
         result = await llm.chat(model=TEE_LLM.GPT_5, messages=[{"role": "user", "content": "Hi"}])
@@ -253,9 +261,12 @@ class TestChat:
         assert result.chat_output["content"] == "Hello world"
 
     async def test_sends_correct_payload(self, fake_http):
-        fake_http.set_response(200, {
-            "choices": [{"message": {"role": "assistant", "content": "ok"}, "finish_reason": "stop"}],
-        })
+        fake_http.set_response(
+            200,
+            {
+                "choices": [{"message": {"role": "assistant", "content": "ok"}, "finish_reason": "stop"}],
+            },
+        )
         llm = _make_llm()
 
         await llm.chat(
@@ -275,9 +286,12 @@ class TestChat:
         assert "stream" not in payload
 
     async def test_sends_to_chat_endpoint(self, fake_http):
-        fake_http.set_response(200, {
-            "choices": [{"message": {"role": "assistant", "content": "ok"}, "finish_reason": "stop"}],
-        })
+        fake_http.set_response(
+            200,
+            {
+                "choices": [{"message": {"role": "assistant", "content": "ok"}, "finish_reason": "stop"}],
+            },
+        )
         llm = _make_llm(endpoint="https://my.server")
 
         await llm.chat(model=TEE_LLM.GPT_5, messages=[{"role": "user", "content": "Hi"}])
@@ -286,12 +300,17 @@ class TestChat:
 
     async def test_tools_included_in_payload(self, fake_http):
         tools = [{"type": "function", "function": {"name": "get_weather"}}]
-        fake_http.set_response(200, {
-            "choices": [{
-                "message": {"role": "assistant", "content": None, "tool_calls": [{"id": "1"}]},
-                "finish_reason": "tool_calls",
-            }],
-        })
+        fake_http.set_response(
+            200,
+            {
+                "choices": [
+                    {
+                        "message": {"role": "assistant", "content": None, "tool_calls": [{"id": "1"}]},
+                        "finish_reason": "tool_calls",
+                    }
+                ],
+            },
+        )
         llm = _make_llm()
 
         result = await llm.chat(
@@ -308,9 +327,12 @@ class TestChat:
 
     async def test_tool_choice_defaults_to_auto(self, fake_http):
         tools = [{"type": "function", "function": {"name": "f"}}]
-        fake_http.set_response(200, {
-            "choices": [{"message": {"role": "assistant", "content": "ok"}, "finish_reason": "stop"}],
-        })
+        fake_http.set_response(
+            200,
+            {
+                "choices": [{"message": {"role": "assistant", "content": "ok"}, "finish_reason": "stop"}],
+            },
+        )
         llm = _make_llm()
 
         await llm.chat(model=TEE_LLM.GPT_5, messages=[{"role": "user", "content": "Hi"}], tools=tools)
@@ -346,11 +368,14 @@ class TestChat:
 @pytest.mark.asyncio
 class TestChatStreaming:
     async def test_streams_chunks(self, fake_http):
-        fake_http.set_stream_response(200, [
-            b'data: {"model":"gpt-5","choices":[{"index":0,"delta":{"role":"assistant","content":"Hi"},"finish_reason":null}]}\n\n',
-            b'data: {"model":"gpt-5","choices":[{"index":0,"delta":{"content":" there"},"finish_reason":"stop"}],"tee_signature":"sig"}\n\n',
-            b"data: [DONE]\n\n",
-        ])
+        fake_http.set_stream_response(
+            200,
+            [
+                b'data: {"model":"gpt-5","choices":[{"index":0,"delta":{"role":"assistant","content":"Hi"},"finish_reason":null}]}\n\n',
+                b'data: {"model":"gpt-5","choices":[{"index":0,"delta":{"content":" there"},"finish_reason":"stop"}],"tee_signature":"sig"}\n\n',
+                b"data: [DONE]\n\n",
+            ],
+        )
         llm = _make_llm()
 
         gen = await llm.chat(
@@ -381,10 +406,13 @@ class TestChatStreaming:
         assert payload["stream"] is True
 
     async def test_stream_sets_tee_metadata_on_final_chunk(self, fake_http):
-        fake_http.set_stream_response(200, [
-            b'data: {"model":"gpt-5","choices":[{"index":0,"delta":{"content":"done"},"finish_reason":"stop"}]}\n\n',
-            b"data: [DONE]\n\n",
-        ])
+        fake_http.set_stream_response(
+            200,
+            [
+                b'data: {"model":"gpt-5","choices":[{"index":0,"delta":{"content":"done"},"finish_reason":"stop"}]}\n\n',
+                b"data: [DONE]\n\n",
+            ],
+        )
         llm = _make_llm()
 
         gen = await llm.chat(
@@ -415,12 +443,17 @@ class TestChatStreaming:
     async def test_tools_with_stream_falls_back_to_single_chunk(self, fake_http):
         """When tools + stream=True, LLM falls back to non-streaming and yields one chunk."""
         tools = [{"type": "function", "function": {"name": "f"}}]
-        fake_http.set_response(200, {
-            "choices": [{
-                "message": {"role": "assistant", "content": None, "tool_calls": [{"id": "tc1"}]},
-                "finish_reason": "tool_calls",
-            }],
-        })
+        fake_http.set_response(
+            200,
+            {
+                "choices": [
+                    {
+                        "message": {"role": "assistant", "content": None, "tool_calls": [{"id": "tc1"}]},
+                        "finish_reason": "tool_calls",
+                    }
+                ],
+            },
+        )
         llm = _make_llm()
 
         gen = await llm.chat(

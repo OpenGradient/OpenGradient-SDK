@@ -70,15 +70,15 @@ class LLM:
     def __init__(
         self,
         wallet_account: LocalAccount,
-        og_llm_server_url: Optional[str] = None,
-        rpc_url: Optional[str] = None,
+        og_rpc_url: Optional[str] = None,
         tee_registry_address: Optional[str] = None,
+        tee_endpoint_override: Optional[str] = None,
     ):
         self._wallet_account = wallet_account
 
         endpoint, tls_cert_der, tee_id, tee_payment_address = self._resolve_tee(
-            og_llm_server_url,
-            rpc_url,
+            tee_endpoint_override,
+            og_rpc_url,
             tee_registry_address,
         )
 
@@ -89,20 +89,20 @@ class LLM:
         ssl_ctx = build_ssl_context_from_der(tls_cert_der) if tls_cert_der else None
         self._tls_verify: Union[ssl.SSLContext, bool] = ssl_ctx if ssl_ctx else True
 
+        # x402 client and signer
         signer = EthAccountSignerv2(self._wallet_account)
         self._x402_client = x402Clientv2()
         register_exact_evm_clientv2(self._x402_client, signer, networks=[BASE_TESTNET_NETWORK])
         register_upto_evm_clientv2(self._x402_client, signer, networks=[BASE_TESTNET_NETWORK])
-
-        # httpx.AsyncClient subclass — construction is sync, connections open lazily.
+        # httpx.AsyncClient subclass - construction is sync, connections open lazily
         self._http_client = x402HttpxClientv2(self._x402_client, verify=self._tls_verify)
 
     # ── TEE resolution ──────────────────────────────────────────────────
 
     @staticmethod
     def _resolve_tee(
-        og_llm_server_url: Optional[str],
-        rpc_url: Optional[str],
+        og_rpc_url: Optional[str],
+        tee_endpoint_override: Optional[str],
         tee_registry_address: Optional[str],
     ) -> tuple:
         """Resolve TEE endpoint and metadata from the on-chain registry or explicit URL.
@@ -110,21 +110,17 @@ class LLM:
         Returns:
             (endpoint, tls_cert_der, tee_id, payment_address)
         """
-        if og_llm_server_url is not None:
-            return og_llm_server_url, None, None, None
+        if tee_endpoint_override is not None:
+            return tee_endpoint_override, None, None, None
 
-        if rpc_url is None or tee_registry_address is None:
-            raise ValueError("Either og_llm_server_url or both rpc_url and tee_registry_address must be provided.")
+        if og_rpc_url is None or tee_registry_address is None:
+            raise ValueError("Either tee_endpoint_override or both og_rpc_url and tee_registry_address must be provided.")
 
         try:
-            registry = TEERegistry(rpc_url=rpc_url, registry_address=tee_registry_address)
+            registry = TEERegistry(rpc_url=og_rpc_url, registry_address=tee_registry_address)
             tee = registry.get_llm_tee()
         except Exception as e:
-            raise RuntimeError(
-                f"Failed to fetch LLM TEE endpoint from registry "
-                f"({tee_registry_address} on {rpc_url}): {e}. "
-                "Pass og_llm_server_url explicitly to override."
-            ) from e
+            raise RuntimeError(f"Failed to fetch LLM TEE endpoint from registry ({tee_registry_address} on {og_rpc_url}): {e}. ") from e
 
         if tee is None:
             raise ValueError("No active LLM proxy TEE found in the registry. Pass og_llm_server_url explicitly to override.")
