@@ -39,12 +39,13 @@ client = og.init(private_key="0xLLM_KEY...", alpha_private_key="0xALPHA_KEY...")
 client.llm.ensure_opg_approval(opg_amount=5)
 
 # LLM chat (TEE-verified, streamed)
-for chunk in client.llm.chat(
+stream = await client.llm.chat(
     model=og.TEE_LLM.CLAUDE_HAIKU_4_5,
     messages=[{"role": "user", "content": "Hello!"}],
     max_tokens=200,
     stream=True,
-):
+)
+async for chunk in stream:
     if chunk.choices[0].delta.content:
         print(chunk.choices[0].delta.content, end="")
 
@@ -68,6 +69,7 @@ repo = client.model_hub.create_model("my-model", "A price prediction model")
 * [llm](./llm): LLM chat and completion via TEE-verified execution with x402 payments.
 * [model_hub](./model_hub): Model Hub for creating, versioning, and uploading ML models.
 * [opg_token](./opg_token): OPG token Permit2 approval utilities for x402 payments.
+* [tee_registry](./tee_registry): TEE Registry client for fetching verified TEE endpoints and TLS certificates.
 * [twins](./twins): Digital twins chat via OpenGradient verifiable inference.
 
 ## Classes
@@ -99,8 +101,8 @@ def __init__(
     rpc_url: str = 'https://ogevmdevnet.opengradient.ai',
     api_url: str = 'https://sdk-devnet.opengradient.ai',
     contract_address: str = '0x8383C9bD7462F12Eb996DD02F78234C0421A6FaE',
-    og_llm_server_url: Optional[str] = 'https://3.15.214.21:443',
-    og_llm_streaming_server_url: Optional[str] = 'https://3.15.214.21:443'
+    og_llm_server_url: Optional[str] = None,
+    tee_registry_address: str = '0x4e72238852f3c918f4E4e57AeC9280dDB0c80248'
 )
 ```
 
@@ -117,8 +119,11 @@ def __init__(
 * **`rpc_url`**: RPC URL for the OpenGradient Alpha Testnet.
 * **`api_url`**: API URL for the OpenGradient API.
 * **`contract_address`**: Inference contract address.
-* **`og_llm_server_url`**: OpenGradient LLM server URL.
-* **`og_llm_streaming_server_url`**: OpenGradient LLM streaming server URL.
+* **`og_llm_server_url`**: Override the LLM server URL instead of using the
+        registry-discovered endpoint. When set, the TLS certificate is
+        validated against the system CA bundle rather than the registry.
+* **`tee_registry_address`**: Address of the TEERegistry contract used to
+        discover active LLM proxy endpoints and their verified TLS certs.
 
 #### Methods
 
@@ -127,7 +132,7 @@ def __init__(
 #### `close()`
 
 ```python
-def close(self) ‑> None
+async def close(self) ‑> None
 ```
 Close underlying SDK resources.
 

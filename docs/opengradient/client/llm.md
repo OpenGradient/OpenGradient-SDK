@@ -18,6 +18,8 @@ Provides access to large language model completions and chat via TEE
 (Trusted Execution Environment) with x402 payment protocol support.
 Supports both streaming and non-streaming responses.
 
+All request methods (``chat``, ``completion``) are async.
+
 Before making LLM requests, ensure your wallet has approved sufficient
 OPG tokens for Permit2 spending by calling ``ensure_opg_approval``.
 This only sends an on-chain transaction when the current allowance is
@@ -28,8 +30,9 @@ below the requested amount.
 ```python
 def __init__(
     wallet_account: `LocalAccount`,
-    og_llm_server_url: str,
-    og_llm_streaming_server_url: str
+    rpc_url: Optional[str] = None,
+    tee_registry_address: Optional[str] = None,
+    og_llm_server_url: Optional[str] = None
 )
 ```
 
@@ -40,7 +43,7 @@ def __init__(
 #### `chat()`
 
 ```python
-def chat(
+async def chat(
     self,
     model: `TEE_LLM`,
     messages: List[Dict],
@@ -49,9 +52,9 @@ def chat(
     temperature: float = 0.0,
     tools: Optional[List[Dict]] = None,
     tool_choice: Optional[str] = None,
-    x402_settlement_mode: Optional[`x402SettlementMode`] = x402SettlementMode.BATCH_HASHED,
+    x402_settlement_mode: `x402SettlementMode` = x402SettlementMode.BATCH_HASHED,
     stream: bool = False
-) ‑> Union[`TextGenerationOutput`, `TextGenerationStream`]
+) ‑> Union[`TextGenerationOutput`, AsyncGenerator[`StreamChunk`, None]]
 ```
 Perform inference on an LLM model using chat via TEE.
 
@@ -73,9 +76,9 @@ Perform inference on an LLM model using chat via TEE.
 
 **Returns**
 
-Union[TextGenerationOutput, TextGenerationStream]:
+Union[TextGenerationOutput, AsyncGenerator[StreamChunk, None]]:
     - If stream=False: TextGenerationOutput with chat_output, transaction_hash, finish_reason, and payment_hash
-    - If stream=True: TextGenerationStream yielding StreamChunk objects with typed deltas (true streaming via threading)
+    - If stream=True: Async generator yielding StreamChunk objects
 
 **`TextGenerationOutput` fields:**
 
@@ -103,22 +106,23 @@ Union[TextGenerationOutput, TextGenerationStream]:
 #### `close()`
 
 ```python
-def close(self) ‑> None
+async def close(self) ‑> None
 ```
+Close the underlying HTTP client.
 
 ---
 
 #### `completion()`
 
 ```python
-def completion(
+async def completion(
     self,
     model: `TEE_LLM`,
     prompt: str,
     max_tokens: int = 100,
     stop_sequence: Optional[List[str]] = None,
     temperature: float = 0.0,
-    x402_settlement_mode: Optional[`x402SettlementMode`] = x402SettlementMode.BATCH_HASHED
+    x402_settlement_mode: `x402SettlementMode` = x402SettlementMode.BATCH_HASHED
 ) ‑> `TextGenerationOutput`
 ```
 Perform inference on an LLM model using completions via TEE.
