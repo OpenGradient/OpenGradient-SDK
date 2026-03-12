@@ -29,9 +29,9 @@ below the requested amount.
 
 ```python
 def __init__(
-    wallet_account: `LocalAccount`,
-    rpc_url: Optional[str] = None,
-    tee_registry_address: Optional[str] = None,
+    private_key: str,
+    rpc_url: str = 'https://ogevmdevnet.opengradient.ai',
+    tee_registry_address: str = '0x4e72238852f3c918f4E4e57AeC9280dDB0c80248',
     llm_server_url: Optional[str] = None
 )
 ```

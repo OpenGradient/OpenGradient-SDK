@@ -24,10 +24,10 @@ including on-chain ONNX model inference, workflow deployment, and execution.
 
 ```python
 def __init__(
-    blockchain: `Web3`,
-    wallet_account: `LocalAccount`,
-    inference_hub_contract_address: str,
-    api_url: str
+    private_key: str,
+    rpc_url: str = 'https://ogevmdevnet.opengradient.ai',
+    inference_contract_address: str = '0x8383C9bD7462F12Eb996DD02F78234C0421A6FaE',
+    api_url: str = 'https://sdk-devnet.opengradient.ai'
 )
 ```
 

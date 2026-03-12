@@ -7,8 +7,7 @@ These examples demonstrate features that are currently only available on the **O
 1. **Alpha Testnet Access**: You must be connected to the OpenGradient Alpha Testnet
 2. **SDK Installation**: `pip install opengradient`
 3. **Credentials**: Set up your environment variables:
-   - `OG_ALPHA_PRIVATE_KEY`: Private key funded with **OpenGradient testnet gas tokens** for on-chain inference. If not set, `OG_PRIVATE_KEY` is used instead.
-   - `OG_PRIVATE_KEY`: Private key funded with **Base Sepolia OPG tokens** (used as fallback for Alpha if `OG_ALPHA_PRIVATE_KEY` is not set)
+   - `OG_PRIVATE_KEY`: Private key funded with **OpenGradient testnet gas tokens** for on-chain inference
 
 ## Examples
 
