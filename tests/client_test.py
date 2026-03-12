@@ -11,7 +11,6 @@ from src.opengradient.client import Client
 from src.opengradient.types import (
     TEE_LLM,
     StreamChunk,
-    TextGenerationOutput,
     x402SettlementMode,
 )
 

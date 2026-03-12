@@ -6,7 +6,6 @@ import ssl
 from dataclasses import dataclass
 from typing import AsyncGenerator, Dict, List, Optional, Union
 
-import httpx
 from eth_account.account import LocalAccount
 from x402v2 import x402Client as x402Clientv2
 from x402v2.http.clients import x402HttpxClient as x402HttpxClientv2
@@ -14,7 +13,7 @@ from x402v2.mechanisms.evm import EthAccountSigner as EthAccountSignerv2
 from x402v2.mechanisms.evm.exact.register import register_exact_evm_client as register_exact_evm_clientv2
 from x402v2.mechanisms.evm.upto.register import register_upto_evm_client as register_upto_evm_clientv2
 
-from ..types import TEE_LLM, StreamChunk, StreamChoice, StreamDelta, TextGenerationOutput, TextGenerationStream, x402SettlementMode
+from ..types import TEE_LLM, StreamChoice, StreamChunk, StreamDelta, TextGenerationOutput, x402SettlementMode
 from .exceptions import OpenGradientError
 from .opg_token import Permit2ApprovalResult, ensure_opg_approval
 from .tee_registry import TEERegistry, build_ssl_context_from_der
