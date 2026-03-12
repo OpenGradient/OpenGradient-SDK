@@ -52,10 +52,10 @@ if not private_key:
     print("Error: set the OG_PRIVATE_KEY environment variable.")
     sys.exit(1)
 
-client = og.init(private_key=private_key)
+llm = og.LLM(private_key=private_key)
 
 # Approve OPG spending for x402 payments (one-time, idempotent).
-client.llm.ensure_opg_approval(opg_amount=5)
+llm.ensure_opg_approval(opg_amount=5)
 ```
 
 ## Step 2: Define Local Tool Implementations
@@ -162,12 +162,12 @@ TOOLS = [
 ]
 ```
 
-## Step 4: Pass Tools to `client.llm.chat`
+## Step 4: Pass Tools to `llm.chat`
 
-Pass the `tools` list and `tool_choice` parameter to any `client.llm.chat()` call.
+Pass the `tools` list and `tool_choice` parameter to any `llm.chat()` call.
 
 ```python
-result = await client.llm.chat(
+result = await llm.chat(
     model=og.TEE_LLM.GPT_5,
     messages=[
         {"role": "system", "content": "You are a crypto portfolio assistant."},
@@ -198,7 +198,7 @@ The core pattern for a tool-calling agent is a loop:
 5. Repeat until the model responds with a regular text message
 
 ```python
-async def run_agent(client: og.Client, user_query: str) -> str:
+async def run_agent(user_query: str) -> str:
     """Run a multi-turn tool-calling agent loop."""
     messages = [
         {
@@ -218,7 +218,7 @@ async def run_agent(client: og.Client, user_query: str) -> str:
         print(f"\n  [Round {i + 1}] Calling LLM...")
 
         try:
-            result = await client.llm.chat(
+            result = await llm.chat(
                 model=og.TEE_LLM.GPT_5,
                 messages=messages,
                 max_tokens=600,
@@ -286,7 +286,7 @@ async def main():
         print("\n" + "=" * 70)
         print(f"USER: {query}")
         print("=" * 70)
-        answer = await run_agent(client, query)
+        answer = await run_agent(query)
         print(f"\nASSISTANT: {answer}")
 
 if __name__ == "__main__":
@@ -315,10 +315,10 @@ if not private_key:
     print("Error: set the OG_PRIVATE_KEY environment variable.")
     sys.exit(1)
 
-client = og.init(private_key=private_key)
+llm = og.LLM(private_key=private_key)
 
 # Approve OPG spending for x402 payments (idempotent -- skips if already approved).
-client.llm.ensure_opg_approval(opg_amount=5)
+llm.ensure_opg_approval(opg_amount=5)
 
 # ── Mock data ─────────────────────────────────────────────────────────────
 PORTFOLIO      = {"ETH": {"amount": 5.0, "avg_cost": 1950.00},
@@ -379,7 +379,7 @@ async def run_agent(user_query: str) -> str:
     ]
     for i in range(5):
         try:
-            result = await client.llm.chat(
+            result = await llm.chat(
                 model=og.TEE_LLM.GPT_5, messages=messages, max_tokens=600,
                 temperature=0.0, tools=TOOLS, tool_choice="auto",
                 x402_settlement_mode=og.x402SettlementMode.BATCH_HASHED,

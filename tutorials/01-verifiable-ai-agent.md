@@ -33,7 +33,7 @@ export OG_PRIVATE_KEY="0x..."
 > so your wallet can pay for inference transactions. All x402 LLM payments currently
 > settle on Base Sepolia.
 
-## Step 1: Initialize the Client and LangChain Adapter
+## Step 1: Initialize and Create the LangChain Adapter
 
 Before making any LLM calls, you need to approve OPG token spending for the x402
 payment protocol. The `ensure_opg_approval` method checks your wallet's current
@@ -47,13 +47,12 @@ import opengradient as og
 private_key = os.environ["OG_PRIVATE_KEY"]
 
 # Approve OPG spending for x402 payments (idempotent -- skips if already approved).
-client = og.Client(private_key=private_key)
-client.llm.ensure_opg_approval(opg_amount=5)
+llm_client = og.LLM(private_key=private_key)
+llm_client.ensure_opg_approval(opg_amount=5)
 
 # Create the LangChain chat model backed by OpenGradient TEE.
-# Note: the adapter creates its own internal Client, separate from any client
-# created via og.init(). This is why private_key is passed here explicitly.
-# The approval above applies to the wallet, so it covers the adapter's client too.
+# The adapter creates its own internal LLM client. The approval above applies
+# to the wallet, so it covers the adapter's client too.
 llm = og.agents.langchain_adapter(
     private_key=private_key,
     model_cid=og.TEE_LLM.GPT_4_1_2025_04_14,
@@ -137,11 +136,10 @@ def format_model_output(inference_result: og.InferenceResult) -> str:
     )
 ```
 
-Now create the tool. You need an initialized client to pass `client.alpha` as the
-inference backend:
+Now create the tool. You need an `Alpha` instance for the on-chain inference backend:
 
 ```python
-client = og.init(private_key=os.environ["OG_PRIVATE_KEY"])
+alpha = og.Alpha(private_key=os.environ["OG_PRIVATE_KEY"])
 
 volatility_tool = create_run_model_tool(
     tool_type=ToolType.LANGCHAIN,
@@ -154,7 +152,7 @@ volatility_tool = create_run_model_tool(
     ),
     model_input_provider=provide_model_input,
     model_output_formatter=format_model_output,
-    inference=client.alpha,
+    inference=alpha,
     tool_input_schema=VolatilityInput,
     inference_mode=og.InferenceMode.VANILLA,
 )
@@ -286,14 +284,15 @@ SAMPLE_PRICES = {
     Token.BTC: [67100.0, 67250.0, 67180.0, 67320.0, 67150.0, 67400.0, 67280.0, 67350.0],
 }
 
-# ── Client ────────────────────────────────────────────────────────────────
-# og.init() creates the global client (used by AlphaSense tools).
-# langchain_adapter() creates its own internal client for LLM calls.
+# ── Clients ───────────────────────────────────────────────────────────────
 private_key = os.environ["OG_PRIVATE_KEY"]
-client = og.init(private_key=private_key)
 
 # Approve OPG spending for x402 payments (idempotent -- skips if already approved).
-client.llm.ensure_opg_approval(opg_amount=5)
+llm_client = og.LLM(private_key=private_key)
+llm_client.ensure_opg_approval(opg_amount=5)
+
+# Alpha client for on-chain model inference.
+alpha = og.Alpha(private_key=private_key)
 
 llm = og.agents.langchain_adapter(
     private_key=private_key,
@@ -326,7 +325,7 @@ volatility_tool = create_run_model_tool(
     tool_description="Measures return volatility for a crypto token using an on-chain model.",
     model_input_provider=provide_model_input,
     model_output_formatter=format_model_output,
-    inference=client.alpha,
+    inference=alpha,
     tool_input_schema=VolatilityInput,
     inference_mode=og.InferenceMode.VANILLA,
 )

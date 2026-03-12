@@ -11,7 +11,7 @@ compliance, billing audits, or dispute resolution. You choose how much data goes
 on-chain: just a hash (privacy), a batch digest (cost savings), or full metadata
 (complete transparency).
 
-This tutorial walks through the `client.llm.chat()` API, covering non-streaming and
+This tutorial walks through the `llm.chat()` API, covering non-streaming and
 streaming responses, multi-provider switching, settlement modes, and function calling
 -- all in one place.
 
@@ -50,13 +50,13 @@ if not private_key:
     print("Error: set the OG_PRIVATE_KEY environment variable.")
     sys.exit(1)
 
-client = og.init(private_key=private_key)
+llm = og.LLM(private_key=private_key)
 
 # Approve OPG spending for x402 payments (one-time, idempotent).
-client.llm.ensure_opg_approval(opg_amount=5)
+llm.ensure_opg_approval(opg_amount=5)
 
 async def main():
-    result = await client.llm.chat(
+    result = await llm.chat(
         model=og.TEE_LLM.GPT_5,
         messages=[{"role": "user", "content": "What is the x402 payment protocol?"}],
         max_tokens=200,
@@ -85,28 +85,28 @@ identical.
 # All LLM methods are async -- use await in an async function
 
 # OpenAI
-result_openai = await client.llm.chat(
+result_openai = await llm.chat(
     model=og.TEE_LLM.GPT_5,
     messages=[{"role": "user", "content": "Hello from OpenAI!"}],
     max_tokens=100,
 )
 
 # Anthropic
-result_anthropic = await client.llm.chat(
+result_anthropic = await llm.chat(
     model=og.TEE_LLM.CLAUDE_SONNET_4_6,
     messages=[{"role": "user", "content": "Hello from Anthropic!"}],
     max_tokens=100,
 )
 
 # Google
-result_google = await client.llm.chat(
+result_google = await llm.chat(
     model=og.TEE_LLM.GEMINI_2_5_FLASH,
     messages=[{"role": "user", "content": "Hello from Google!"}],
     max_tokens=100,
 )
 
 # xAI
-result_xai = await client.llm.chat(
+result_xai = await llm.chat(
     model=og.TEE_LLM.GROK_4,
     messages=[{"role": "user", "content": "Hello from xAI!"}],
     max_tokens=100,
@@ -124,7 +124,7 @@ are generated. The return value changes from a `TextGenerationOutput` to an asyn
 generator that yields `StreamChunk` objects.
 
 ```python
-stream = await client.llm.chat(
+stream = await llm.chat(
     model=og.TEE_LLM.GPT_5,
     messages=[
         {"role": "system", "content": "You are a concise technical writer."},
@@ -175,7 +175,7 @@ privacy/cost/transparency trade-off:
 
 ```python
 # Privacy-first: only hashes stored on-chain
-result_private = await client.llm.chat(
+result_private = await llm.chat(
     model=og.TEE_LLM.CLAUDE_SONNET_4_6,
     messages=[{"role": "user", "content": "Sensitive query here."}],
     max_tokens=100,
@@ -184,7 +184,7 @@ result_private = await client.llm.chat(
 print(f"Payment hash (SETTLE): {result_private.payment_hash}")
 
 # Cost-efficient: batched settlement (this is the default)
-result_batch = await client.llm.chat(
+result_batch = await llm.chat(
     model=og.TEE_LLM.CLAUDE_SONNET_4_6,
     messages=[{"role": "user", "content": "Regular query."}],
     max_tokens=100,
@@ -193,7 +193,7 @@ result_batch = await client.llm.chat(
 print(f"Payment hash (BATCH_HASHED): {result_batch.payment_hash}")
 
 # Full transparency: everything on-chain
-result_transparent = await client.llm.chat(
+result_transparent = await llm.chat(
     model=og.TEE_LLM.CLAUDE_SONNET_4_6,
     messages=[{"role": "user", "content": "Auditable query."}],
     max_tokens=100,
@@ -208,7 +208,7 @@ audit trail -- they are the on-chain receipts for each inference call.
 
 ## Step 5: Function Calling
 
-You can pass tools to `client.llm.chat()` in the standard OpenAI function-calling
+You can pass tools to `llm.chat()` in the standard OpenAI function-calling
 format. This works with any model that supports tool use.
 
 ```python
@@ -232,7 +232,7 @@ tools = [
     }
 ]
 
-result = await client.llm.chat(
+result = await llm.chat(
     model=og.TEE_LLM.GEMINI_2_5_FLASH,
     messages=[{"role": "user", "content": "What's the current price of ETH?"}],
     max_tokens=200,
@@ -252,7 +252,7 @@ else:
 ```
 
 When the model returns tool calls, execute the requested functions locally,
-then send the results back in a follow-up `client.llm.chat()` call with a `"tool"`
+then send the results back in a follow-up `llm.chat()` call with a `"tool"`
 role message. See **Tutorial 3** for a complete multi-turn tool-calling loop.
 
 ## Complete Code
@@ -271,10 +271,10 @@ if not private_key:
     print("Error: set the OG_PRIVATE_KEY environment variable.")
     sys.exit(1)
 
-client = og.init(private_key=private_key)
+llm = og.LLM(private_key=private_key)
 
 # Approve OPG spending for x402 payments (idempotent -- skips if already approved).
-client.llm.ensure_opg_approval(opg_amount=5)
+llm.ensure_opg_approval(opg_amount=5)
 
 PROMPT = "Explain what a Trusted Execution Environment is in two sentences."
 
@@ -290,7 +290,7 @@ async def main():
 
     for name, model in models:
         try:
-            result = await client.llm.chat(
+            result = await llm.chat(
                 model=model,
                 messages=[{"role": "user", "content": PROMPT}],
                 max_tokens=200,
@@ -303,7 +303,7 @@ async def main():
 
     # ── Streaming ─────────────────────────────────────────────────────────
     print("--- Streaming from GPT-5 ---")
-    stream = await client.llm.chat(
+    stream = await llm.chat(
         model=og.TEE_LLM.GPT_5,
         messages=[{"role": "user", "content": "What is x402? Keep it under 50 words."}],
         max_tokens=100,
@@ -322,7 +322,7 @@ async def main():
         ("INDIVIDUAL_FULL", og.x402SettlementMode.INDIVIDUAL_FULL),
     ]:
         try:
-            r = await client.llm.chat(
+            r = await llm.chat(
                 model=og.TEE_LLM.CLAUDE_SONNET_4_6,
                 messages=[{"role": "user", "content": "Say hello."}],
                 max_tokens=50,
@@ -348,7 +348,7 @@ async def main():
         },
     }]
 
-    result = await client.llm.chat(
+    result = await llm.chat(
         model=og.TEE_LLM.GEMINI_2_5_FLASH,
         messages=[{"role": "user", "content": "What is the price of ETH?"}],
         max_tokens=200,

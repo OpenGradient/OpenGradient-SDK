@@ -8,8 +8,7 @@ Before running any examples, ensure you have:
 
 1. **Installed the SDK**: `pip install opengradient`
 2. **Set up your credentials**: Configure your OpenGradient account using environment variables:
-   - `OG_PRIVATE_KEY`: Private key funded with **Base Sepolia OPG tokens** for x402 LLM payments (can be obtained from our [faucet](https://faucet.opengradient.ai)).
-   - `OG_ALPHA_PRIVATE_KEY`: (Optional) Private key funded with **OpenGradient testnet gas tokens** for Alpha Testnet on-chain inference. Falls back to `OG_PRIVATE_KEY` when not set.
+   - `OG_PRIVATE_KEY`: Private key funded with **Base Sepolia OPG tokens** for x402 LLM payments (can be obtained from our [faucet](https://faucet.opengradient.ai)). Also used for Alpha Testnet on-chain inference (requires **OpenGradient testnet gas tokens**).
    - `OG_MODEL_HUB_EMAIL`: (Optional) Your Model Hub email for model uploads
    - `OG_MODEL_HUB_PASSWORD`: (Optional) Your Model Hub password for model uploads
 
@@ -133,17 +132,22 @@ python examples/twins_chat.py
 
 ## Common Patterns
 
-### Initializing the Client
+### Initialization
 
-All examples use a similar pattern to initialize the OpenGradient client:
+Each sub-client is created independently with the credentials it needs:
 
 ```python
 import os
 import opengradient as og
 
-og_client = og.Client(
-    private_key=os.environ.get("OG_PRIVATE_KEY"),  # Base Sepolia OPG tokens for LLM payments
-    alpha_private_key=os.environ.get("OG_ALPHA_PRIVATE_KEY"),  # Optional: OpenGradient testnet tokens for on-chain inference
+# LLM inference (Base Sepolia OPG tokens for x402 payments)
+llm = og.LLM(private_key=os.environ.get("OG_PRIVATE_KEY"))
+
+# On-chain model inference (OpenGradient testnet gas tokens)
+alpha = og.Alpha(private_key=os.environ.get("OG_PRIVATE_KEY"))
+
+# Model Hub (email/password auth)
+hub = og.ModelHub(
     email=os.environ.get("OG_MODEL_HUB_EMAIL"),
     password=os.environ.get("OG_MODEL_HUB_PASSWORD"),
 )
@@ -154,7 +158,9 @@ og_client = og.Client(
 Basic inference pattern:
 
 ```python
-result = og_client.alpha.infer(
+alpha = og.Alpha(private_key=os.environ.get("OG_PRIVATE_KEY"))
+
+result = alpha.infer(
     model_cid="your-model-cid",
     model_input={"input_key": "input_value"},
     inference_mode=og.InferenceMode.VANILLA
@@ -168,7 +174,9 @@ print(f"Tx hash: {result.transaction_hash}")
 LLM chat methods are async:
 
 ```python
-completion = await og_client.llm.chat(
+llm = og.LLM(private_key=os.environ.get("OG_PRIVATE_KEY"))
+
+completion = await llm.chat(
     model=og.TEE_LLM.CLAUDE_HAIKU_4_5,
     messages=[{"role": "user", "content": "Your message"}],
 )

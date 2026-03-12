@@ -41,7 +41,7 @@ Before using the SDK, you will need:
 
 1. **Private Key**: An Ethereum-compatible wallet private key funded with **Base Sepolia OPG tokens** for x402 LLM payments
 2. **Test Tokens**: Obtain free test tokens from the [OpenGradient Faucet](https://faucet.opengradient.ai) for testnet LLM inference
-3. **Alpha Private Key** (Optional): A separate private key funded with **OpenGradient testnet gas tokens** for Alpha Testnet on-chain inference. If not provided, the primary `private_key` is used for both chains.
+3. **Alpha Testnet Key** (Optional): A private key funded with **OpenGradient testnet gas tokens** for Alpha Testnet on-chain inference (can be the same or a different key)
 4. **Model Hub Account** (Optional): Required only for model uploads. Register at [hub.opengradient.ai/signup](https://hub.opengradient.ai/signup)
 
 ### Configuration
@@ -66,29 +66,30 @@ The following Firebase configuration variables are **optional** and only needed 
 
 **Note**: If you're only using the SDK for LLM inference, you don't need to configure any environment variables.
 
-### Client Initialization
+### Initialization
+
+The SDK provides separate clients for each service. Create only the ones you need:
+
 ```python
 import os
 import opengradient as og
 
-client = og.Client(
-    private_key=os.environ.get("OG_PRIVATE_KEY"),  # Base Sepolia OPG tokens for LLM payments
-    alpha_private_key=os.environ.get("OG_ALPHA_PRIVATE_KEY"),  # Optional: OpenGradient testnet tokens for on-chain inference
-    email=None,  # Optional: required only for model uploads
-    password=None,
-)
-```
+# LLM inference — settles via x402 on Base Sepolia using OPG tokens
+llm = og.LLM(private_key=os.environ.get("OG_PRIVATE_KEY"))
 
-The client operates across two chains:
-- **LLM inference** (`client.llm`) settles via x402 on **Base Sepolia** using OPG tokens (funded by `private_key`)
-- **Alpha Testnet** (`client.alpha`) runs on the **OpenGradient network** using testnet gas tokens (funded by `alpha_private_key`, or `private_key` when not provided)
+# Alpha Testnet — on-chain inference on the OpenGradient network using testnet gas tokens
+alpha = og.Alpha(private_key=os.environ.get("OG_PRIVATE_KEY"))
+
+# Model Hub — requires email/password, only needed for model uploads
+hub = og.ModelHub(email="you@example.com", password="...")
+```
 
 ### OPG Token Approval
 
 Before making LLM requests, your wallet must approve OPG token spending via the [Permit2](https://github.com/Uniswap/permit2) protocol. Call this once (it's idempotent — no transaction is sent if the allowance already covers the requested amount):
 
 ```python
-client.llm.ensure_opg_approval(opg_amount=5)
+llm.ensure_opg_approval(opg_amount=5)
 ```
 
 See [Payment Settlement](#payment-settlement) for details on settlement modes.
@@ -99,7 +100,7 @@ See [Payment Settlement](#payment-settlement) for details on settlement modes.
 
 OpenGradient provides secure, verifiable inference through Trusted Execution Environments. All supported models include cryptographic attestation verified by the OpenGradient network. LLM methods are async:
 ```python
-completion = await client.llm.chat(
+completion = await llm.chat(
     model=og.TEE_LLM.GPT_5,
     messages=[{"role": "user", "content": "Hello!"}],
 )
@@ -111,7 +112,7 @@ print(f"Transaction hash: {completion.transaction_hash}")
 
 For real-time generation, enable streaming:
 ```python
-stream = await client.llm.chat(
+stream = await llm.chat(
     model=og.TEE_LLM.CLAUDE_SONNET_4_6,
     messages=[{"role": "user", "content": "Explain quantum computing"}],
     max_tokens=500,
@@ -190,7 +191,7 @@ The Alpha Testnet provides access to experimental capabilities including custom 
 
 Browse models on the [Model Hub](https://hub.opengradient.ai/) or deploy your own:
 ```python
-result = client.alpha.infer(
+result = alpha.infer(
     model_cid="your-model-cid",
     model_input={"input": [1.0, 2.0, 3.0]},
     inference_mode=og.InferenceMode.VANILLA,
@@ -204,12 +205,7 @@ Deploy on-chain AI workflows with optional scheduling:
 ```python
 import opengradient as og
 
-client = og.Client(
-    private_key="your-private-key",  # Base Sepolia OPG tokens
-    alpha_private_key="your-alpha-private-key",  # OpenGradient testnet tokens
-    email="your-email",
-    password="your-password",
-)
+alpha = og.Alpha(private_key="your-private-key")
 
 # Define input query for historical price data
 input_query = og.HistoricalInputQuery(
@@ -222,7 +218,7 @@ input_query = og.HistoricalInputQuery(
 )
 
 # Deploy workflow with optional scheduling
-contract_address = client.alpha.new_workflow(
+contract_address = alpha.new_workflow(
     model_cid="your-model-cid",
     input_query=input_query,
     input_tensor_name="input",
@@ -237,14 +233,14 @@ print(f"Workflow deployed at: {contract_address}")
 ### Workflow Execution and Monitoring
 ```python
 # Manually trigger workflow execution
-result = client.alpha.run_workflow(contract_address)
+result = alpha.run_workflow(contract_address)
 print(f"Inference output: {result}")
 
 # Read the latest result
-latest = client.alpha.read_workflow_result(contract_address)
+latest = alpha.read_workflow_result(contract_address)
 
 # Retrieve historical results
-history = client.alpha.read_workflow_history(
+history = alpha.read_workflow_history(
     contract_address,
     num_results=5
 )
@@ -299,7 +295,7 @@ OpenGradient supports multiple settlement modes through the x402 payment protoco
 
 Specify settlement mode in your requests:
 ```python
-result = await client.llm.chat(
+result = await llm.chat(
     model=og.TEE_LLM.GPT_5,
     messages=[{"role": "user", "content": "Hello"}],
     x402_settlement_mode=og.x402SettlementMode.BATCH_HASHED,

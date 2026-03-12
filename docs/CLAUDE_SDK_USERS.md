@@ -18,13 +18,11 @@ pip install opengradient
 import opengradient as og
 import os
 
-# Initialize client
-client = og.Client(
-    private_key=os.environ["OG_PRIVATE_KEY"],  # Required: Ethereum private key
-)
+# Create an LLM client
+llm = og.LLM(private_key=os.environ["OG_PRIVATE_KEY"])
 
 # LLM Chat (TEE-verified with x402 payments, async)
-result = await client.llm.chat(
+result = await llm.chat(
     model=og.TEE_LLM.CLAUDE_HAIKU_4_5,
     messages=[{"role": "user", "content": "Hello!"}],
     max_tokens=100,
@@ -34,24 +32,25 @@ print(result.chat_output["content"])
 
 ## Core API Reference
 
-### Client Initialization
+### Initialization
+
+Each service has its own client class:
 
 ```python
-# Option 1: Create client instance (recommended)
-client = og.Client(
-    private_key="0x...",           # Required: Ethereum private key
-    email=None,                    # Optional: Model Hub auth
-    password=None,                 # Optional: Model Hub auth
-)
+# LLM inference (Base Sepolia OPG tokens for x402 payments)
+llm = og.LLM(private_key="0x...")
 
-# Option 2: Global initialization
-og.init(private_key="0x...", email="...", password="...")
+# On-chain model inference (OpenGradient testnet gas tokens)
+alpha = og.Alpha(private_key="0x...")
+
+# Model Hub (email/password auth, only needed for model uploads)
+hub = og.ModelHub(email="...", password="...")
 ```
 
 ### LLM Chat
 
 ```python
-result = await client.llm.chat(
+result = await llm.chat(
     model: TEE_LLM,                    # og.TEE_LLM enum value
     messages: List[Dict],              # [{"role": "user", "content": "..."}]
     max_tokens: int = 100,
@@ -72,7 +71,7 @@ result = await client.llm.chat(
 ### LLM Completion
 
 ```python
-result = await client.llm.completion(
+result = await llm.completion(
     model: TEE_LLM,
     prompt: str,
     max_tokens: int = 100,
@@ -88,7 +87,7 @@ result = await client.llm.completion(
 ### ONNX Model Inference
 
 ```python
-result = client.alpha.infer(
+result = alpha.infer(
     model_cid: str,                    # IPFS CID of model
     inference_mode: og.InferenceMode,  # VANILLA, TEE, or ZKML
     model_input: Dict[str, Any],       # Input tensors
@@ -139,7 +138,7 @@ og.TEE_LLM.GROK_4_1_FAST_NON_REASONING
 All models are accessed through the OpenGradient TEE infrastructure with x402 payments:
 
 ```python
-result = await client.llm.chat(
+result = await llm.chat(
     model=og.TEE_LLM.GPT_5,
     messages=[{"role": "user", "content": "Hello"}],
 )
@@ -165,7 +164,7 @@ tools = [{
     }
 }]
 
-result = await client.llm.chat(
+result = await llm.chat(
     model=og.TEE_LLM.CLAUDE_SONNET_4_6,
     messages=[{"role": "user", "content": "What's the weather in NYC?"}],
     tools=tools,
@@ -180,7 +179,7 @@ if result.chat_output.get("tool_calls"):
 ### Streaming
 
 ```python
-stream = await client.llm.chat(
+stream = await llm.chat(
     model=og.TEE_LLM.CLAUDE_SONNET_4_6,
     messages=[{"role": "user", "content": "Tell me a story"}],
     stream=True,
@@ -200,7 +199,7 @@ from langgraph.prebuilt import create_react_agent
 # Create LangChain-compatible LLM
 llm = og.agents.langchain_adapter(
     private_key=os.environ["OG_PRIVATE_KEY"],
-    model_cid=og.LLM.CLAUDE_SONNET_4_6,
+    model_cid=og.TEE_LLM.CLAUDE_SONNET_4_6,
     max_tokens=300,
 )
 
@@ -228,7 +227,7 @@ input_query = og.HistoricalInputQuery(
 scheduler = og.SchedulerParams(frequency=60, duration_hours=2)
 
 # Deploy
-contract = client.alpha.new_workflow(
+contract = alpha.new_workflow(
     model_cid="your-model-cid",
     input_query=input_query,
     input_tensor_name="price_data",
@@ -236,11 +235,11 @@ contract = client.alpha.new_workflow(
 )
 
 # Manually trigger execution
-result = client.alpha.run_workflow(contract)
+result = alpha.run_workflow(contract)
 
 # Read results
-latest = client.alpha.read_workflow_result(contract)
-history = client.alpha.read_workflow_history(contract, num_results=5)
+latest = alpha.read_workflow_result(contract)
+history = alpha.read_workflow_history(contract, num_results=5)
 ```
 
 ### AlphaSense Tool Creation
@@ -287,7 +286,7 @@ LLM methods raise `RuntimeError` on failure and `ValueError` for invalid argumen
 
 ```python
 try:
-    result = await client.llm.chat(...)
+    result = await llm.chat(...)
 except RuntimeError as e:
     print(f"Inference failed: {e}")
 except ValueError as e:
