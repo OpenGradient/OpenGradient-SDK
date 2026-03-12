@@ -119,8 +119,8 @@ def _make_llm(
     """Build an LLM with an explicit server URL (skips registry lookup)."""
     wallet = MagicMock()
     wallet.address = "0x" + "ab" * 20
-    llm = LLM(wallet_account=wallet, og_llm_server_url=endpoint)
-    # og_llm_server_url path sets tee_id/payment_address to None; set them for assertions.
+    llm = LLM(wallet_account=wallet, llm_server_url=endpoint)
+    # llm_server_url path sets tee_id/payment_address to None; set them for assertions.
     llm._tee_id = "test-tee-id"
     llm._tee_payment_address = "0xTestPayment"
     return llm

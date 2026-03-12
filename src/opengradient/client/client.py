@@ -60,8 +60,8 @@ class Client:
         twins_api_key: Optional[str] = None,
         rpc_url: str = DEFAULT_RPC_URL,
         api_url: str = DEFAULT_API_URL,
-        contract_address: str = DEFAULT_INFERENCE_CONTRACT_ADDRESS,
-        og_llm_server_url: Optional[str] = None,
+        inference_contract_address: str = DEFAULT_INFERENCE_CONTRACT_ADDRESS,
+        llm_server_url: Optional[str] = None,
         tee_registry_address: str = DEFAULT_TEE_REGISTRY_ADDRESS,
     ):
         """
@@ -76,7 +76,7 @@ class Client:
         By default the LLM server endpoint and its TLS certificate are fetched from
         the on-chain TEE Registry, which stores certificates that were verified during
         enclave attestation.  You can override the endpoint by passing
-        ``og_llm_server_url`` explicitly (the system CA bundle is used for that URL).
+        ``llm_server_url`` explicitly (the system CA bundle is used for that URL).
 
         Args:
             private_key: Private key whose wallet holds **Base Sepolia OPG tokens**
@@ -84,46 +84,43 @@ class Client:
             alpha_private_key: Private key whose wallet holds **OpenGradient testnet
                 gas tokens** for on-chain inference. Optional -- falls back to
                 ``private_key`` for backward compatibility.
-            email: Email for Model Hub authentication. Optional.
-            password: Password for Model Hub authentication. Optional.
+            email: Email for Model Hub authentication. Must be provided together
+                with ``password``.
+            password: Password for Model Hub authentication. Must be provided
+                together with ``email``.
             twins_api_key: API key for digital twins chat (twin.fun). Optional.
             rpc_url: RPC URL for the OpenGradient Alpha Testnet.
             api_url: API URL for the OpenGradient API.
-            contract_address: Inference contract address.
-            og_llm_server_url: Override the LLM server URL instead of using the
+            inference_contract_address: Inference contract address on the
+                OpenGradient Alpha Testnet.
+            llm_server_url: Override the LLM server URL instead of using the
                 registry-discovered endpoint. When set, the TLS certificate is
                 validated against the system CA bundle rather than the registry.
             tee_registry_address: Address of the TEERegistry contract used to
                 discover active LLM proxy endpoints and their verified TLS certs.
         """
-        blockchain = Web3(Web3.HTTPProvider(rpc_url))
-        wallet_account = blockchain.eth.account.from_key(private_key)
+        if (email is None) != (password is None):
+            raise ValueError("Both 'email' and 'password' must be provided together for Model Hub authentication.")
+
+        w3 = Web3(Web3.HTTPProvider(rpc_url))
+        account = w3.eth.account.from_key(private_key)
 
         # Use a separate account for Alpha Testnet when provided
-        if alpha_private_key is not None:
-            alpha_wallet_account = blockchain.eth.account.from_key(alpha_private_key)
-        else:
-            alpha_wallet_account = wallet_account
+        alpha_account = w3.eth.account.from_key(alpha_private_key) if alpha_private_key is not None else account
 
-        hub_user = None
-        if email is not None:
-            hub_user = ModelHub._login_to_hub(email, password)
-
-        # Create namespaces
-        self.model_hub = ModelHub(hub_user=hub_user)
-        self.wallet_address = wallet_account.address
+        self.model_hub = ModelHub(email=email, password=password)
 
         self.llm = LLM(
-            wallet_account=wallet_account,
-            og_llm_server_url=og_llm_server_url,
+            wallet_account=account,
+            llm_server_url=llm_server_url,
             rpc_url=rpc_url,
             tee_registry_address=tee_registry_address,
         )
 
         self.alpha = Alpha(
-            blockchain=blockchain,
-            wallet_account=alpha_wallet_account,
-            inference_hub_contract_address=contract_address,
+            blockchain=w3,
+            wallet_account=alpha_account,
+            inference_hub_contract_address=inference_contract_address,
             api_url=api_url,
         )
 

@@ -33,11 +33,11 @@ class ModelHub:
         client.model_hub.upload("model.onnx", repo.name, repo.version)
     """
 
-    def __init__(self, hub_user: Optional[Dict] = None):
-        self._hub_user = hub_user
+    def __init__(self, email: Optional[str] = None, password: Optional[str] = None):
+        self._hub_user = self._login(email, password) if email is not None else None
 
     @staticmethod
-    def _login_to_hub(email, password):
+    def _login(email: str, password: Optional[str]):
         if not _FIREBASE_CONFIG.get("apiKey"):
             raise ValueError("Firebase API Key is missing in environment variables")
 

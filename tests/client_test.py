@@ -13,7 +13,6 @@ from src.opengradient.types import (
     x402SettlementMode,
 )
 
-
 # --- Fixtures ---
 
 
@@ -71,7 +70,7 @@ class TestClientInitialization:
             private_key="0x" + "a" * 64,
             rpc_url="https://test.rpc.url",
             api_url="https://test.api.url",
-            contract_address="0x" + "b" * 40,
+            inference_contract_address="0x" + "b" * 40,
         )
 
         assert client.model_hub._hub_user is None
@@ -93,7 +92,7 @@ class TestClientInitialization:
                 private_key="0x" + "a" * 64,
                 rpc_url="https://test.rpc.url",
                 api_url="https://test.api.url",
-                contract_address="0x" + "b" * 40,
+                inference_contract_address="0x" + "b" * 40,
                 email="test@test.com",
                 password="test_password",
             )
@@ -109,8 +108,8 @@ class TestClientInitialization:
             private_key="0x" + "a" * 64,
             rpc_url="https://test.rpc.url",
             api_url="https://test.api.url",
-            contract_address="0x" + "b" * 40,
-            og_llm_server_url=custom_llm_url,
+            inference_contract_address="0x" + "b" * 40,
+            llm_server_url=custom_llm_url,
         )
 
         assert client.llm._tee_endpoint == custom_llm_url
@@ -137,7 +136,7 @@ class TestAuthentication:
                 private_key="0x" + "a" * 64,
                 rpc_url="https://test.rpc.url",
                 api_url="https://test.api.url",
-                contract_address="0x" + "b" * 40,
+                inference_contract_address="0x" + "b" * 40,
                 email="user@test.com",
                 password="password123",
             )
@@ -160,7 +159,7 @@ class TestAuthentication:
                     private_key="0x" + "a" * 64,
                     rpc_url="https://test.rpc.url",
                     api_url="https://test.api.url",
-                    contract_address="0x" + "b" * 40,
+                    inference_contract_address="0x" + "b" * 40,
                     email="user@test.com",
                     password="wrong_password",
                 )

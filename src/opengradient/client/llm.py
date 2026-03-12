@@ -71,12 +71,12 @@ class LLM:
         wallet_account: LocalAccount,
         rpc_url: Optional[str] = None,
         tee_registry_address: Optional[str] = None,
-        og_llm_server_url: Optional[str] = None,
+        llm_server_url: Optional[str] = None,
     ):
         self._wallet_account = wallet_account
 
         endpoint, tls_cert_der, tee_id, tee_payment_address = self._resolve_tee(
-            og_llm_server_url,
+            llm_server_url,
             rpc_url,
             tee_registry_address,
         )
@@ -113,7 +113,7 @@ class LLM:
             return tee_endpoint_override, None, None, None
 
         if og_rpc_url is None or tee_registry_address is None:
-            raise ValueError("Either og_llm_server_url or both og_rpc_url and tee_registry_address must be provided.")
+            raise ValueError("Either llm_server_url or both rpc_url and tee_registry_address must be provided.")
 
         try:
             registry = TEERegistry(rpc_url=og_rpc_url, registry_address=tee_registry_address)
@@ -122,7 +122,7 @@ class LLM:
             raise RuntimeError(f"Failed to fetch LLM TEE endpoint from registry ({tee_registry_address} on {og_rpc_url}): {e}. ") from e
 
         if tee is None:
-            raise ValueError("No active LLM proxy TEE found in the registry. Pass og_llm_server_url explicitly to override.")
+            raise ValueError("No active LLM proxy TEE found in the registry. Pass llm_server_url explicitly to override.")
 
         logger.info("Using TEE endpoint from registry: %s (teeId=%s)", tee.endpoint, tee.tee_id)
         return tee.endpoint, tee.tls_cert_der, tee.tee_id, tee.payment_address
