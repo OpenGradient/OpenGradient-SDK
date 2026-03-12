@@ -35,4 +35,9 @@ from .twins import Twins
 
 __all__ = ["LLM", "Alpha", "ModelHub", "Twins"]
 
-__pdoc__ = {}
+__pdoc__ = {
+    "Alpha": False,
+    "LLM": False,
+    "ModelHub": False,
+    "Twins": False,
+}
