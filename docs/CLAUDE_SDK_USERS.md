@@ -21,6 +21,9 @@ import os
 # Create an LLM client
 llm = og.LLM(private_key=os.environ["OG_PRIVATE_KEY"])
 
+# One-time OPG token approval (idempotent — skips if allowance already sufficient)
+llm.ensure_opg_approval(opg_amount=5)
+
 # LLM Chat (TEE-verified with x402 payments, async)
 result = await llm.chat(
     model=og.TEE_LLM.CLAUDE_HAIKU_4_5,
