@@ -7,8 +7,6 @@ from eth_account.account import LocalAccount
 from web3 import Web3
 from x402v2.mechanisms.evm.constants import PERMIT2_ADDRESS
 
-from .exceptions import OpenGradientError
-
 BASE_OPG_ADDRESS = "0x240b09731D96979f50B2C649C9CE10FcF9C7987F"
 BASE_SEPOLIA_RPC = "https://sepolia.base.org"
 
@@ -69,7 +67,7 @@ def ensure_opg_approval(wallet_account: LocalAccount, opg_amount: float) -> Perm
             was needed).
 
     Raises:
-        OpenGradientError: If the approval transaction fails.
+        RuntimeError: If the approval transaction fails.
     """
     amount_base = int(opg_amount * 10**18)
 
@@ -107,7 +105,7 @@ def ensure_opg_approval(wallet_account: LocalAccount, opg_amount: float) -> Perm
         receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
 
         if receipt.status != 1:
-            raise OpenGradientError(f"Permit2 approval transaction reverted: {tx_hash.hex()}")
+            raise RuntimeError(f"Permit2 approval transaction reverted: {tx_hash.hex()}")
 
         allowance_after = token.functions.allowance(owner, spender).call()
 
@@ -116,7 +114,7 @@ def ensure_opg_approval(wallet_account: LocalAccount, opg_amount: float) -> Perm
             allowance_after=allowance_after,
             tx_hash=tx_hash.hex(),
         )
-    except OpenGradientError:
+    except RuntimeError:
         raise
     except Exception as e:
-        raise OpenGradientError(f"Failed to approve Permit2 for OPG: {e}")
+        raise RuntimeError(f"Failed to approve Permit2 for OPG: {e}")

@@ -14,7 +14,6 @@ from x402v2.mechanisms.evm.exact.register import register_exact_evm_client as re
 from x402v2.mechanisms.evm.upto.register import register_upto_evm_client as register_upto_evm_clientv2
 
 from ..types import TEE_LLM, StreamChoice, StreamChunk, StreamDelta, TextGenerationOutput, x402SettlementMode
-from .exceptions import OpenGradientError
 from .opg_token import Permit2ApprovalResult, ensure_opg_approval
 from .tee_registry import TEERegistry, build_ssl_context_from_der
 
@@ -186,7 +185,7 @@ class LLM:
 
         Raises:
             ValueError: If the OPG amount is less than 0.05.
-            OpenGradientError: If the approval transaction fails.
+            RuntimeError: If the approval transaction fails.
         """
         if opg_amount < 0.05:
             raise ValueError("OPG amount must be at least 0.05.")
@@ -223,7 +222,7 @@ class LLM:
                 - Payment hash for x402 transactions
 
         Raises:
-            OpenGradientError: If the inference fails.
+            RuntimeError: If the inference fails.
         """
         model_id = model.split("/")[1]
         headers = self._headers(x402_settlement_mode)
@@ -253,10 +252,10 @@ class LLM:
                 tee_timestamp=result.get("tee_timestamp"),
                 **self._tee_metadata(),
             )
-        except OpenGradientError:
+        except RuntimeError:
             raise
         except Exception as e:
-            raise OpenGradientError(f"TEE LLM completion failed: {e}") from e
+            raise RuntimeError(f"TEE LLM completion failed: {e}") from e
 
     async def chat(
         self,
@@ -294,7 +293,7 @@ class LLM:
                 - If stream=True: Async generator yielding StreamChunk objects
 
         Raises:
-            OpenGradientError: If the inference fails.
+            RuntimeError: If the inference fails.
         """
         params = _ChatParams(
             model=model.split("/")[1],
@@ -336,7 +335,7 @@ class LLM:
 
             choices = result.get("choices")
             if not choices:
-                raise OpenGradientError(f"Invalid response: 'choices' missing or empty in {result}")
+                raise RuntimeError(f"Invalid response: 'choices' missing or empty in {result}")
 
             message = choices[0].get("message", {})
             content = message.get("content")
@@ -353,10 +352,10 @@ class LLM:
                 tee_timestamp=result.get("tee_timestamp"),
                 **self._tee_metadata(),
             )
-        except OpenGradientError:
+        except RuntimeError:
             raise
         except Exception as e:
-            raise OpenGradientError(f"TEE LLM chat failed: {e}") from e
+            raise RuntimeError(f"TEE LLM chat failed: {e}") from e
 
     async def _chat_tools_as_stream(self, params: _ChatParams, messages: List[Dict]) -> AsyncGenerator[StreamChunk, None]:
         """Non-streaming fallback for tool-call requests wrapped as a single StreamChunk."""
@@ -403,7 +402,7 @@ class LLM:
         status_code = getattr(response, "status_code", None)
         if status_code is not None and status_code >= 400:
             body = await response.aread()
-            raise OpenGradientError(f"TEE LLM streaming request failed with status {status_code}: {body.decode('utf-8', errors='replace')}")
+            raise RuntimeError(f"TEE LLM streaming request failed with status {status_code}: {body.decode('utf-8', errors='replace')}")
 
         buffer = b""
         async for raw_chunk in response.aiter_raw():

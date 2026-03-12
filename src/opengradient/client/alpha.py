@@ -21,7 +21,6 @@ from ..defaults import DEFAULT_SCHEDULER_ADDRESS
 from ..types import HistoricalInputQuery, InferenceMode, InferenceResult, ModelOutput, SchedulerParams
 from ._conversions import convert_array_to_model_output, convert_to_model_input, convert_to_model_output
 from ._utils import get_abi, get_bin, run_with_retry
-from .exceptions import OpenGradientError
 
 # How much time we wait for txn to be included in chain
 INFERENCE_TX_TIMEOUT = 120
@@ -91,7 +90,7 @@ class Alpha:
                 model_output (Dict[str, np.ndarray]): Output of the ONNX model
 
         Raises:
-            OpenGradientError: If the inference fails.
+            RuntimeError: If the inference fails.
         """
 
         def execute_transaction():
@@ -106,7 +105,7 @@ class Alpha:
             tx_hash, tx_receipt = self._send_tx_with_revert_handling(run_function)
             parsed_logs = contract.events.InferenceResult().process_receipt(tx_receipt, errors=DISCARD)
             if len(parsed_logs) < 1:
-                raise OpenGradientError("InferenceResult event not found in transaction logs")
+                raise RuntimeError("InferenceResult event not found in transaction logs")
 
             # TODO: This should return a ModelOutput class object
             model_output = convert_to_model_output(parsed_logs[0]["args"])
@@ -184,7 +183,7 @@ class Alpha:
             Dict: The inference result as returned by the node
 
         Raises:
-            OpenGradientError: If the request fails or returns an error
+            RuntimeError: If the request fails or returns an error
         """
         try:
             encoded_id = urllib.parse.quote(inference_id, safe="")
@@ -199,50 +198,50 @@ class Alpha:
                     decoded_string = decoded_bytes.decode("utf-8")
                     output = json.loads(decoded_string).get("InferenceResult", {})
                     if output is None:
-                        raise OpenGradientError("Missing InferenceResult in inference output")
+                        raise RuntimeError("Missing InferenceResult in inference output")
 
                     match inference_mode:
                         case InferenceMode.VANILLA:
                             if "VanillaResult" not in output:
-                                raise OpenGradientError("Missing VanillaResult in inference output")
+                                raise RuntimeError("Missing VanillaResult in inference output")
                             if "model_output" not in output["VanillaResult"]:
-                                raise OpenGradientError("Missing model_output in VanillaResult")
+                                raise RuntimeError("Missing model_output in VanillaResult")
                             return {"output": output["VanillaResult"]["model_output"]}
 
                         case InferenceMode.TEE:
                             if "TeeNodeResult" not in output:
-                                raise OpenGradientError("Missing TeeNodeResult in inference output")
+                                raise RuntimeError("Missing TeeNodeResult in inference output")
                             if "Response" not in output["TeeNodeResult"]:
-                                raise OpenGradientError("Missing Response in TeeNodeResult")
+                                raise RuntimeError("Missing Response in TeeNodeResult")
                             if "VanillaResponse" in output["TeeNodeResult"]["Response"]:
                                 if "model_output" not in output["TeeNodeResult"]["Response"]["VanillaResponse"]:
-                                    raise OpenGradientError("Missing model_output in VanillaResponse")
+                                    raise RuntimeError("Missing model_output in VanillaResponse")
                                 return {"output": output["TeeNodeResult"]["Response"]["VanillaResponse"]["model_output"]}
 
                             else:
-                                raise OpenGradientError("Missing VanillaResponse in TeeNodeResult Response")
+                                raise RuntimeError("Missing VanillaResponse in TeeNodeResult Response")
 
                         case InferenceMode.ZKML:
                             if "ZkmlResult" not in output:
-                                raise OpenGradientError("Missing ZkmlResult in inference output")
+                                raise RuntimeError("Missing ZkmlResult in inference output")
                             if "model_output" not in output["ZkmlResult"]:
-                                raise OpenGradientError("Missing model_output in ZkmlResult")
+                                raise RuntimeError("Missing model_output in ZkmlResult")
                             return {"output": output["ZkmlResult"]["model_output"]}
 
                         case _:
-                            raise OpenGradientError(f"Invalid inference mode: {inference_mode}")
+                            raise ValueError(f"Invalid inference mode: {inference_mode}")
                 else:
                     return None
 
             else:
-                raise OpenGradientError(f"Failed to get inference result: HTTP {response.status_code}")
+                raise RuntimeError(f"Failed to get inference result: HTTP {response.status_code}")
 
         except requests.RequestException as e:
-            raise OpenGradientError(f"Failed to get inference result: {str(e)}")
-        except OpenGradientError:
+            raise RuntimeError(f"Failed to get inference result: {str(e)}")
+        except (RuntimeError, ValueError):
             raise
         except Exception as e:
-            raise OpenGradientError(f"Failed to get inference result: {str(e)}")
+            raise RuntimeError(f"Failed to get inference result: {str(e)}")
 
     def new_workflow(
         self,

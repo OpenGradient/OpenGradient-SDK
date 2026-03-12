@@ -5,7 +5,6 @@ from typing import Dict, List, Optional
 import httpx
 
 from ..types import TEE_LLM, TextGenerationOutput
-from .exceptions import OpenGradientError
 
 TWINS_API_BASE_URL = "https://chat-api.memchat.io"
 
@@ -53,7 +52,7 @@ class Twins:
             TextGenerationOutput: Generated text results including chat_output and finish_reason.
 
         Raises:
-            OpenGradientError: If the request fails.
+            RuntimeError: If the request fails.
         """
         url = f"{TWINS_API_BASE_URL}/api/v1/twins/{twin_id}/chat"
         headers = {
@@ -77,7 +76,7 @@ class Twins:
 
             choices = result.get("choices")
             if not choices:
-                raise OpenGradientError(f"Invalid response: 'choices' missing or empty in {result}")
+                raise RuntimeError(f"Invalid response: 'choices' missing or empty in {result}")
 
             return TextGenerationOutput(
                 transaction_hash="",
@@ -85,12 +84,12 @@ class Twins:
                 chat_output=choices[0].get("message"),
                 payment_hash=None,
             )
-        except OpenGradientError:
+        except RuntimeError:
             raise
         except httpx.HTTPStatusError as e:
-            raise OpenGradientError(
+            raise RuntimeError(
                 f"Twins chat request failed: {e.response.status_code} {e.response.text}",
                 status_code=e.response.status_code,
             )
         except Exception as e:
-            raise OpenGradientError(f"Twins chat request failed: {str(e)}")
+            raise RuntimeError(f"Twins chat request failed: {str(e)}")

@@ -3,8 +3,6 @@ import time
 from pathlib import Path
 from typing import Callable
 
-from .exceptions import OpenGradientError
-
 _ABI_DIR = Path(__file__).parent.parent / "abi"
 _BIN_DIR = Path(__file__).parent.parent / "bin"
 
@@ -58,7 +56,7 @@ def run_with_retry(
 
             if any(error in error_msg for error in _NONCE_ERRORS):
                 if attempt == effective_retries - 1:
-                    raise OpenGradientError(f"Transaction failed after {effective_retries} attempts: {e}")
+                    raise RuntimeError(f"Transaction failed after {effective_retries} attempts: {e}")
                 time.sleep(retry_delay)
                 continue
 

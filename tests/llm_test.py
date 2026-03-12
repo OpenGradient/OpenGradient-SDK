@@ -12,7 +12,6 @@ from unittest.mock import MagicMock, patch
 import httpx
 import pytest
 
-from src.opengradient.client.exceptions import OpenGradientError
 from src.opengradient.client.llm import LLM
 from src.opengradient.types import TEE_LLM, x402SettlementMode
 
@@ -206,7 +205,7 @@ class TestCompletion:
         fake_http.set_response(500, {"error": "boom"})
         llm = _make_llm()
 
-        with pytest.raises(OpenGradientError, match="TEE LLM completion failed"):
+        with pytest.raises(RuntimeError, match="TEE LLM completion failed"):
             await llm.completion(model=TEE_LLM.GPT_5, prompt="Hi")
 
 
@@ -344,21 +343,21 @@ class TestChat:
         fake_http.set_response(200, {"choices": []})
         llm = _make_llm()
 
-        with pytest.raises(OpenGradientError, match="'choices' missing or empty"):
+        with pytest.raises(RuntimeError, match="'choices' missing or empty"):
             await llm.chat(model=TEE_LLM.GPT_5, messages=[{"role": "user", "content": "Hi"}])
 
     async def test_missing_choices_raises(self, fake_http):
         fake_http.set_response(200, {"result": "no choices key"})
         llm = _make_llm()
 
-        with pytest.raises(OpenGradientError, match="'choices' missing or empty"):
+        with pytest.raises(RuntimeError, match="'choices' missing or empty"):
             await llm.chat(model=TEE_LLM.GPT_5, messages=[{"role": "user", "content": "Hi"}])
 
     async def test_http_error_raises_opengradient_error(self, fake_http):
         fake_http.set_response(500, {"error": "internal"})
         llm = _make_llm()
 
-        with pytest.raises(OpenGradientError, match="TEE LLM chat failed"):
+        with pytest.raises(RuntimeError, match="TEE LLM chat failed"):
             await llm.chat(model=TEE_LLM.GPT_5, messages=[{"role": "user", "content": "Hi"}])
 
 
@@ -437,7 +436,7 @@ class TestChatStreaming:
             stream=True,
         )
 
-        with pytest.raises(OpenGradientError, match="streaming request failed"):
+        with pytest.raises(RuntimeError, match="streaming request failed"):
             _ = [chunk async for chunk in gen]
 
     async def test_tools_with_stream_falls_back_to_single_chunk(self, fake_http):
