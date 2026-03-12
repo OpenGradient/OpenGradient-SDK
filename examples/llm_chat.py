@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 
@@ -6,19 +7,24 @@ import opengradient as og
 logging.basicConfig()
 logging.getLogger("opengradient").setLevel(logging.DEBUG)
 
-client = og.Client(
-    private_key=os.environ.get("OG_PRIVATE_KEY"),
-)
-client.llm.ensure_opg_approval(opg_amount=2)
 
-messages = [
-    {"role": "user", "content": "What is the capital of France?"},
-]
+async def main():
+    client = og.Client(
+        private_key=os.environ.get("OG_PRIVATE_KEY"),
+    )
+    client.llm.ensure_opg_approval(opg_amount=2)
 
-result = client.llm.chat(
-    model=og.TEE_LLM.GEMINI_2_5_FLASH,
-    messages=messages,
-    max_tokens=300,
-    x402_settlement_mode=og.x402SettlementMode.INDIVIDUAL_FULL,
-)
-print(result.chat_output["content"])
+    messages = [
+        {"role": "user", "content": "What is the capital of France?"},
+    ]
+
+    result = await client.llm.chat(
+        model=og.TEE_LLM.GEMINI_2_5_FLASH,
+        messages=messages,
+        max_tokens=300,
+        x402_settlement_mode=og.x402SettlementMode.INDIVIDUAL_FULL,
+    )
+    print(result.chat_output["content"])
+
+
+asyncio.run(main())

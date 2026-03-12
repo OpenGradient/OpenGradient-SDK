@@ -201,17 +201,18 @@ class TestAuthentication:
 # --- LLM Tests ---
 
 
+@pytest.mark.asyncio
 class TestLLMCompletion:
-    def test_llm_completion_success(self, client):
+    async def test_llm_completion_success(self, client):
         """Test successful LLM completion."""
         response = _mock_http_response({
             "completion": "Hello! How can I help?",
             "tee_signature": "sig123",
             "tee_timestamp": "2025-01-01T00:00:00Z",
         })
-        client.llm._request_client.post = AsyncMock(return_value=response)
+        client.llm._http_client.post = AsyncMock(return_value=response)
 
-        result = client.llm.completion(
+        result = await client.llm.completion(
             model=TEE_LLM.GPT_5,
             prompt="Hello",
             max_tokens=100,
@@ -220,26 +221,27 @@ class TestLLMCompletion:
         assert result.completion_output == "Hello! How can I help?"
         assert result.tee_signature == "sig123"
         assert result.transaction_hash == "external"
-        client.llm._request_client.post.assert_called_once()
+        client.llm._http_client.post.assert_called_once()
 
-    def test_llm_completion_includes_stop_sequence(self, client):
+    async def test_llm_completion_includes_stop_sequence(self, client):
         """Test that stop sequences are included in the request payload."""
         response = _mock_http_response({"completion": "Hello"})
-        client.llm._request_client.post = AsyncMock(return_value=response)
+        client.llm._http_client.post = AsyncMock(return_value=response)
 
-        client.llm.completion(
+        await client.llm.completion(
             model=TEE_LLM.GPT_5,
             prompt="Hello",
             stop_sequence=["END"],
         )
 
-        call_kwargs = client.llm._request_client.post.call_args
+        call_kwargs = client.llm._http_client.post.call_args
         payload = call_kwargs.kwargs.get("json") or call_kwargs[1].get("json")
         assert payload["stop"] == ["END"]
 
 
+@pytest.mark.asyncio
 class TestLLMChat:
-    def test_llm_chat_success_non_streaming(self, client):
+    async def test_llm_chat_success_non_streaming(self, client):
         """Test successful non-streaming LLM chat."""
         response = _mock_http_response({
             "choices": [{
@@ -248,9 +250,9 @@ class TestLLMChat:
             }],
             "tee_signature": "sig456",
         })
-        client.llm._request_client.post = AsyncMock(return_value=response)
+        client.llm._http_client.post = AsyncMock(return_value=response)
 
-        result = client.llm.chat(
+        result = await client.llm.chat(
             model=TEE_LLM.GPT_5,
             messages=[{"role": "user", "content": "Hello"}],
             stream=False,
@@ -258,9 +260,9 @@ class TestLLMChat:
 
         assert result.chat_output["content"] == "Hi there!"
         assert result.finish_reason == "stop"
-        client.llm._request_client.post.assert_called_once()
+        client.llm._http_client.post.assert_called_once()
 
-    def test_llm_chat_flattens_content_blocks(self, client):
+    async def test_llm_chat_flattens_content_blocks(self, client):
         """Test that list-type content blocks are flattened to a string."""
         response = _mock_http_response({
             "choices": [{
@@ -274,16 +276,16 @@ class TestLLMChat:
                 "finish_reason": "stop",
             }],
         })
-        client.llm._request_client.post = AsyncMock(return_value=response)
+        client.llm._http_client.post = AsyncMock(return_value=response)
 
-        result = client.llm.chat(
+        result = await client.llm.chat(
             model=TEE_LLM.GPT_5,
             messages=[{"role": "user", "content": "Hi"}],
         )
 
         assert result.chat_output["content"] == "Hello world"
 
-    def test_llm_chat_with_tools(self, client):
+    async def test_llm_chat_with_tools(self, client):
         """Test that tools are included in the request payload."""
         tools = [{"type": "function", "function": {"name": "get_weather"}}]
         response = _mock_http_response({
@@ -292,21 +294,21 @@ class TestLLMChat:
                 "finish_reason": "tool_calls",
             }],
         })
-        client.llm._request_client.post = AsyncMock(return_value=response)
+        client.llm._http_client.post = AsyncMock(return_value=response)
 
-        result = client.llm.chat(
+        result = await client.llm.chat(
             model=TEE_LLM.GPT_5,
             messages=[{"role": "user", "content": "Weather?"}],
             tools=tools,
         )
 
-        call_kwargs = client.llm._request_client.post.call_args
+        call_kwargs = client.llm._http_client.post.call_args
         payload = call_kwargs.kwargs.get("json") or call_kwargs[1].get("json")
         assert payload["tools"] == tools
         assert payload["tool_choice"] == "auto"
         assert result.chat_output["tool_calls"] == [{"id": "1"}]
 
-    def test_llm_chat_streaming(self, client):
+    async def test_llm_chat_streaming(self, client):
         """Test streaming LLM chat via SSE."""
         sse_lines = (
             b'data: {"model":"gpt-5","choices":[{"index":0,"delta":{"role":"assistant","content":"Hi"},"finish_reason":null}]}\n\n'
@@ -325,15 +327,17 @@ class TestLLMChat:
         stream_ctx = AsyncMock()
         stream_ctx.__aenter__ = AsyncMock(return_value=mock_response)
         stream_ctx.__aexit__ = AsyncMock(return_value=False)
-        client.llm._stream_client.stream = MagicMock(return_value=stream_ctx)
+        client.llm._http_client.stream = MagicMock(return_value=stream_ctx)
 
-        result = client.llm.chat(
+        result = await client.llm.chat(
             model=TEE_LLM.GPT_5,
             messages=[{"role": "user", "content": "Hello"}],
             stream=True,
         )
 
-        chunks = list(result)
+        chunks = []
+        async for chunk in result:
+            chunks.append(chunk)
         assert len(chunks) == 2
         assert chunks[0].choices[0].delta.content == "Hi"
         assert chunks[1].choices[0].delta.content == " there"

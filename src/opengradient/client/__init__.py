@@ -32,12 +32,13 @@ client = og.init(private_key="0xLLM_KEY...", alpha_private_key="0xALPHA_KEY...")
 client.llm.ensure_opg_approval(opg_amount=5)
 
 # LLM chat (TEE-verified, streamed)
-for chunk in client.llm.chat(
+stream = await client.llm.chat(
     model=og.TEE_LLM.CLAUDE_HAIKU_4_5,
     messages=[{"role": "user", "content": "Hello!"}],
     max_tokens=200,
     stream=True,
-):
+)
+async for chunk in stream:
     if chunk.choices[0].delta.content:
         print(chunk.choices[0].delta.content, end="")
 

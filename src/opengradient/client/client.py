@@ -35,7 +35,7 @@ class Client:
         client = og.Client(private_key="0x...")
         client = og.Client(private_key="0xBASE_KEY", alpha_private_key="0xALPHA_KEY")
         client.llm.ensure_opg_approval(opg_amount=5)  # one-time Permit2 approval
-        result = client.llm.chat(model=TEE_LLM.CLAUDE_HAIKU_4_5, messages=[...])
+        result = await client.llm.chat(model=TEE_LLM.CLAUDE_HAIKU_4_5, messages=[...])
         result = client.alpha.infer(model_cid, InferenceMode.VANILLA, input_data)
     """
 
@@ -129,12 +129,12 @@ class Client:
 
         self.twins = Twins(api_key=twins_api_key) if twins_api_key is not None else None
 
-    def close(self) -> None:
+    async def close(self) -> None:
         """Close underlying SDK resources."""
-        self.llm.close()
+        await self.llm.close()
 
-    def __enter__(self):
+    async def __aenter__(self):
         return self
 
-    def __exit__(self, exc_type, exc, tb):
-        self.close()
+    async def __aexit__(self, exc_type, exc, tb):
+        await self.close()

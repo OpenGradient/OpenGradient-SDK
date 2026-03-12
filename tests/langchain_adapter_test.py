@@ -1,7 +1,7 @@
 import json
 import os
 import sys
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
@@ -19,6 +19,7 @@ def mock_client():
     """Create a mock Client instance."""
     with patch("src.opengradient.agents.og_langchain.Client") as MockClient:
         mock_instance = MagicMock()
+        mock_instance.llm.chat = AsyncMock()
         MockClient.return_value = mock_instance
         yield mock_instance
 
