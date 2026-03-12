@@ -20,7 +20,7 @@ and uploading ML models. Requires email/password authentication.
 #### Constructor
 
 ```python
-def __init__(hub_user: Optional[Dict] = None)
+def __init__(email: Optional[str] = None, password: Optional[str] = None)
 ```
 
 #### Methods

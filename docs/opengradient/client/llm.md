@@ -32,7 +32,7 @@ def __init__(
     wallet_account: `LocalAccount`,
     rpc_url: Optional[str] = None,
     tee_registry_address: Optional[str] = None,
-    og_llm_server_url: Optional[str] = None
+    llm_server_url: Optional[str] = None
 )
 ```
 
