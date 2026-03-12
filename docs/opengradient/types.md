@@ -299,6 +299,9 @@ usage information.
 * **`is_final`**: Whether this is the final chunk (before [DONE])
 * **`tee_signature`**: RSA-PSS signature over the response, present on the final chunk
 * **`tee_timestamp`**: ISO timestamp from the TEE at signing time, present on the final chunk
+* **`tee_id`**: On-chain TEE registry ID of the enclave that served this request (final chunk only)
+* **`tee_endpoint`**: Endpoint URL of the TEE that served this request (final chunk only)
+* **`tee_payment_address`**: Payment address registered for the TEE (final chunk only)
 
 #### Constructor
 
@@ -309,7 +312,10 @@ def __init__(
     usage: Optional[`StreamUsage`] = None,
     is_final: bool = False,
     tee_signature: Optional[str] = None,
-    tee_timestamp: Optional[str] = None
+    tee_timestamp: Optional[str] = None,
+    tee_id: Optional[str] = None,
+    tee_endpoint: Optional[str] = None,
+    tee_payment_address: Optional[str] = None
 )
 ```
 
@@ -339,12 +345,18 @@ StreamChunk instance
 * **`is_final`**: Whether this is the final chunk (before [DONE])
 * **`tee_signature`**: RSA-PSS signature over the response, present on the final chunk
 * **`tee_timestamp`**: ISO timestamp from the TEE at signing time, present on the final chunk
+* **`tee_id`**: On-chain TEE registry ID of the enclave that served this request (final chunk only)
+* **`tee_endpoint`**: Endpoint URL of the TEE that served this request (final chunk only)
+* **`tee_payment_address`**: Payment address registered for the TEE (final chunk only)
 
 #### Variables
 
 * static `choices` : List[`StreamChoice`]
 * static `is_final` : bool
 * static `model` : str
+* static `tee_endpoint` : Optional[str]
+* static `tee_id` : Optional[str]
+* static `tee_payment_address` : Optional[str]
 * static `tee_signature` : Optional[str]
 * static `tee_timestamp` : Optional[str]
 * static `usage` : Optional[`StreamUsage`]
@@ -489,7 +501,10 @@ def __init__(
     completion_output: Optional[str] = None,
     payment_hash: Optional[str] = None,
     tee_signature: Optional[str] = None,
-    tee_timestamp: Optional[str] = None
+    tee_timestamp: Optional[str] = None,
+    tee_id: Optional[str] = None,
+    tee_endpoint: Optional[str] = None,
+    tee_payment_address: Optional[str] = None
 )
 ```
 
@@ -499,6 +514,9 @@ def __init__(
 * static `completion_output` : Optional[str] - Raw text returned by a completion request.
 * static `finish_reason` : Optional[str] - Reason the model stopped generating (e.g. ``"stop"``, ``"tool_call"``, ``"error"``). Only populated for chat requests.
 * static `payment_hash` : Optional[str] - Payment hash for the x402 transaction.
+* static `tee_endpoint` : Optional[str] - Endpoint URL of the TEE that served this request, as registered on-chain.
+* static `tee_id` : Optional[str] - On-chain TEE registry ID (keccak256 of the enclave's public key) of the TEE that served this request.
+* static `tee_payment_address` : Optional[str] - Payment address registered for the TEE that served this request.
 * static `tee_signature` : Optional[str] - RSA-PSS signature over the response produced by the TEE enclave.
 * static `tee_timestamp` : Optional[str] - ISO-8601 timestamp from the TEE at signing time.
 * static `transaction_hash` : str - Blockchain transaction hash. Set to ``"external"`` for TEE-routed providers.

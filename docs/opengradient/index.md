@@ -6,7 +6,7 @@ opengradient
 
 # Package opengradient
 
-**Version: 0.7.5**
+**Version: 0.7.6**
 
 OpenGradient Python SDK for decentralized AI inference with end-to-end verification.
 
@@ -23,31 +23,35 @@ All LLM inference runs inside Trusted Execution Environments (TEEs) and settles 
 ## Quick Start
 
 ```python
+import asyncio
 import opengradient as og
 
-# Initialize the client
 client = og.init(private_key="0x...")
 
 # One-time approval (idempotent — skips if allowance is already sufficient)
 client.llm.ensure_opg_approval(opg_amount=5)
 
 # Chat with an LLM (TEE-verified)
-response = client.llm.chat(
+response = asyncio.run(client.llm.chat(
     model=og.TEE_LLM.CLAUDE_HAIKU_4_5,
     messages=[{"role": "user", "content": "Hello!"}],
     max_tokens=200,
-)
+))
 print(response.chat_output)
 
 # Stream a response
-for chunk in client.llm.chat(
-    model=og.TEE_LLM.GPT_5,
-    messages=[{"role": "user", "content": "Explain TEE in one paragraph."}],
-    max_tokens=300,
-    stream=True,
-):
-    if chunk.choices[0].delta.content:
-        print(chunk.choices[0].delta.content, end="")
+async def stream_example():
+    stream = await client.llm.chat(
+        model=og.TEE_LLM.GPT_5,
+        messages=[{"role": "user", "content": "Explain TEE in one paragraph."}],
+        max_tokens=300,
+        stream=True,
+    )
+    async for chunk in stream:
+        if chunk.choices[0].delta.content:
+            print(chunk.choices[0].delta.content, end="")
+
+asyncio.run(stream_example())
 
 # Run on-chain ONNX model inference
 result = client.alpha.infer(
@@ -167,9 +171,9 @@ def __init__(
     twins_api_key: Optional[str] = None,
     rpc_url: str = 'https://ogevmdevnet.opengradient.ai',
     api_url: str = 'https://sdk-devnet.opengradient.ai',
-    contract_address: str = '0x8383C9bD7462F12Eb996DD02F78234C0421A6FaE',
-    og_llm_server_url: Optional[str] = 'https://3.15.214.21:443',
-    og_llm_streaming_server_url: Optional[str] = 'https://3.15.214.21:443'
+    inference_contract_address: str = '0x8383C9bD7462F12Eb996DD02F78234C0421A6FaE',
+    llm_server_url: Optional[str] = None,
+    tee_registry_address: str = '0x4e72238852f3c918f4E4e57AeC9280dDB0c80248'
 )
 ```
 
@@ -180,14 +184,20 @@ def __init__(
 * **`alpha_private_key`**: Private key whose wallet holds **OpenGradient testnet
         gas tokens** for on-chain inference. Optional -- falls back to
         ``private_key`` for backward compatibility.
-* **`email`**: Email for Model Hub authentication. Optional.
-* **`password`**: Password for Model Hub authentication. Optional.
+* **`email`**: Email for Model Hub authentication. Must be provided together
+        with ``password``.
+* **`password`**: Password for Model Hub authentication. Must be provided
+        together with ``email``.
 * **`twins_api_key`**: API key for digital twins chat (twin.fun). Optional.
 * **`rpc_url`**: RPC URL for the OpenGradient Alpha Testnet.
 * **`api_url`**: API URL for the OpenGradient API.
-* **`contract_address`**: Inference contract address.
-* **`og_llm_server_url`**: OpenGradient LLM server URL.
-* **`og_llm_streaming_server_url`**: OpenGradient LLM streaming server URL.
+* **`inference_contract_address`**: Inference contract address on the
+        OpenGradient Alpha Testnet.
+* **`llm_server_url`**: Override the LLM server URL instead of using the
+        registry-discovered endpoint. When set, the TLS certificate is
+        validated against the system CA bundle rather than the registry.
+* **`tee_registry_address`**: Address of the TEERegistry contract used to
+        discover active LLM proxy endpoints and their verified TLS certs.
 
 #### Methods
 
@@ -196,7 +206,7 @@ def __init__(
 #### `close()`
 
 ```python
-def close(self) ‑> None
+async def close(self) ‑> None
 ```
 Close underlying SDK resources.
 
@@ -289,7 +299,10 @@ def __init__(
     completion_output: Optional[str] = None,
     payment_hash: Optional[str] = None,
     tee_signature: Optional[str] = None,
-    tee_timestamp: Optional[str] = None
+    tee_timestamp: Optional[str] = None,
+    tee_id: Optional[str] = None,
+    tee_endpoint: Optional[str] = None,
+    tee_payment_address: Optional[str] = None
 )
 ```
 
@@ -299,6 +312,9 @@ def __init__(
 * static `completion_output` : Optional[str] - Raw text returned by a completion request.
 * static `finish_reason` : Optional[str] - Reason the model stopped generating (e.g. ``"stop"``, ``"tool_call"``, ``"error"``). Only populated for chat requests.
 * static `payment_hash` : Optional[str] - Payment hash for the x402 transaction.
+* static `tee_endpoint` : Optional[str] - Endpoint URL of the TEE that served this request, as registered on-chain.
+* static `tee_id` : Optional[str] - On-chain TEE registry ID (keccak256 of the enclave's public key) of the TEE that served this request.
+* static `tee_payment_address` : Optional[str] - Payment address registered for the TEE that served this request.
 * static `tee_signature` : Optional[str] - RSA-PSS signature over the response produced by the TEE enclave.
 * static `tee_timestamp` : Optional[str] - ISO-8601 timestamp from the TEE at signing time.
 * static `transaction_hash` : str - Blockchain transaction hash. Set to ``"external"`` for TEE-routed providers.

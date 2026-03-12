@@ -40,6 +40,7 @@ making any LLM calls, approve OPG token spending for the x402 payment protocol u
 and only sends a transaction if the allowance is below the requested amount.
 
 ```python
+import asyncio
 import os
 import sys
 import opengradient as og
@@ -54,17 +55,20 @@ client = og.init(private_key=private_key)
 # Approve OPG spending for x402 payments (one-time, idempotent).
 client.llm.ensure_opg_approval(opg_amount=5)
 
-result = client.llm.chat(
-    model=og.TEE_LLM.GPT_5,
-    messages=[{"role": "user", "content": "What is the x402 payment protocol?"}],
-    max_tokens=200,
-    temperature=0.0,
-)
+async def main():
+    result = await client.llm.chat(
+        model=og.TEE_LLM.GPT_5,
+        messages=[{"role": "user", "content": "What is the x402 payment protocol?"}],
+        max_tokens=200,
+        temperature=0.0,
+    )
 
-# result is a TextGenerationOutput dataclass
-print(result.chat_output.get("content", ""))  # The model's text response
-print(result.finish_reason)            # "stop", "length", or "tool_calls"
-print(result.payment_hash)             # On-chain x402 receipt
+    # result is a TextGenerationOutput dataclass
+    print(result.chat_output.get("content", ""))  # The model's text response
+    print(result.finish_reason)            # "stop", "length", or "tool_calls"
+    print(result.payment_hash)             # On-chain x402 receipt
+
+asyncio.run(main())
 ```
 
 The `chat_output` dictionary follows the OpenAI message format: it has `role`,
@@ -78,29 +82,31 @@ everything else -- message format, authentication, response parsing -- stays
 identical.
 
 ```python
+# All LLM methods are async -- use await in an async function
+
 # OpenAI
-result_openai = client.llm.chat(
+result_openai = await client.llm.chat(
     model=og.TEE_LLM.GPT_5,
     messages=[{"role": "user", "content": "Hello from OpenAI!"}],
     max_tokens=100,
 )
 
 # Anthropic
-result_anthropic = client.llm.chat(
+result_anthropic = await client.llm.chat(
     model=og.TEE_LLM.CLAUDE_SONNET_4_6,
     messages=[{"role": "user", "content": "Hello from Anthropic!"}],
     max_tokens=100,
 )
 
 # Google
-result_google = client.llm.chat(
+result_google = await client.llm.chat(
     model=og.TEE_LLM.GEMINI_2_5_FLASH,
     messages=[{"role": "user", "content": "Hello from Google!"}],
     max_tokens=100,
 )
 
 # xAI
-result_xai = client.llm.chat(
+result_xai = await client.llm.chat(
     model=og.TEE_LLM.GROK_4,
     messages=[{"role": "user", "content": "Hello from xAI!"}],
     max_tokens=100,
@@ -114,11 +120,11 @@ quality, latency, and cost without changing any infrastructure.
 ## Step 3: Enable Streaming
 
 For chat UIs and real-time applications, pass `stream=True` to get tokens as they
-are generated. The return value changes from a `TextGenerationOutput` to a generator
-that yields `StreamChunk` objects.
+are generated. The return value changes from a `TextGenerationOutput` to an async
+generator that yields `StreamChunk` objects.
 
 ```python
-stream = client.llm.chat(
+stream = await client.llm.chat(
     model=og.TEE_LLM.GPT_5,
     messages=[
         {"role": "system", "content": "You are a concise technical writer."},
@@ -129,7 +135,7 @@ stream = client.llm.chat(
     stream=True,
 )
 
-for chunk in stream:
+async for chunk in stream:
     # Each chunk has a choices list. The first choice's delta
     # contains the incremental content for this token.
     delta = chunk.choices[0].delta
@@ -169,7 +175,7 @@ privacy/cost/transparency trade-off:
 
 ```python
 # Privacy-first: only hashes stored on-chain
-result_private = client.llm.chat(
+result_private = await client.llm.chat(
     model=og.TEE_LLM.CLAUDE_SONNET_4_6,
     messages=[{"role": "user", "content": "Sensitive query here."}],
     max_tokens=100,
@@ -178,7 +184,7 @@ result_private = client.llm.chat(
 print(f"Payment hash (SETTLE): {result_private.payment_hash}")
 
 # Cost-efficient: batched settlement (this is the default)
-result_batch = client.llm.chat(
+result_batch = await client.llm.chat(
     model=og.TEE_LLM.CLAUDE_SONNET_4_6,
     messages=[{"role": "user", "content": "Regular query."}],
     max_tokens=100,
@@ -187,7 +193,7 @@ result_batch = client.llm.chat(
 print(f"Payment hash (BATCH_HASHED): {result_batch.payment_hash}")
 
 # Full transparency: everything on-chain
-result_transparent = client.llm.chat(
+result_transparent = await client.llm.chat(
     model=og.TEE_LLM.CLAUDE_SONNET_4_6,
     messages=[{"role": "user", "content": "Auditable query."}],
     max_tokens=100,
@@ -226,7 +232,7 @@ tools = [
     }
 ]
 
-result = client.llm.chat(
+result = await client.llm.chat(
     model=og.TEE_LLM.GEMINI_2_5_FLASH,
     messages=[{"role": "user", "content": "What's the current price of ETH?"}],
     max_tokens=200,
@@ -254,6 +260,7 @@ role message. See **Tutorial 3** for a complete multi-turn tool-calling loop.
 ```python
 """Streaming Multi-Provider Chat -- complete working example."""
 
+import asyncio
 import os
 import sys
 import opengradient as og
@@ -271,88 +278,93 @@ client.llm.ensure_opg_approval(opg_amount=5)
 
 PROMPT = "Explain what a Trusted Execution Environment is in two sentences."
 
-# ── Multi-provider comparison ─────────────────────────────────────────────
-models = [
-    ("GPT-5",             og.TEE_LLM.GPT_5),
-    ("Claude Sonnet 4.6", og.TEE_LLM.CLAUDE_SONNET_4_6),
-    ("Gemini 2.5 Flash",  og.TEE_LLM.GEMINI_2_5_FLASH),
-    ("Grok 4",            og.TEE_LLM.GROK_4),
-]
 
-for name, model in models:
-    try:
-        result = client.llm.chat(
-            model=model,
-            messages=[{"role": "user", "content": PROMPT}],
-            max_tokens=200,
-            temperature=0.0,
-        )
-        print(f"[{name}] {result.chat_output.get('content', '')}")
-        print(f"  Payment hash: {result.payment_hash}\n")
-    except Exception as e:
-        print(f"[{name}] Error: {e}\n")
+async def main():
+    # ── Multi-provider comparison ─────────────────────────────────────────
+    models = [
+        ("GPT-5",             og.TEE_LLM.GPT_5),
+        ("Claude Sonnet 4.6", og.TEE_LLM.CLAUDE_SONNET_4_6),
+        ("Gemini 2.5 Flash",  og.TEE_LLM.GEMINI_2_5_FLASH),
+        ("Grok 4",            og.TEE_LLM.GROK_4),
+    ]
 
-# ── Streaming ─────────────────────────────────────────────────────────────
-print("--- Streaming from GPT-5 ---")
-stream = client.llm.chat(
-    model=og.TEE_LLM.GPT_5,
-    messages=[{"role": "user", "content": "What is x402? Keep it under 50 words."}],
-    max_tokens=100,
-    stream=True,
-)
+    for name, model in models:
+        try:
+            result = await client.llm.chat(
+                model=model,
+                messages=[{"role": "user", "content": PROMPT}],
+                max_tokens=200,
+                temperature=0.0,
+            )
+            print(f"[{name}] {result.chat_output.get('content', '')}")
+            print(f"  Payment hash: {result.payment_hash}\n")
+        except Exception as e:
+            print(f"[{name}] Error: {e}\n")
 
-for chunk in stream:
-    if chunk.choices[0].delta.content:
-        print(chunk.choices[0].delta.content, end="", flush=True)
-print("\n")
+    # ── Streaming ─────────────────────────────────────────────────────────
+    print("--- Streaming from GPT-5 ---")
+    stream = await client.llm.chat(
+        model=og.TEE_LLM.GPT_5,
+        messages=[{"role": "user", "content": "What is x402? Keep it under 50 words."}],
+        max_tokens=100,
+        stream=True,
+    )
 
-# ── Settlement modes ──────────────────────────────────────────────────────
-for mode_name, mode in [
-    ("PRIVATE",          og.x402SettlementMode.PRIVATE),
-    ("BATCH_HASHED",    og.x402SettlementMode.BATCH_HASHED),
-    ("INDIVIDUAL_FULL", og.x402SettlementMode.INDIVIDUAL_FULL),
-]:
-    try:
-        r = client.llm.chat(
-            model=og.TEE_LLM.CLAUDE_SONNET_4_6,
-            messages=[{"role": "user", "content": "Say hello."}],
-            max_tokens=50,
-            x402_settlement_mode=mode,
-        )
-        print(f"[{mode_name}] payment_hash={r.payment_hash}")
-    except Exception as e:
-        print(f"[{mode_name}] Error: {e}")
+    async for chunk in stream:
+        if chunk.choices[0].delta.content:
+            print(chunk.choices[0].delta.content, end="", flush=True)
+    print("\n")
 
-# ── Function calling ──────────────────────────────────────────────────────
-tools = [{
-    "type": "function",
-    "function": {
-        "name": "get_token_price",
-        "description": "Get the current USD price of a cryptocurrency.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "symbol": {"type": "string", "description": "Token ticker, e.g. ETH."}
+    # ── Settlement modes ──────────────────────────────────────────────────
+    for mode_name, mode in [
+        ("PRIVATE",          og.x402SettlementMode.PRIVATE),
+        ("BATCH_HASHED",    og.x402SettlementMode.BATCH_HASHED),
+        ("INDIVIDUAL_FULL", og.x402SettlementMode.INDIVIDUAL_FULL),
+    ]:
+        try:
+            r = await client.llm.chat(
+                model=og.TEE_LLM.CLAUDE_SONNET_4_6,
+                messages=[{"role": "user", "content": "Say hello."}],
+                max_tokens=50,
+                x402_settlement_mode=mode,
+            )
+            print(f"[{mode_name}] payment_hash={r.payment_hash}")
+        except Exception as e:
+            print(f"[{mode_name}] Error: {e}")
+
+    # ── Function calling ──────────────────────────────────────────────────
+    tools = [{
+        "type": "function",
+        "function": {
+            "name": "get_token_price",
+            "description": "Get the current USD price of a cryptocurrency.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "symbol": {"type": "string", "description": "Token ticker, e.g. ETH."}
+                },
+                "required": ["symbol"],
             },
-            "required": ["symbol"],
         },
-    },
-}]
+    }]
 
-result = client.llm.chat(
-    model=og.TEE_LLM.GEMINI_2_5_FLASH,
-    messages=[{"role": "user", "content": "What is the price of ETH?"}],
-    max_tokens=200,
-    tools=tools,
-    tool_choice="auto",
-)
+    result = await client.llm.chat(
+        model=og.TEE_LLM.GEMINI_2_5_FLASH,
+        messages=[{"role": "user", "content": "What is the price of ETH?"}],
+        max_tokens=200,
+        tools=tools,
+        tool_choice="auto",
+    )
 
-if result.chat_output.get("tool_calls"):
-    for tc in result.chat_output["tool_calls"]:
-        func = tc["function"]
-        print(f"Tool call: {func['name']}({func['arguments']})")
-else:
-    print(result.chat_output.get("content", ""))
+    if result.chat_output.get("tool_calls"):
+        for tc in result.chat_output["tool_calls"]:
+            func = tc["function"]
+            print(f"Tool call: {func['name']}({func['arguments']})")
+    else:
+        print(result.chat_output.get("content", ""))
+
+
+asyncio.run(main())
 ```
 
 ## Next Steps

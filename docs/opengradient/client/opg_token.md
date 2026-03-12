@@ -46,7 +46,7 @@ Permit2ApprovalResult: Contains ``allowance_before``,
 
 **Raises**
 
-* **`OpenGradientError`**: If the approval transaction fails.
+* **`RuntimeError`**: If the approval transaction fails.
 
 ## Classes
 

@@ -167,7 +167,7 @@ TOOLS = [
 Pass the `tools` list and `tool_choice` parameter to any `client.llm.chat()` call.
 
 ```python
-result = client.llm.chat(
+result = await client.llm.chat(
     model=og.TEE_LLM.GPT_5,
     messages=[
         {"role": "system", "content": "You are a crypto portfolio assistant."},
@@ -198,7 +198,7 @@ The core pattern for a tool-calling agent is a loop:
 5. Repeat until the model responds with a regular text message
 
 ```python
-def run_agent(client: og.Client, user_query: str) -> str:
+async def run_agent(client: og.Client, user_query: str) -> str:
     """Run a multi-turn tool-calling agent loop."""
     messages = [
         {
@@ -218,7 +218,7 @@ def run_agent(client: og.Client, user_query: str) -> str:
         print(f"\n  [Round {i + 1}] Calling LLM...")
 
         try:
-            result = client.llm.chat(
+            result = await client.llm.chat(
                 model=og.TEE_LLM.GPT_5,
                 messages=messages,
                 max_tokens=600,
@@ -274,7 +274,9 @@ def run_agent(client: og.Client, user_query: str) -> str:
 ## Step 6: Run the Agent
 
 ```python
-if __name__ == "__main__":
+import asyncio
+
+async def main():
     queries = [
         "What does my portfolio look like right now? What's the total value?",
         "Which of my holdings has the highest risk? Should I rebalance?",
@@ -284,8 +286,11 @@ if __name__ == "__main__":
         print("\n" + "=" * 70)
         print(f"USER: {query}")
         print("=" * 70)
-        answer = run_agent(client, query)
+        answer = await run_agent(client, query)
         print(f"\nASSISTANT: {answer}")
+
+if __name__ == "__main__":
+    asyncio.run(main())
 ```
 
 Every LLM call in the loop above was TEE-verified and settled on-chain. The tool
@@ -297,6 +302,7 @@ tools was cryptographically attested.
 ```python
 """Tool-Calling Agent with Verified Reasoning -- complete working example."""
 
+import asyncio
 import json
 import os
 import sys
@@ -366,14 +372,14 @@ TOOLS = [
 ]
 
 # ── Agent loop ────────────────────────────────────────────────────────────
-def run_agent(user_query: str) -> str:
+async def run_agent(user_query: str) -> str:
     messages = [
         {"role": "system", "content": "You are a crypto portfolio assistant. Use tools to look up data. Be concise."},
         {"role": "user", "content": user_query},
     ]
     for i in range(5):
         try:
-            result = client.llm.chat(
+            result = await client.llm.chat(
                 model=og.TEE_LLM.GPT_5, messages=messages, max_tokens=600,
                 temperature=0.0, tools=TOOLS, tool_choice="auto",
                 x402_settlement_mode=og.x402SettlementMode.BATCH_HASHED,
@@ -394,10 +400,13 @@ def run_agent(user_query: str) -> str:
     return "Max iterations reached."
 
 # ── Run ───────────────────────────────────────────────────────────────────
-if __name__ == "__main__":
+async def main():
     for q in ["What's my portfolio worth?", "Which holding has the highest risk?"]:
         print(f"\nUSER: {q}")
-        print(f"ASSISTANT: {run_agent(q)}")
+        print(f"ASSISTANT: {await run_agent(q)}")
+
+if __name__ == "__main__":
+    asyncio.run(main())
 ```
 
 ## Next Steps

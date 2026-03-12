@@ -8,7 +8,6 @@ import requests
 from requests_toolbelt import MultipartEncoder  # type: ignore[import-untyped]
 
 from ..types import FileUploadResult, ModelRepository
-from .exceptions import OpenGradientError
 
 # Security Update: Credentials moved to environment variables
 _FIREBASE_CONFIG = {
@@ -34,11 +33,11 @@ class ModelHub:
         client.model_hub.upload("model.onnx", repo.name, repo.version)
     """
 
-    def __init__(self, hub_user: Optional[Dict] = None):
-        self._hub_user = hub_user
+    def __init__(self, email: Optional[str] = None, password: Optional[str] = None):
+        self._hub_user = self._login(email, password) if email is not None else None
 
     @staticmethod
-    def _login_to_hub(email, password):
+    def _login(email: str, password: Optional[str]):
         if not _FIREBASE_CONFIG.get("apiKey"):
             raise ValueError("Firebase API Key is missing in environment variables")
 
@@ -72,7 +71,7 @@ class ModelHub:
             response.raise_for_status()
         except requests.HTTPError as e:
             error_details = f"HTTP {e.response.status_code}: {e.response.text}"
-            raise OpenGradientError(f"Model creation failed: {error_details}") from e
+            raise RuntimeError(f"Model creation failed: {error_details}") from e
 
         json_response = response.json()
         model_name = json_response.get("name")
@@ -140,7 +139,7 @@ class ModelHub:
             dict: The processed result.
 
         Raises:
-            OpenGradientError: If the upload fails.
+            RuntimeError: If the upload fails.
         """
 
         if not self._hub_user:
@@ -166,17 +165,17 @@ class ModelHub:
                     else:
                         raise RuntimeError("Empty or null response content received")
                 elif response.status_code == 500:
-                    raise OpenGradientError("Internal server error occurred", status_code=500)
+                    raise RuntimeError("Internal server error occurred", status_code=500)
                 else:
                     error_message = response.json().get("detail", "Unknown error occurred")
-                    raise OpenGradientError(f"Upload failed: {error_message}", status_code=response.status_code)
+                    raise RuntimeError(f"Upload failed: {error_message}", status_code=response.status_code)
 
         except requests.RequestException as e:
-            raise OpenGradientError(f"Upload failed: {str(e)}")
-        except OpenGradientError:
+            raise RuntimeError(f"Upload failed: {str(e)}")
+        except RuntimeError:
             raise
         except Exception as e:
-            raise OpenGradientError(f"Unexpected error during upload: {str(e)}")
+            raise RuntimeError(f"Unexpected error during upload: {str(e)}")
 
     def list_files(self, model_name: str, version: str) -> List[Dict]:
         """
@@ -190,7 +189,7 @@ class ModelHub:
             List[Dict]: A list of dictionaries containing file information.
 
         Raises:
-            OpenGradientError: If the file listing fails.
+            RuntimeError: If the file listing fails.
         """
         if not self._hub_user:
             raise ValueError("User not authenticated")
@@ -204,6 +203,6 @@ class ModelHub:
             return response.json()
 
         except requests.RequestException as e:
-            raise OpenGradientError(f"File listing failed: {str(e)}")
+            raise RuntimeError(f"File listing failed: {str(e)}")
         except Exception as e:
-            raise OpenGradientError(f"Unexpected error during file listing: {str(e)}")
+            raise RuntimeError(f"Unexpected error during file listing: {str(e)}")

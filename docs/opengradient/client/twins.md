@@ -72,4 +72,4 @@ TextGenerationOutput: Generated text results including chat_output and finish_re
 
 **Raises**
 
-* **`OpenGradientError`**: If the request fails.
+* **`RuntimeError`**: If the request fails.

@@ -1,9 +1,8 @@
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
-from opengradient.client.exceptions import OpenGradientError
 from opengradient.client.opg_token import (
     Permit2ApprovalResult,
     ensure_opg_approval,
@@ -156,7 +155,7 @@ class TestEnsureOpgApprovalErrors:
     """Error handling paths."""
 
     def test_reverted_tx_raises(self, mock_wallet, mock_web3):
-        """A reverted transaction raises OpenGradientError."""
+        """A reverted transaction raises RuntimeError."""
         contract = _setup_allowance(mock_web3, 0)
 
         approve_fn = MagicMock()
@@ -176,24 +175,24 @@ class TestEnsureOpgApprovalErrors:
         mock_web3.eth.send_raw_transaction.return_value = tx_hash
         mock_web3.eth.wait_for_transaction_receipt.return_value = SimpleNamespace(status=0)
 
-        with pytest.raises(OpenGradientError, match="reverted"):
+        with pytest.raises(RuntimeError, match="reverted"):
             ensure_opg_approval(mock_wallet, 5.0)
 
     def test_generic_exception_wrapped(self, mock_wallet, mock_web3):
-        """Non-OpenGradientError exceptions are wrapped in OpenGradientError."""
+        """Non-RuntimeError exceptions are wrapped in RuntimeError."""
         contract = _setup_allowance(mock_web3, 0)
 
         approve_fn = MagicMock()
         contract.functions.approve.return_value = approve_fn
-        approve_fn.estimate_gas.side_effect = RuntimeError("RPC unavailable")
+        approve_fn.estimate_gas.side_effect = ConnectionError("RPC unavailable")
 
         mock_web3.eth.get_transaction_count.return_value = 0
 
-        with pytest.raises(OpenGradientError, match="Failed to approve Permit2 for OPG"):
+        with pytest.raises(RuntimeError, match="Failed to approve Permit2 for OPG"):
             ensure_opg_approval(mock_wallet, 5.0)
 
     def test_opengradient_error_not_double_wrapped(self, mock_wallet, mock_web3):
-        """OpenGradientError raised inside the try block should propagate as-is."""
+        """RuntimeError raised inside the try block should propagate as-is."""
         contract = _setup_allowance(mock_web3, 0)
 
         approve_fn = MagicMock()
@@ -213,7 +212,7 @@ class TestEnsureOpgApprovalErrors:
         mock_web3.eth.send_raw_transaction.return_value = tx_hash
         mock_web3.eth.wait_for_transaction_receipt.return_value = SimpleNamespace(status=0)
 
-        with pytest.raises(OpenGradientError, match="reverted") as exc_info:
+        with pytest.raises(RuntimeError, match="reverted") as exc_info:
             ensure_opg_approval(mock_wallet, 5.0)
 
         # Should be the original error, not wrapped

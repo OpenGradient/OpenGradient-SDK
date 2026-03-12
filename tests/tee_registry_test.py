@@ -10,11 +10,9 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from src.opengradient.client.tee_registry import (
     TEE_TYPE_LLM_PROXY,
     TEE_TYPE_VALIDATOR,
-    TEEEndpoint,
     TEERegistry,
     build_ssl_context_from_der,
 )
-
 
 # --- Helpers ---
 
@@ -42,11 +40,12 @@ def _make_tee_info(
 
 def _make_self_signed_der() -> bytes:
     """Generate a minimal self-signed DER certificate for testing."""
+    import datetime
+
     from cryptography import x509
     from cryptography.hazmat.primitives import hashes, serialization
     from cryptography.hazmat.primitives.asymmetric import rsa
     from cryptography.x509.oid import NameOID
-    import datetime
 
     key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     subject = issuer = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "test")])

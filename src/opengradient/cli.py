@@ -1,6 +1,7 @@
 # type: ignore
 
 import ast
+import asyncio
 import json
 import logging
 import sys
@@ -404,13 +405,15 @@ def completion(
     try:
         click.echo(f'Running TEE LLM completion for model "{model_cid}"\n')
 
-        completion_output = client.llm.completion(
-            model=model_cid,
-            prompt=prompt,
-            max_tokens=max_tokens,
-            stop_sequence=list(stop_sequence),
-            temperature=temperature,
-            x402_settlement_mode=x402SettlementModes[x402_settlement_mode],
+        completion_output = asyncio.run(
+            client.llm.completion(
+                model=model_cid,
+                prompt=prompt,
+                max_tokens=max_tokens,
+                stop_sequence=list(stop_sequence),
+                temperature=temperature,
+                x402_settlement_mode=x402SettlementModes[x402_settlement_mode],
+            )
         )
 
         print_llm_completion_result(
@@ -583,16 +586,18 @@ def chat(
         if not tools and not tools_file:
             parsed_tools = None
 
-        result = client.llm.chat(
-            model=model_cid,
-            messages=messages,
-            max_tokens=max_tokens,
-            stop_sequence=list(stop_sequence),
-            temperature=temperature,
-            tools=parsed_tools,
-            tool_choice=tool_choice,
-            x402_settlement_mode=x402SettlementModes[x402_settlement_mode],
-            stream=stream,
+        result = asyncio.run(
+            client.llm.chat(
+                model=model_cid,
+                messages=messages,
+                max_tokens=max_tokens,
+                stop_sequence=list(stop_sequence),
+                temperature=temperature,
+                tools=parsed_tools,
+                tool_choice=tool_choice,
+                x402_settlement_mode=x402SettlementModes[x402_settlement_mode],
+                stream=stream,
+            )
         )
 
         # Handle response based on streaming flag
@@ -655,6 +660,10 @@ def print_llm_chat_result(model_cid, tx_hash, finish_reason, chat_output, is_van
 
 def print_streaming_chat_result(model_cid, stream, is_tee=True):
     """Handle streaming chat response with typed chunks - prints in real-time"""
+    asyncio.run(_print_streaming_chat_result_async(model_cid, stream, is_tee))
+
+
+async def _print_streaming_chat_result_async(model_cid, stream, is_tee=True):
     click.secho("🌊 Streaming LLM Chat", fg="green", bold=True)
     click.echo("──────────────────────────────────────")
     click.echo("Model: ", nl=False)
@@ -670,7 +679,7 @@ def print_streaming_chat_result(model_cid, stream, is_tee=True):
         content_parts = []
         chunk_count = 0
 
-        for chunk in stream:
+        async for chunk in stream:
             chunk_count += 1
 
             if chunk.choices:

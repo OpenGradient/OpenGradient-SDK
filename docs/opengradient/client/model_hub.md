@@ -20,7 +20,7 @@ and uploading ML models. Requires email/password authentication.
 #### Constructor
 
 ```python
-def __init__(hub_user: Optional[Dict] = None)
+def __init__(email: Optional[str] = None, password: Optional[str] = None)
 ```
 
 #### Methods
@@ -101,7 +101,7 @@ List[Dict]: A list of dictionaries containing file information.
 
 **Raises**
 
-* **`OpenGradientError`**: If the file listing fails.
+* **`RuntimeError`**: If the file listing fails.
 
 ---
 
@@ -129,4 +129,4 @@ dict: The processed result.
 
 **Raises**
 
-* **`OpenGradientError`**: If the upload fails.
+* **`RuntimeError`**: If the upload fails.

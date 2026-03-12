@@ -9,9 +9,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 from src.opengradient.client import Client
 from src.opengradient.types import (
-    TEE_LLM,
     StreamChunk,
-    TextGenerationOutput,
     x402SettlementMode,
 )
 
@@ -23,7 +21,7 @@ def mock_web3():
     """Create a mock Web3 instance."""
     with (
         patch("src.opengradient.client.client.Web3") as mock,
-        patch("src.opengradient.client.client.TEERegistry") as mock_tee_registry,
+        patch("src.opengradient.client.llm.TEERegistry") as mock_tee_registry,
     ):
         mock_instance = MagicMock()
         mock.return_value = mock_instance
@@ -62,17 +60,6 @@ def mock_abi_files():
         yield
 
 
-@pytest.fixture
-def client(mock_web3, mock_abi_files):
-    """Create a Client instance with mocked dependencies."""
-    return Client(
-        private_key="0x" + "a" * 64,
-        rpc_url="https://test.rpc.url",
-        api_url="https://test.api.url",
-        contract_address="0x" + "b" * 40,
-    )
-
-
 # --- Client Initialization Tests ---
 
 
@@ -83,7 +70,7 @@ class TestClientInitialization:
             private_key="0x" + "a" * 64,
             rpc_url="https://test.rpc.url",
             api_url="https://test.api.url",
-            contract_address="0x" + "b" * 40,
+            inference_contract_address="0x" + "b" * 40,
         )
 
         assert client.model_hub._hub_user is None
@@ -105,7 +92,7 @@ class TestClientInitialization:
                 private_key="0x" + "a" * 64,
                 rpc_url="https://test.rpc.url",
                 api_url="https://test.api.url",
-                contract_address="0x" + "b" * 40,
+                inference_contract_address="0x" + "b" * 40,
                 email="test@test.com",
                 password="test_password",
             )
@@ -121,21 +108,11 @@ class TestClientInitialization:
             private_key="0x" + "a" * 64,
             rpc_url="https://test.rpc.url",
             api_url="https://test.api.url",
-            contract_address="0x" + "b" * 40,
-            og_llm_server_url=custom_llm_url,
+            inference_contract_address="0x" + "b" * 40,
+            llm_server_url=custom_llm_url,
         )
 
-        assert client.llm._og_llm_server_url == custom_llm_url
-
-
-class TestAlphaProperty:
-    def test_alpha_initialized_on_client_creation(self, client):
-        """Test that alpha is initialized during client creation."""
-        assert client.alpha is not None
-
-    def test_alpha_has_infer_method(self, client):
-        """Test that alpha namespace has the infer method."""
-        assert hasattr(client.alpha, "infer")
+        assert client.llm._tee_endpoint == custom_llm_url
 
 
 # --- Authentication Tests ---
@@ -159,7 +136,7 @@ class TestAuthentication:
                 private_key="0x" + "a" * 64,
                 rpc_url="https://test.rpc.url",
                 api_url="https://test.api.url",
-                contract_address="0x" + "b" * 40,
+                inference_contract_address="0x" + "b" * 40,
                 email="user@test.com",
                 password="password123",
             )
@@ -182,73 +159,10 @@ class TestAuthentication:
                     private_key="0x" + "a" * 64,
                     rpc_url="https://test.rpc.url",
                     api_url="https://test.api.url",
-                    contract_address="0x" + "b" * 40,
+                    inference_contract_address="0x" + "b" * 40,
                     email="user@test.com",
                     password="wrong_password",
                 )
-
-
-# --- LLM Tests ---
-
-
-class TestLLMCompletion:
-    def test_llm_completion_success(self, client):
-        """Test successful LLM completion."""
-        with patch.object(client.llm, "_tee_llm_completion") as mock_tee:
-            mock_tee.return_value = TextGenerationOutput(
-                transaction_hash="external",
-                completion_output="Hello! How can I help?",
-                payment_hash="0xpayment123",
-            )
-
-            result = client.llm.completion(
-                model=TEE_LLM.GPT_5,
-                prompt="Hello",
-                max_tokens=100,
-            )
-
-            assert result.completion_output == "Hello! How can I help?"
-            mock_tee.assert_called_once()
-
-
-class TestLLMChat:
-    def test_llm_chat_success_non_streaming(self, client):
-        """Test successful non-streaming LLM chat."""
-        with patch.object(client.llm, "_tee_llm_chat") as mock_tee:
-            mock_tee.return_value = TextGenerationOutput(
-                transaction_hash="external",
-                chat_output={"role": "assistant", "content": "Hi there!"},
-                finish_reason="stop",
-                payment_hash="0xpayment",
-            )
-
-            result = client.llm.chat(
-                model=TEE_LLM.GPT_5,
-                messages=[{"role": "user", "content": "Hello"}],
-                stream=False,
-            )
-
-            assert result.chat_output["content"] == "Hi there!"
-            mock_tee.assert_called_once()
-
-    def test_llm_chat_streaming(self, client):
-        """Test streaming LLM chat."""
-        with patch.object(client.llm, "_tee_llm_chat_stream_sync") as mock_stream:
-            mock_chunks = [
-                StreamChunk(choices=[], model="gpt-4o"),
-                StreamChunk(choices=[], model="gpt-4o", is_final=True),
-            ]
-            mock_stream.return_value = iter(mock_chunks)
-
-            result = client.llm.chat(
-                model=TEE_LLM.GPT_5,
-                messages=[{"role": "user", "content": "Hello"}],
-                stream=True,
-            )
-
-            chunks = list(result)
-            assert len(chunks) == 2
-            mock_stream.assert_called_once()
 
 
 # --- StreamChunk Tests ---

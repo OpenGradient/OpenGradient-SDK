@@ -165,10 +165,10 @@ print(f"Tx hash: {result.transaction_hash}")
 
 ### LLM Chat
 
-LLM chat pattern:
+LLM chat methods are async:
 
 ```python
-completion = og_client.llm.chat(
+completion = await og_client.llm.chat(
     model=og.TEE_LLM.CLAUDE_HAIKU_4_5,
     messages=[{"role": "user", "content": "Your message"}],
 )

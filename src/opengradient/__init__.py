@@ -14,31 +14,35 @@ All LLM inference runs inside Trusted Execution Environments (TEEs) and settles 
 ## Quick Start
 
 ```python
+import asyncio
 import opengradient as og
 
-# Initialize the client
 client = og.init(private_key="0x...")
 
 # One-time approval (idempotent — skips if allowance is already sufficient)
 client.llm.ensure_opg_approval(opg_amount=5)
 
 # Chat with an LLM (TEE-verified)
-response = client.llm.chat(
+response = asyncio.run(client.llm.chat(
     model=og.TEE_LLM.CLAUDE_HAIKU_4_5,
     messages=[{"role": "user", "content": "Hello!"}],
     max_tokens=200,
-)
+))
 print(response.chat_output)
 
 # Stream a response
-for chunk in client.llm.chat(
-    model=og.TEE_LLM.GPT_5,
-    messages=[{"role": "user", "content": "Explain TEE in one paragraph."}],
-    max_tokens=300,
-    stream=True,
-):
-    if chunk.choices[0].delta.content:
-        print(chunk.choices[0].delta.content, end="")
+async def stream_example():
+    stream = await client.llm.chat(
+        model=og.TEE_LLM.GPT_5,
+        messages=[{"role": "user", "content": "Explain TEE in one paragraph."}],
+        max_tokens=300,
+        stream=True,
+    )
+    async for chunk in stream:
+        if chunk.choices[0].delta.content:
+            print(chunk.choices[0].delta.content, end="")
+
+asyncio.run(stream_example())
 
 # Run on-chain ONNX model inference
 result = client.alpha.infer(
@@ -141,7 +145,7 @@ def init(
         import opengradient as og
         client = og.init(private_key="0x...")
         client.llm.ensure_opg_approval(opg_amount=5)
-        response = client.llm.chat(model=og.TEE_LLM.GPT_5, messages=[...])
+        response = await client.llm.chat(model=og.TEE_LLM.GPT_5, messages=[...])
     """
     global global_client
     global_client = Client(

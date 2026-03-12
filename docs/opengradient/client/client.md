@@ -36,9 +36,9 @@ def __init__(
     twins_api_key: Optional[str] = None,
     rpc_url: str = 'https://ogevmdevnet.opengradient.ai',
     api_url: str = 'https://sdk-devnet.opengradient.ai',
-    contract_address: str = '0x8383C9bD7462F12Eb996DD02F78234C0421A6FaE',
-    og_llm_server_url: Optional[str] = 'https://3.15.214.21:443',
-    og_llm_streaming_server_url: Optional[str] = 'https://3.15.214.21:443'
+    inference_contract_address: str = '0x8383C9bD7462F12Eb996DD02F78234C0421A6FaE',
+    llm_server_url: Optional[str] = None,
+    tee_registry_address: str = '0x4e72238852f3c918f4E4e57AeC9280dDB0c80248'
 )
 ```
 
@@ -49,14 +49,20 @@ def __init__(
 * **`alpha_private_key`**: Private key whose wallet holds **OpenGradient testnet
         gas tokens** for on-chain inference. Optional -- falls back to
         ``private_key`` for backward compatibility.
-* **`email`**: Email for Model Hub authentication. Optional.
-* **`password`**: Password for Model Hub authentication. Optional.
+* **`email`**: Email for Model Hub authentication. Must be provided together
+        with ``password``.
+* **`password`**: Password for Model Hub authentication. Must be provided
+        together with ``email``.
 * **`twins_api_key`**: API key for digital twins chat (twin.fun). Optional.
 * **`rpc_url`**: RPC URL for the OpenGradient Alpha Testnet.
 * **`api_url`**: API URL for the OpenGradient API.
-* **`contract_address`**: Inference contract address.
-* **`og_llm_server_url`**: OpenGradient LLM server URL.
-* **`og_llm_streaming_server_url`**: OpenGradient LLM streaming server URL.
+* **`inference_contract_address`**: Inference contract address on the
+        OpenGradient Alpha Testnet.
+* **`llm_server_url`**: Override the LLM server URL instead of using the
+        registry-discovered endpoint. When set, the TLS certificate is
+        validated against the system CA bundle rather than the registry.
+* **`tee_registry_address`**: Address of the TEERegistry contract used to
+        discover active LLM proxy endpoints and their verified TLS certs.
 
 #### Methods
 
@@ -65,7 +71,7 @@ def __init__(
 #### `close()`
 
 ```python
-def close(self) ‑> None
+async def close(self) ‑> None
 ```
 Close underlying SDK resources.
 

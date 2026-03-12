@@ -31,22 +31,8 @@ docs:
 # Testing
 # ============================================================================
 
-test: utils_test client_test langchain_adapter_test opg_token_test tee_registry_test
-
-utils_test:
-	pytest tests/utils_test.py -v
-
-client_test:
-	pytest tests/client_test.py -v
-
-langchain_adapter_test:
-	pytest tests/langchain_adapter_test.py -v
-
-opg_token_test:
-	pytest tests/opg_token_test.py -v
-
-tee_registry_test:
-	pytest tests/tee_registry_test.py -v
+test:
+	pytest tests/ -v
 
 integrationtest:
 	python integrationtest/agent/test_agent.py
@@ -102,5 +88,5 @@ chat-stream-tool:
 		--max-tokens 200 \
 		--stream
 
-.PHONY: install build publish check docs test utils_test client_test langchain_adapter_test opg_token_test integrationtest examples \
+.PHONY: install build publish check docs test integrationtest examples \
 	infer completion chat chat-stream chat-tool chat-stream-tool
