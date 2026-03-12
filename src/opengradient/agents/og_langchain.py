@@ -166,14 +166,16 @@ class OpenGradientChatModel(BaseChatModel):
             else:
                 raise ValueError(f"Unexpected message type: {message}")
 
-        chat_output = asyncio.run(self._client.llm.chat(
-            model=self.model_cid,
-            messages=sdk_messages,
-            stop_sequence=stop,
-            max_tokens=self.max_tokens,
-            tools=self._tools,
-            x402_settlement_mode=self.x402_settlement_mode,
-        ))
+        chat_output = asyncio.run(
+            self._client.llm.chat(
+                model=self.model_cid,
+                messages=sdk_messages,
+                stop_sequence=stop,
+                max_tokens=self.max_tokens,
+                tools=self._tools,
+                x402_settlement_mode=self.x402_settlement_mode,
+            )
+        )
 
         finish_reason = chat_output.finish_reason or ""
         chat_response = chat_output.chat_output or {}

@@ -367,15 +367,17 @@ class LLM:
         result = await self._chat_request(params, messages)
         chat_output = result.chat_output or {}
         yield StreamChunk(
-            choices=[StreamChoice(
-                delta=StreamDelta(
-                    role=chat_output.get("role"),
-                    content=chat_output.get("content"),
-                    tool_calls=chat_output.get("tool_calls"),
-                ),
-                index=0,
-                finish_reason=result.finish_reason,
-            )],
+            choices=[
+                StreamChoice(
+                    delta=StreamDelta(
+                        role=chat_output.get("role"),
+                        content=chat_output.get("content"),
+                        tool_calls=chat_output.get("tool_calls"),
+                    ),
+                    index=0,
+                    finish_reason=result.finish_reason,
+                )
+            ],
             model=params.model,
             is_final=True,
             tee_signature=result.tee_signature,
@@ -405,10 +407,7 @@ class LLM:
         status_code = getattr(response, "status_code", None)
         if status_code is not None and status_code >= 400:
             body = await response.aread()
-            raise OpenGradientError(
-                f"TEE LLM streaming request failed with status {status_code}: "
-                f"{body.decode('utf-8', errors='replace')}"
-            )
+            raise OpenGradientError(f"TEE LLM streaming request failed with status {status_code}: {body.decode('utf-8', errors='replace')}")
 
         buffer = b""
         async for raw_chunk in response.aiter_raw():

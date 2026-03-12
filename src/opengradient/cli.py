@@ -405,14 +405,16 @@ def completion(
     try:
         click.echo(f'Running TEE LLM completion for model "{model_cid}"\n')
 
-        completion_output = asyncio.run(client.llm.completion(
-            model=model_cid,
-            prompt=prompt,
-            max_tokens=max_tokens,
-            stop_sequence=list(stop_sequence),
-            temperature=temperature,
-            x402_settlement_mode=x402SettlementModes[x402_settlement_mode],
-        ))
+        completion_output = asyncio.run(
+            client.llm.completion(
+                model=model_cid,
+                prompt=prompt,
+                max_tokens=max_tokens,
+                stop_sequence=list(stop_sequence),
+                temperature=temperature,
+                x402_settlement_mode=x402SettlementModes[x402_settlement_mode],
+            )
+        )
 
         print_llm_completion_result(
             model_cid, completion_output.transaction_hash, completion_output.completion_output, is_vanilla=False, result=completion_output
@@ -584,17 +586,19 @@ def chat(
         if not tools and not tools_file:
             parsed_tools = None
 
-        result = asyncio.run(client.llm.chat(
-            model=model_cid,
-            messages=messages,
-            max_tokens=max_tokens,
-            stop_sequence=list(stop_sequence),
-            temperature=temperature,
-            tools=parsed_tools,
-            tool_choice=tool_choice,
-            x402_settlement_mode=x402SettlementModes[x402_settlement_mode],
-            stream=stream,
-        ))
+        result = asyncio.run(
+            client.llm.chat(
+                model=model_cid,
+                messages=messages,
+                max_tokens=max_tokens,
+                stop_sequence=list(stop_sequence),
+                temperature=temperature,
+                tools=parsed_tools,
+                tool_choice=tool_choice,
+                x402_settlement_mode=x402SettlementModes[x402_settlement_mode],
+                stream=stream,
+            )
+        )
 
         # Handle response based on streaming flag
         if stream:

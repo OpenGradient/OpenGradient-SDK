@@ -204,11 +204,13 @@ class TestAuthentication:
 class TestLLMCompletion:
     async def test_llm_completion_success(self, client):
         """Test successful LLM completion."""
-        response = _mock_http_response({
-            "completion": "Hello! How can I help?",
-            "tee_signature": "sig123",
-            "tee_timestamp": "2025-01-01T00:00:00Z",
-        })
+        response = _mock_http_response(
+            {
+                "completion": "Hello! How can I help?",
+                "tee_signature": "sig123",
+                "tee_timestamp": "2025-01-01T00:00:00Z",
+            }
+        )
         client.llm._http_client.post = AsyncMock(return_value=response)
 
         result = await client.llm.completion(
@@ -242,13 +244,17 @@ class TestLLMCompletion:
 class TestLLMChat:
     async def test_llm_chat_success_non_streaming(self, client):
         """Test successful non-streaming LLM chat."""
-        response = _mock_http_response({
-            "choices": [{
-                "message": {"role": "assistant", "content": "Hi there!"},
-                "finish_reason": "stop",
-            }],
-            "tee_signature": "sig456",
-        })
+        response = _mock_http_response(
+            {
+                "choices": [
+                    {
+                        "message": {"role": "assistant", "content": "Hi there!"},
+                        "finish_reason": "stop",
+                    }
+                ],
+                "tee_signature": "sig456",
+            }
+        )
         client.llm._http_client.post = AsyncMock(return_value=response)
 
         result = await client.llm.chat(
@@ -263,18 +269,22 @@ class TestLLMChat:
 
     async def test_llm_chat_flattens_content_blocks(self, client):
         """Test that list-type content blocks are flattened to a string."""
-        response = _mock_http_response({
-            "choices": [{
-                "message": {
-                    "role": "assistant",
-                    "content": [
-                        {"type": "text", "text": "Hello"},
-                        {"type": "text", "text": "world"},
-                    ],
-                },
-                "finish_reason": "stop",
-            }],
-        })
+        response = _mock_http_response(
+            {
+                "choices": [
+                    {
+                        "message": {
+                            "role": "assistant",
+                            "content": [
+                                {"type": "text", "text": "Hello"},
+                                {"type": "text", "text": "world"},
+                            ],
+                        },
+                        "finish_reason": "stop",
+                    }
+                ],
+            }
+        )
         client.llm._http_client.post = AsyncMock(return_value=response)
 
         result = await client.llm.chat(
@@ -287,12 +297,16 @@ class TestLLMChat:
     async def test_llm_chat_with_tools(self, client):
         """Test that tools are included in the request payload."""
         tools = [{"type": "function", "function": {"name": "get_weather"}}]
-        response = _mock_http_response({
-            "choices": [{
-                "message": {"role": "assistant", "content": None, "tool_calls": [{"id": "1"}]},
-                "finish_reason": "tool_calls",
-            }],
-        })
+        response = _mock_http_response(
+            {
+                "choices": [
+                    {
+                        "message": {"role": "assistant", "content": None, "tool_calls": [{"id": "1"}]},
+                        "finish_reason": "tool_calls",
+                    }
+                ],
+            }
+        )
         client.llm._http_client.post = AsyncMock(return_value=response)
 
         result = await client.llm.chat(
