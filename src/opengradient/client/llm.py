@@ -80,6 +80,14 @@ class LLM:
         verify_ssl (bool): Whether to verify the server's TLS certificate.
             Defaults to ``True``. Set to ``False`` when connecting directly via
             ``llm_server_url`` to a TEE with a self-signed certificate.
+
+            .. warning::
+                Disabling SSL verification (``verify_ssl=False``) removes
+                protection against man-in-the-middle attacks. Only use this
+                when you trust the network path to the TEE and have verified
+                the server identity through another means (e.g. the on-chain
+                registry). Never use in production without understanding the
+                risks.
     """
 
     def __init__(
