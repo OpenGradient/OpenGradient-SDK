@@ -40,6 +40,10 @@ Each service has its own client class:
 # LLM inference (Base Sepolia OPG tokens for x402 payments)
 llm = og.LLM(private_key="0x...")
 
+# Connect directly to a known TEE IP instead of using the on-chain registry.
+# Set verify_ssl=False when the server uses a self-signed certificate.
+llm = og.LLM(private_key="0x...", llm_server_url="https://1.2.3.4", verify_ssl=False)
+
 # On-chain model inference (OpenGradient testnet gas tokens)
 alpha = og.Alpha(private_key="0x...")
 
