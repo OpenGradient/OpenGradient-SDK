@@ -68,6 +68,26 @@ class LLM:
 
         result = await llm.chat(model=TEE_LLM.CLAUDE_HAIKU_4_5, messages=[...])
         result = await llm.completion(model=TEE_LLM.CLAUDE_HAIKU_4_5, prompt="Hello")
+
+    Args:
+        private_key (str): Ethereum private key for signing x402 payments.
+        rpc_url (str): RPC URL for the OpenGradient network. Used to fetch the
+            active TEE endpoint from the on-chain registry when ``llm_server_url``
+            is not provided.
+        tee_registry_address (str): Address of the on-chain TEE registry contract.
+        llm_server_url (str, optional): Bypass the registry and connect directly
+            to this TEE endpoint URL (e.g. ``"https://1.2.3.4"``).
+        verify_ssl (bool): Whether to verify the server's TLS certificate.
+            Defaults to ``True``. Set to ``False`` when connecting directly via
+            ``llm_server_url`` to a TEE with a self-signed certificate.
+
+            .. warning::
+                Disabling SSL verification (``verify_ssl=False``) removes
+                protection against man-in-the-middle attacks. Only use this
+                when you trust the network path to the TEE and have verified
+                the server identity through another means (e.g. the on-chain
+                registry). Never use in production without understanding the
+                risks.
     """
 
     def __init__(
@@ -76,6 +96,7 @@ class LLM:
         rpc_url: str = DEFAULT_RPC_URL,
         tee_registry_address: str = DEFAULT_TEE_REGISTRY_ADDRESS,
         llm_server_url: Optional[str] = None,
+        verify_ssl: bool = True,
     ):
         self._wallet_account: LocalAccount = Account.from_key(private_key)
 
@@ -90,7 +111,7 @@ class LLM:
         self._tee_payment_address = tee_payment_address
 
         ssl_ctx = build_ssl_context_from_der(tls_cert_der) if tls_cert_der else None
-        self._tls_verify: Union[ssl.SSLContext, bool] = ssl_ctx if ssl_ctx else True
+        self._tls_verify: Union[ssl.SSLContext, bool] = ssl_ctx if ssl_ctx else verify_ssl
 
         # x402 client and signer
         signer = EthAccountSignerv2(self._wallet_account)
