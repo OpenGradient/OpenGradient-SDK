@@ -1,6 +1,6 @@
 """Tests for LLM class.
 
-Construction patches the x402 boundary (x402HttpxClientv2, EthAccountSignerv2, etc.)
+Construction patches the x402 boundary (x402HttpxClient, EthAccountSigner, etc.)
 so LLM builds normally — no test-only constructor params, no mocking of private methods.
 """
 
@@ -19,25 +19,27 @@ from src.opengradient.types import TEE_LLM, x402SettlementMode
 
 
 class FakeHTTPClient:
-    """Stands in for x402HttpxClientv2.
+    """Stands in for x402HttpxClient.
 
     Configured per-test with set_response / set_stream_response, then
-    injected via the x402HttpxClientv2 patch so LLM's normal __init__
+    injected via the x402HttpxClient patch so LLM's normal __init__
     assigns it to self._http_client.
     """
 
     def __init__(self, *_args, **_kwargs):
         self._response_status: int = 200
         self._response_body: bytes = b"{}"
+        self._response_headers: dict = {}
         self._post_calls: List[dict] = []
         self._stream_response = None
 
-    def set_response(self, status_code: int, body: dict) -> None:
+    def set_response(self, status_code: int, body: dict, headers: dict | None = None) -> None:
         self._response_status = status_code
         self._response_body = json.dumps(body).encode()
+        self._response_headers = headers or {}
 
-    def set_stream_response(self, status_code: int, chunks: List[bytes]) -> None:
-        self._stream_response = _FakeStreamResponse(status_code, chunks)
+    def set_stream_response(self, status_code: int, chunks: List[bytes], headers: dict | None = None) -> None:
+        self._stream_response = _FakeStreamResponse(status_code, chunks, headers=headers)
 
     @property
     def post_calls(self) -> List[dict]:
@@ -45,7 +47,7 @@ class FakeHTTPClient:
 
     async def post(self, url: str, *, json=None, headers=None, timeout=None) -> "_FakeResponse":
         self._post_calls.append({"url": url, "json": json, "headers": headers, "timeout": timeout})
-        resp = _FakeResponse(self._response_status, self._response_body)
+        resp = _FakeResponse(self._response_status, self._response_body, headers=self._response_headers)
         if self._response_status >= 400:
             resp.raise_for_status = MagicMock(side_effect=httpx.HTTPStatusError("error", request=MagicMock(), response=MagicMock()))
         return resp
@@ -60,9 +62,10 @@ class FakeHTTPClient:
 
 
 class _FakeResponse:
-    def __init__(self, status_code: int, body: bytes):
+    def __init__(self, status_code: int, body: bytes, headers: dict | None = None):
         self.status_code = status_code
         self._body = body
+        self.headers = headers or {}
 
     def raise_for_status(self):
         pass
@@ -72,9 +75,10 @@ class _FakeResponse:
 
 
 class _FakeStreamResponse:
-    def __init__(self, status_code: int, chunks: List[bytes]):
+    def __init__(self, status_code: int, chunks: List[bytes], headers: dict | None = None):
         self.status_code = status_code
         self._chunks = chunks
+        self.headers = headers or {}
 
     async def aiter_raw(self):
         for chunk in self._chunks:
@@ -90,11 +94,11 @@ class _FakeStreamResponse:
 # so LLM.__init__ runs its real code but gets our FakeHTTPClient.
 
 _PATCHES = {
-    "x402_httpx": "src.opengradient.client.llm.x402HttpxClientv2",
-    "x402_client": "src.opengradient.client.llm.x402Clientv2",
-    "signer": "src.opengradient.client.llm.EthAccountSignerv2",
-    "register_exact": "src.opengradient.client.llm.register_exact_evm_clientv2",
-    "register_upto": "src.opengradient.client.llm.register_upto_evm_clientv2",
+    "x402_httpx": "src.opengradient.client.llm.x402HttpxClient",
+    "x402_client": "src.opengradient.client.llm.x402Client",
+    "signer": "src.opengradient.client.llm.EthAccountSigner",
+    "register_exact": "src.opengradient.client.llm.register_exact_evm_client",
+    "register_upto": "src.opengradient.client.llm.register_upto_evm_client",
 }
 
 
@@ -151,6 +155,24 @@ class TestCompletion:
         assert result.transaction_hash == "external"
         assert result.tee_id == "test-tee-id"
         assert result.tee_payment_address == "0xTestPayment"
+
+    async def test_tee_metadata_falls_back_to_headers(self, fake_http):
+        fake_http.set_response(
+            200,
+            {"completion": "ok"},
+            headers={
+                "X-TEE-Signature": "sig-from-header",
+                "X-TEE-Timestamp": "2026-03-13T00:00:00Z",
+                "X-TEE-ID": "tee-id-from-header",
+            },
+        )
+        llm = _make_llm()
+
+        result = await llm.completion(model=TEE_LLM.GPT_5, prompt="Hi")
+
+        assert result.tee_signature == "sig-from-header"
+        assert result.tee_timestamp == "2026-03-13T00:00:00Z"
+        assert result.tee_id == "tee-id-from-header"
 
     async def test_sends_correct_payload(self, fake_http):
         fake_http.set_response(200, {"completion": "ok"})
@@ -235,6 +257,29 @@ class TestChat:
         assert result.chat_output["role"] == "assistant"
         assert result.finish_reason == "stop"
         assert result.tee_signature == "sig-xyz"
+
+    async def test_chat_tee_metadata_falls_back_to_headers(self, fake_http):
+        fake_http.set_response(
+            200,
+            {
+                "choices": [{"message": {"role": "assistant", "content": "Hi there!"}, "finish_reason": "stop"}],
+            },
+            headers={
+                "X-TEE-Signature": "sig-from-header",
+                "X-TEE-Timestamp": "2026-03-13T00:00:00Z",
+                "X-TEE-ID": "tee-id-from-header",
+            },
+        )
+        llm = _make_llm()
+
+        result = await llm.chat(
+            model=TEE_LLM.GPT_5,
+            messages=[{"role": "user", "content": "Hello"}],
+        )
+
+        assert result.tee_signature == "sig-from-header"
+        assert result.tee_timestamp == "2026-03-13T00:00:00Z"
+        assert result.tee_id == "tee-id-from-header"
 
     async def test_flattens_content_blocks(self, fake_http):
         fake_http.set_response(
@@ -452,6 +497,33 @@ class TestChatStreaming:
         assert final.is_final
         assert final.tee_id == "test-tee-id"
         assert final.tee_payment_address == "0xTestPayment"
+
+    async def test_stream_tee_signature_timestamp_fallback_to_headers(self, fake_http):
+        fake_http.set_stream_response(
+            200,
+            [
+                b'data: {"model":"gpt-5","choices":[{"index":0,"delta":{"content":"done"},"finish_reason":"stop"}]}\n\n',
+                b"data: [DONE]\n\n",
+            ],
+            headers={
+                "X-TEE-Signature": "sig-from-header",
+                "X-TEE-Timestamp": "2026-03-13T00:00:00Z",
+                "X-TEE-ID": "tee-id-from-header",
+            },
+        )
+        llm = _make_llm()
+
+        gen = await llm.chat(
+            model=TEE_LLM.GPT_5,
+            messages=[{"role": "user", "content": "Hi"}],
+            stream=True,
+        )
+        chunks = [chunk async for chunk in gen]
+
+        final = chunks[-1]
+        assert final.tee_signature == "sig-from-header"
+        assert final.tee_timestamp == "2026-03-13T00:00:00Z"
+        assert final.tee_id == "tee-id-from-header"
 
     async def test_stream_error_raises(self, fake_http):
         fake_http.set_stream_response(500, [b"Internal Server Error"])
