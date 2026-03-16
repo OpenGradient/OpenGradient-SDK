@@ -76,18 +76,14 @@ class LLM:
             is not provided.
         tee_registry_address (str): Address of the on-chain TEE registry contract.
         llm_server_url (str, optional): Bypass the registry and connect directly
-            to this TEE endpoint URL (e.g. ``"https://1.2.3.4"``).
-        verify_ssl (bool): Whether to verify the server's TLS certificate.
-            Defaults to ``True``. Set to ``False`` when connecting directly via
-            ``llm_server_url`` to a TEE with a self-signed certificate.
+            to this TEE endpoint URL (e.g. ``"https://1.2.3.4"``). When set,
+            TLS certificate verification is disabled automatically because
+            self-hosted TEE servers typically use self-signed certificates.
 
             .. warning::
-                Disabling SSL verification (``verify_ssl=False``) removes
-                protection against man-in-the-middle attacks. Only use this
-                when you trust the network path to the TEE and have verified
-                the server identity through another means (e.g. the on-chain
-                registry). Never use in production without understanding the
-                risks.
+                Using ``llm_server_url`` disables TLS certificate verification,
+                which removes protection against man-in-the-middle attacks.
+                Only connect to servers you trust and over secure network paths.
     """
 
     def __init__(
@@ -96,7 +92,6 @@ class LLM:
         rpc_url: str = DEFAULT_RPC_URL,
         tee_registry_address: str = DEFAULT_TEE_REGISTRY_ADDRESS,
         llm_server_url: Optional[str] = None,
-        verify_ssl: bool = True,
     ):
         self._wallet_account: LocalAccount = Account.from_key(private_key)
 
@@ -111,6 +106,9 @@ class LLM:
         self._tee_payment_address = tee_payment_address
 
         ssl_ctx = build_ssl_context_from_der(tls_cert_der) if tls_cert_der else None
+        # When connecting directly via llm_server_url, skip cert verification —
+        # self-hosted TEE servers commonly use self-signed certificates.
+        verify_ssl = llm_server_url is None
         self._tls_verify: Union[ssl.SSLContext, bool] = ssl_ctx if ssl_ctx else verify_ssl
 
         # x402 client and signer

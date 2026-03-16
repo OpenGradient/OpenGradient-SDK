@@ -41,11 +41,10 @@ Each service has its own client class:
 llm = og.LLM(private_key="0x...")
 
 # Connect directly to a known TEE IP instead of using the on-chain registry.
-# WARNING: verify_ssl=False disables TLS certificate verification and exposes
-# the connection to man-in-the-middle attacks. Only use this when you trust
-# the network path to the server. Never use in production without understanding
-# the risks.
-llm = og.LLM(private_key="0x...", llm_server_url="https://1.2.3.4", verify_ssl=False)
+# WARNING: TLS certificate verification is automatically disabled when using
+# llm_server_url, as self-hosted TEE servers typically use self-signed certs.
+# Only connect to servers you trust over secure network paths.
+llm = og.LLM(private_key="0x...", llm_server_url="https://1.2.3.4")
 
 # On-chain model inference (OpenGradient testnet gas tokens)
 alpha = og.Alpha(private_key="0x...")
