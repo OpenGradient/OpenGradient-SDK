@@ -9,11 +9,11 @@ from typing import Any, AsyncGenerator, Awaitable, Callable, Dict, List, Optiona
 
 from eth_account import Account
 from eth_account.account import LocalAccount
-from x402v2 import x402Client as x402Clientv2
-from x402v2.http.clients import x402HttpxClient as x402HttpxClientv2
-from x402v2.mechanisms.evm import EthAccountSigner as EthAccountSignerv2
-from x402v2.mechanisms.evm.exact.register import register_exact_evm_client as register_exact_evm_clientv2
-from x402v2.mechanisms.evm.upto.register import register_upto_evm_client as register_upto_evm_clientv2
+from x402 import x402Client
+from x402.http.clients import x402HttpxClient
+from x402.mechanisms.evm import EthAccountSigner
+from x402.mechanisms.evm.exact.register import register_exact_evm_client
+from x402.mechanisms.evm.upto.register import register_upto_evm_client
 
 from ..types import TEE_LLM, StreamChoice, StreamChunk, StreamDelta, TextGenerationOutput, x402SettlementMode
 from .opg_token import Permit2ApprovalResult, ensure_opg_approval
@@ -32,6 +32,9 @@ BASE_TESTNET_NETWORK = "eip155:84532"
 _CHAT_ENDPOINT = "/v1/chat/completions"
 _COMPLETION_ENDPOINT = "/v1/completions"
 _REQUEST_TIMEOUT = 60
+_TEE_SIGNATURE_HEADER = "X-TEE-Signature"
+_TEE_TIMESTAMP_HEADER = "X-TEE-Timestamp"
+_TEE_ID_HEADER = "X-TEE-ID"
 
 
 @dataclass
@@ -100,10 +103,10 @@ class LLM:
 
     def _init_x402_stack(self) -> None:
         """Initialize x402 signer/client/http stack."""
-        signer = EthAccountSignerv2(self._wallet_account)
-        self._x402_client = x402Clientv2()
-        register_exact_evm_clientv2(self._x402_client, signer, networks=[BASE_TESTNET_NETWORK])
-        register_upto_evm_clientv2(self._x402_client, signer, networks=[BASE_TESTNET_NETWORK])
+        signer = EthAccountSigner(self._wallet_account)
+        self._x402_client = x402Client()
+        register_exact_evm_client(self._x402_client, signer, networks=[BASE_TESTNET_NETWORK])
+        register_upto_evm_client(self._x402_client, signer, networks=[BASE_TESTNET_NETWORK])
         # httpx.AsyncClient subclass - construction is sync, connections open lazily
         self._http_client = x402HttpxClientv2(self._x402_client, verify=self._tls_verify)
 
@@ -221,6 +224,16 @@ class LLM:
             tee_payment_address=self._tee_payment_address,
         )
 
+    @staticmethod
+    def _extract_tee_headers(response: Any) -> Dict[str, Optional[str]]:
+        """Extract TEE proof metadata from HTTP headers."""
+        headers = getattr(response, "headers", {}) or {}
+        return {
+            "tee_signature": headers.get(_TEE_SIGNATURE_HEADER),
+            "tee_timestamp": headers.get(_TEE_TIMESTAMP_HEADER),
+            "tee_id": headers.get(_TEE_ID_HEADER),
+        }
+
     # ── Public API ──────────────────────────────────────────────────────
 
     def ensure_opg_approval(self, opg_amount: float) -> Permit2ApprovalResult:
@@ -301,12 +314,16 @@ class LLM:
             response.raise_for_status()
             raw_body = await response.aread()
             result = json.loads(raw_body.decode())
+            tee_headers = self._extract_tee_headers(response)
+            metadata = self._tee_metadata()
+            if tee_headers.get("tee_id"):
+                metadata["tee_id"] = tee_headers["tee_id"]
             return TextGenerationOutput(
                 transaction_hash="external",
                 completion_output=result.get("completion"),
-                tee_signature=result.get("tee_signature"),
-                tee_timestamp=result.get("tee_timestamp"),
-                **self._tee_metadata(),
+                tee_signature=result.get("tee_signature") or tee_headers.get("tee_signature"),
+                tee_timestamp=result.get("tee_timestamp") or tee_headers.get("tee_timestamp"),
+                **metadata,
             )
 
         try:
@@ -391,6 +408,10 @@ class LLM:
             response.raise_for_status()
             raw_body = await response.aread()
             result = json.loads(raw_body.decode())
+            tee_headers = self._extract_tee_headers(response)
+            metadata = self._tee_metadata()
+            if tee_headers.get("tee_id"):
+                metadata["tee_id"] = tee_headers["tee_id"]
 
             choices = result.get("choices")
             if not choices:
@@ -407,9 +428,9 @@ class LLM:
                 transaction_hash="external",
                 finish_reason=choices[0].get("finish_reason"),
                 chat_output=message,
-                tee_signature=result.get("tee_signature"),
-                tee_timestamp=result.get("tee_timestamp"),
-                **self._tee_metadata(),
+                tee_signature=result.get("tee_signature") or tee_headers.get("tee_signature"),
+                tee_timestamp=result.get("tee_timestamp") or tee_headers.get("tee_timestamp"),
+                **metadata,
             )
 
         try:
@@ -459,7 +480,8 @@ class LLM:
                     headers=headers,
                     timeout=_REQUEST_TIMEOUT,
                 ) as response:
-                    async for chunk in self._parse_sse_response(response):
+                    tee_headers = self._extract_tee_headers(response)
+                    async for chunk in self._parse_sse_response(response, tee_headers=tee_headers):
                         yield chunk
                 return
             except Exception as e:
@@ -473,7 +495,11 @@ class LLM:
                     continue
                 raise
 
-    async def _parse_sse_response(self, response) -> AsyncGenerator[StreamChunk, None]:
+    async def _parse_sse_response(
+        self,
+        response,
+        tee_headers: Optional[Dict[str, Optional[str]]] = None,
+    ) -> AsyncGenerator[StreamChunk, None]:
         """Parse an SSE response stream into StreamChunk objects."""
         status_code = getattr(response, "status_code", None)
         if status_code is not None and status_code >= 400:
@@ -514,4 +540,8 @@ class LLM:
                     chunk.tee_id = self._tee_id
                     chunk.tee_endpoint = self._tee_endpoint
                     chunk.tee_payment_address = self._tee_payment_address
+                    if tee_headers:
+                        chunk.tee_signature = chunk.tee_signature or tee_headers.get("tee_signature")
+                        chunk.tee_timestamp = chunk.tee_timestamp or tee_headers.get("tee_timestamp")
+                        chunk.tee_id = tee_headers.get("tee_id") or chunk.tee_id
                 yield chunk

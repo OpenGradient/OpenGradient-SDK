@@ -1609,16 +1609,16 @@ wheels = [
 ]
 
 [[package]]
-name = "og-test-v2-x402"
-version = "0.0.12.dev3"
+name = "og-x402"
+version = "0.0.1.dev1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pydantic" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/8b/37/30cb7b742aa61df537ea5ff4d4d6ef6945044fe353b7e200b82242dfbda6/og_test_v2_x402-0.0.12.dev3.tar.gz", hash = "sha256:564dff796fcf3cf2974bdd00c2ee08ee2b54e1f88e5c321010fb3960a08966f0", size = 899129, upload-time = "2026-03-12T12:53:53.397Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/6c/22/ffce1dac3875bd4d85cc4387eedf3be1d41ced92b29fbff22c5d0d2af257/og_x402-0.0.1.dev1.tar.gz", hash = "sha256:cb40451e988c1e3376e48c37a4cc5fd5058ca7834200da51076bd30e1ad83d66", size = 899655, upload-time = "2026-03-16T17:26:05.564Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/be/be/3486fd0c55f256bf7e9872d17913eca5b71e6ab357a237a8055a11f7f0de/og_test_v2_x402-0.0.12.dev3-py3-none-any.whl", hash = "sha256:ee23e17b301bbaece78c3aadee9f12c157cfbb561432b6561bde1d6cd305e90f", size = 952165, upload-time = "2026-03-12T12:53:51.452Z" },
+    { url = "https://files.pythonhosted.org/packages/1c/56/0d5eee73c45cfb409b9f87f3d555199c4e4d5a2c07b74ab312363cc6d644/og_x402-0.0.1.dev1-py3-none-any.whl", hash = "sha256:ffa09250097b25fad5c58105dd65e258468890d95be45ed9ff9f1ee6a7195c69", size = 952333, upload-time = "2026-03-16T17:26:03.325Z" },
 ]
 
 [[package]]
@@ -1650,7 +1650,7 @@ dependencies = [
     { name = "firebase-rest-api" },
     { name = "langchain" },
     { name = "numpy" },
-    { name = "og-test-v2-x402" },
+    { name = "og-x402" },
     { name = "openai" },
     { name = "pydantic" },
     { name = "requests" },
@@ -1664,7 +1664,7 @@ requires-dist = [
     { name = "firebase-rest-api", specifier = ">=1.11.0" },
     { name = "langchain", specifier = ">=0.3.7" },
     { name = "numpy", specifier = ">=1.26.4" },
-    { name = "og-test-v2-x402", specifier = "==0.0.12.dev3" },
+    { name = "og-x402", specifier = "==0.0.1.dev1" },
     { name = "openai", specifier = ">=1.58.1" },
     { name = "pydantic", specifier = ">=2.9.2" },
     { name = "requests", specifier = ">=2.32.3" },
