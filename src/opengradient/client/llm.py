@@ -108,7 +108,7 @@ class LLM:
         register_exact_evm_client(self._x402_client, signer, networks=[BASE_TESTNET_NETWORK])
         register_upto_evm_client(self._x402_client, signer, networks=[BASE_TESTNET_NETWORK])
         # httpx.AsyncClient subclass - construction is sync, connections open lazily
-        self._http_client = x402HttpxClientv2(self._x402_client, verify=self._tls_verify)
+        self._http_client = x402HttpxClient(self._x402_client, verify=self._tls_verify)
 
     async def _reset_x402_stack(self) -> None:
         """Reset x402 state and underlying HTTP client."""
