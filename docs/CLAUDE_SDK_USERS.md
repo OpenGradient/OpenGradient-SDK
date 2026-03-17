@@ -21,6 +21,9 @@ import os
 # Create an LLM client
 llm = og.LLM(private_key=os.environ["OG_PRIVATE_KEY"])
 
+# One-time OPG token approval (idempotent — skips if allowance already sufficient)
+llm.ensure_opg_approval(opg_amount=0.1)
+
 # LLM Chat (TEE-verified with x402 payments, async)
 result = await llm.chat(
     model=og.TEE_LLM.CLAUDE_HAIKU_4_5,
@@ -39,6 +42,12 @@ Each service has its own client class:
 ```python
 # LLM inference (Base Sepolia OPG tokens for x402 payments)
 llm = og.LLM(private_key="0x...")
+
+# Connect directly to a known TEE IP instead of using the on-chain registry.
+# WARNING: TLS certificate verification is automatically disabled when using
+# llm_server_url, as self-hosted TEE servers typically use self-signed certs.
+# Only connect to servers you trust over secure network paths.
+llm = og.LLM(private_key="0x...", llm_server_url="https://1.2.3.4")
 
 # On-chain model inference (OpenGradient testnet gas tokens)
 alpha = og.Alpha(private_key="0x...")

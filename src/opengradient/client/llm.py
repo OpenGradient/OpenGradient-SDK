@@ -73,6 +73,22 @@ class LLM:
 
         result = await llm.chat(model=TEE_LLM.CLAUDE_HAIKU_4_5, messages=[...])
         result = await llm.completion(model=TEE_LLM.CLAUDE_HAIKU_4_5, prompt="Hello")
+
+    Args:
+        private_key (str): Ethereum private key for signing x402 payments.
+        rpc_url (str): RPC URL for the OpenGradient network. Used to fetch the
+            active TEE endpoint from the on-chain registry when ``llm_server_url``
+            is not provided.
+        tee_registry_address (str): Address of the on-chain TEE registry contract.
+        llm_server_url (str, optional): Bypass the registry and connect directly
+            to this TEE endpoint URL (e.g. ``"https://1.2.3.4"``). When set,
+            TLS certificate verification is disabled automatically because
+            self-hosted TEE servers typically use self-signed certificates.
+
+            .. warning::
+                Using ``llm_server_url`` disables TLS certificate verification,
+                which removes protection against man-in-the-middle attacks.
+                Only connect to servers you trust and over secure network paths.
     """
 
     def __init__(
@@ -95,8 +111,10 @@ class LLM:
         self._tee_payment_address = tee_payment_address
 
         ssl_ctx = build_ssl_context_from_der(tls_cert_der) if tls_cert_der else None
-        self._tls_verify: Union[ssl.SSLContext, bool] = ssl_ctx if ssl_ctx else True
-        self._reset_lock = threading.Lock()
+        # When connecting directly via llm_server_url, skip cert verification —
+        # self-hosted TEE servers commonly use self-signed certificates.
+        verify_ssl = llm_server_url is None
+        self._tls_verify: Union[ssl.SSLContext, bool] = ssl_ctx if ssl_ctx else verify_ssl
 
         # x402 client/signer/http stack
         self._init_x402_stack()
