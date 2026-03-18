@@ -557,6 +557,7 @@ class LLM:
 
         retried = False
         while True:
+            chunks_yielded = False
             try:
                 async with self._http_client.stream(
                     "POST",
@@ -567,10 +568,11 @@ class LLM:
                 ) as response:
                     tee_headers = self._extract_tee_headers(response)
                     async for chunk in self._parse_sse_response(response, tee_headers=tee_headers):
+                        chunks_yielded = True
                         yield chunk
                 return
             except Exception as e:
-                if not retried:
+                if not retried and not chunks_yielded:
                     if self._is_ssl_error(e):
                         retried = True
                         logger.warning(
