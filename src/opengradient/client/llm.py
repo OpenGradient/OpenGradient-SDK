@@ -100,6 +100,11 @@ class LLM:
     ):
         self._wallet_account: LocalAccount = Account.from_key(private_key)
 
+        # Store registry params so we can re-resolve TEE on SSL failures
+        self._rpc_url = rpc_url
+        self._tee_registry_address = tee_registry_address
+        self._llm_server_url = llm_server_url
+
         endpoint, tls_cert_der, tee_id, tee_payment_address = self._resolve_tee(
             llm_server_url,
             rpc_url,
@@ -115,6 +120,7 @@ class LLM:
         # self-hosted TEE servers commonly use self-signed certificates.
         verify_ssl = llm_server_url is None
         self._tls_verify: Union[ssl.SSLContext, bool] = ssl_ctx if ssl_ctx else verify_ssl
+        self._reset_lock = threading.Lock()
 
         # x402 client/signer/http stack
         self._init_x402_stack()
@@ -153,25 +159,86 @@ class LLM:
             current = current.__cause__ or current.__context__
         return False
 
-    async def _retry_once_on_invalid_payment_required(
+    @staticmethod
+    def _is_ssl_error(exc: Exception) -> bool:
+        """Detect SSL/TLS errors that indicate a stale certificate or connection reset."""
+        visited: set[int] = set()
+        current: Optional[BaseException] = exc
+
+        while current is not None and id(current) not in visited:
+            visited.add(id(current))
+            if isinstance(current, ssl.SSLError):
+                return True
+            msg = str(current).lower()
+            if any(
+                keyword in msg
+                for keyword in (
+                    "certificate verify failed",
+                    "tlsv1 alert",
+                    "ssl handshake",
+                    "sslcertverificationerror",
+                    "ssl: certificate_verify_failed",
+                    "self-signed certificate",
+                )
+            ):
+                return True
+            current = current.__cause__ or current.__context__
+        return False
+
+    async def _refresh_tee_and_reset(self) -> None:
+        """Re-resolve TEE from registry and rebuild the HTTP client with a fresh SSL context."""
+        with self._reset_lock:
+            old_http_client = self._http_client
+
+            endpoint, tls_cert_der, tee_id, tee_payment_address = self._resolve_tee(
+                self._llm_server_url,
+                self._rpc_url,
+                self._tee_registry_address,
+            )
+
+            self._tee_id = tee_id
+            self._tee_endpoint = endpoint
+            self._tee_payment_address = tee_payment_address
+
+            ssl_ctx = build_ssl_context_from_der(tls_cert_der) if tls_cert_der else None
+            verify_ssl = self._llm_server_url is None
+            self._tls_verify = ssl_ctx if ssl_ctx else verify_ssl
+
+            self._init_x402_stack()
+
+        try:
+            await old_http_client.aclose()
+        except Exception:
+            logger.debug("Failed to close previous HTTP client during TEE refresh.", exc_info=True)
+
+    async def _retry_once_on_recoverable_error(
         self,
         operation_name: str,
         call: Callable[[], Awaitable[T]],
     ) -> T:
-        """Retry once after resetting x402 state for recoverable payment errors."""
+        """Retry once after resetting state for recoverable payment or SSL errors."""
         try:
             return await call()
         except Exception as first_error:
-            if not self._is_invalid_payment_required_error(first_error):
-                raise
+            if self._is_ssl_error(first_error):
+                logger.warning(
+                    "SSL/TLS error during %s; re-resolving TEE from registry and retrying once: %s",
+                    operation_name,
+                    first_error,
+                )
+                await self._refresh_tee_and_reset()
+                return await call()
 
-            logger.warning(
-                "Recoverable x402 payment error during %s; resetting x402 client and retrying once: %s",
-                operation_name,
-                first_error,
-            )
-            await self._reset_x402_stack()
-            return await call()
+            if self._is_invalid_payment_required_error(first_error):
+                logger.warning(
+                    "Recoverable x402 payment error during %s; resetting x402 client and retrying once: %s",
+                    operation_name,
+                    first_error,
+                )
+                await self._reset_x402_stack()
+                return await call()
+
+            raise
 
     # ── TEE resolution ──────────────────────────────────────────────────
 
@@ -345,7 +412,7 @@ class LLM:
             )
 
         try:
-            return await self._retry_once_on_invalid_payment_required("completion", _request)
+            return await self._retry_once_on_recoverable_error("completion", _request)
         except RuntimeError:
             raise
         except Exception as e:
@@ -452,7 +519,7 @@ class LLM:
             )
 
         try:
-            return await self._retry_once_on_invalid_payment_required("chat", _request)
+            return await self._retry_once_on_recoverable_error("chat", _request)
         except RuntimeError:
             raise
         except Exception as e:
@@ -503,14 +570,25 @@ class LLM:
                         yield chunk
                 return
             except Exception as e:
-                if (not retried) and self._is_invalid_payment_required_error(e):
-                    retried = True
-                    logger.warning(
-                        "Recoverable x402 payment error during stream; resetting x402 client and retrying once: %s",
-                        e,
-                    )
-                    await self._reset_x402_stack()
-                    continue
+                if not retried:
+                    if self._is_ssl_error(e):
+                        retried = True
+                        logger.warning(
+                            "SSL/TLS error during stream; re-resolving TEE from registry and retrying once: %s",
+                            e,
+                        )
+                        await self._refresh_tee_and_reset()
+                        # Re-read headers since endpoint may have changed
+                        headers = self._headers(params.x402_settlement_mode)
+                        continue
+                    if self._is_invalid_payment_required_error(e):
+                        retried = True
+                        logger.warning(
+                            "Recoverable x402 payment error during stream; resetting x402 client and retrying once: %s",
+                            e,
+                        )
+                        await self._reset_x402_stack()
+                        continue
                 raise
 
     async def _parse_sse_response(

@@ -5,6 +5,7 @@ so LLM builds normally — no test-only constructor params, no mocking of privat
 """
 
 import json
+import ssl
 from contextlib import asynccontextmanager
 from typing import List
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -432,6 +433,57 @@ class TestChat:
         assert attempts["count"] == 2
         llm._reset_x402_stack.assert_awaited_once()
 
+    async def test_retries_once_on_ssl_error(self, fake_http):
+        """SSL cert failure triggers TEE re-resolution and retry."""
+        fake_http.set_response(
+            200,
+            {
+                "choices": [{"message": {"role": "assistant", "content": "recovered"}, "finish_reason": "stop"}],
+            },
+        )
+        llm = _make_llm()
+        llm._refresh_tee_and_reset = AsyncMock(return_value=None)
+        original_post = llm._http_client.post
+        attempts = {"count": 0}
+
+        async def ssl_failing_post(*args, **kwargs):
+            attempts["count"] += 1
+            if attempts["count"] == 1:
+                # Simulate the exact error chain from production logs:
+                # httpx.ConnectError wrapping ssl.SSLCertVerificationError
+                ssl_err = ssl.SSLCertVerificationError(
+                    "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate (_ssl.c:1010)"
+                )
+                raise httpx.ConnectError(
+                    "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate (_ssl.c:1010)"
+                ) from ssl_err
+            return await original_post(*args, **kwargs)
+
+        llm._http_client.post = ssl_failing_post
+
+        result = await llm.chat(model=TEE_LLM.GPT_5, messages=[{"role": "user", "content": "Hi"}])
+
+        assert result.chat_output["content"] == "recovered"
+        assert attempts["count"] == 2
+        llm._refresh_tee_and_reset.assert_awaited_once()
+
+    async def test_ssl_error_not_retried_twice(self, fake_http):
+        """If the retry also fails with SSL, the error propagates."""
+        llm = _make_llm()
+        llm._refresh_tee_and_reset = AsyncMock(return_value=None)
+
+        async def always_ssl_fail(*args, **kwargs):
+            raise httpx.ConnectError(
+                "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate"
+            )
+
+        llm._http_client.post = always_ssl_fail
+
+        with pytest.raises(RuntimeError, match="TEE LLM chat failed"):
+            await llm.chat(model=TEE_LLM.GPT_5, messages=[{"role": "user", "content": "Hi"}])
+
+        llm._refresh_tee_and_reset.assert_awaited_once()
+
 
 # ── Streaming tests ──────────────────────────────────────────────────
 
@@ -600,6 +652,143 @@ class TestChatStreaming:
         assert attempts["count"] == 2
         assert chunks[-1].choices[0].delta.content == "ok"
         llm._reset_x402_stack.assert_awaited_once()
+
+    async def test_stream_retries_once_on_ssl_error(self, fake_http):
+        """SSL cert failure during streaming triggers TEE re-resolution and retry."""
+        fake_http.set_stream_response(
+            200,
+            [
+                b'data: {"model":"gpt-5","choices":[{"index":0,"delta":{"content":"ok"},"finish_reason":"stop"}]}\n\n',
+                b"data: [DONE]\n\n",
+            ],
+        )
+        llm = _make_llm()
+        llm._refresh_tee_and_reset = AsyncMock(return_value=None)
+        original_stream = llm._http_client.stream
+        attempts = {"count": 0}
+
+        @asynccontextmanager
+        async def ssl_failing_stream(*args, **kwargs):
+            attempts["count"] += 1
+            if attempts["count"] == 1:
+                ssl_err = ssl.SSLCertVerificationError(
+                    "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate"
+                )
+                raise httpx.ConnectError("SSL cert failed") from ssl_err
+            async with original_stream(*args, **kwargs) as response:
+                yield response
+
+        llm._http_client.stream = ssl_failing_stream
+
+        gen = await llm.chat(
+            model=TEE_LLM.GPT_5,
+            messages=[{"role": "user", "content": "Hi"}],
+            stream=True,
+        )
+        chunks = [chunk async for chunk in gen]
+
+        assert attempts["count"] == 2
+        assert chunks[-1].choices[0].delta.content == "ok"
+        llm._refresh_tee_and_reset.assert_awaited_once()
+
+
+# ── _is_ssl_error detection tests ────────────────────────────────────
+
+
+class TestIsSSLError:
+    def test_detects_ssl_error_instance(self):
+        exc = ssl.SSLError("something went wrong")
+        assert LLM._is_ssl_error(exc) is True
+
+    def test_detects_ssl_cert_verification_error(self):
+        exc = ssl.SSLCertVerificationError(
+            "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate (_ssl.c:1010)"
+        )
+        assert LLM._is_ssl_error(exc) is True
+
+    def test_detects_httpx_connect_error_wrapping_ssl(self):
+        """Matches the exact production error chain."""
+        ssl_err = ssl.SSLCertVerificationError(
+            "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate (_ssl.c:1010)"
+        )
+        httpx_err = httpx.ConnectError(
+            "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate (_ssl.c:1010)"
+        )
+        httpx_err.__cause__ = ssl_err
+        assert LLM._is_ssl_error(httpx_err) is True
+
+    def test_detects_certificate_verify_failed_in_message(self):
+        exc = RuntimeError("certificate verify failed")
+        assert LLM._is_ssl_error(exc) is True
+
+    def test_detects_self_signed_certificate_in_message(self):
+        exc = RuntimeError("self-signed certificate")
+        assert LLM._is_ssl_error(exc) is True
+
+    def test_detects_tlsv1_alert_in_message(self):
+        exc = RuntimeError("tlsv1 alert decode error")
+        assert LLM._is_ssl_error(exc) is True
+
+    def test_does_not_match_unrelated_error(self):
+        exc = RuntimeError("connection timeout")
+        assert LLM._is_ssl_error(exc) is False
+
+    def test_does_not_match_url_containing_ssl(self):
+        """Bare 'ssl' keyword was removed to avoid false positives like this."""
+        exc = RuntimeError("Failed to connect to ssl.example.com")
+        assert LLM._is_ssl_error(exc) is False
+
+    def test_does_not_match_generic_connection_error(self):
+        exc = httpx.ConnectError("Connection refused")
+        assert LLM._is_ssl_error(exc) is False
+
+
+# ── _refresh_tee_and_reset tests ─────────────────────────────────────
+
+
+@pytest.mark.asyncio
+class TestRefreshTeeAndReset:
+    async def test_re_resolves_registry_and_rebuilds_client(self, fake_http):
+        """Verifies that _refresh_tee_and_reset updates endpoint, cert, and HTTP client."""
+        llm = _make_llm()
+
+        mock_tee = MagicMock()
+        mock_tee.endpoint = "https://new.tee.server"
+        mock_tee.tls_cert_der = None  # simplify: no cert pinning
+        mock_tee.tee_id = "new-tee-id"
+        mock_tee.payment_address = "0xNewPayment"
+
+        # Override _llm_server_url to None so _resolve_tee hits the registry path
+        llm._llm_server_url = None
+        llm._rpc_url = "https://rpc"
+        llm._tee_registry_address = "0xRegistry"
+
+        new_http = FakeHTTPClient()
+        with (
+            patch("src.opengradient.client.llm.TEERegistry") as mock_reg,
+            patch("src.opengradient.client.llm.x402HttpxClient", return_value=new_http),
+        ):
+            mock_reg.return_value.get_llm_tee.return_value = mock_tee
+            await llm._refresh_tee_and_reset()
+
+        assert llm._tee_endpoint == "https://new.tee.server"
+        assert llm._tee_id == "new-tee-id"
+        assert llm._tee_payment_address == "0xNewPayment"
+        assert llm._http_client is new_http
+
+    async def test_direct_url_preserves_verify_false_after_refresh(self, fake_http):
+        """When llm_server_url is set, refresh must keep verify=False (not flip to True)."""
+        llm = _make_llm(endpoint="https://direct.tee.server")
+
+        # Confirm initial state: direct URL means no cert verification
+        assert llm._tls_verify is False
+
+        new_http = FakeHTTPClient()
+        with patch("src.opengradient.client.llm.x402HttpxClient", return_value=new_http):
+            await llm._refresh_tee_and_reset()
+
+        # After refresh, verify=False must be preserved for direct endpoints
+        assert llm._tls_verify is False
 
 
 # ── ensure_opg_approval tests ────────────────────────────────────────
