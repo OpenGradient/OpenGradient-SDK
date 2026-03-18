@@ -1,13 +1,14 @@
 """Tests for LLM class.
 
-Construction patches the x402 boundary (x402HttpxClientv2, EthAccountSignerv2, etc.)
+Construction patches the x402 boundary (x402HttpxClient, EthAccountSigner, etc.)
 so LLM builds normally — no test-only constructor params, no mocking of private methods.
 """
 
 import json
+import ssl
 from contextlib import asynccontextmanager
 from typing import List
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
@@ -19,25 +20,27 @@ from src.opengradient.types import TEE_LLM, x402SettlementMode
 
 
 class FakeHTTPClient:
-    """Stands in for x402HttpxClientv2.
+    """Stands in for x402HttpxClient.
 
     Configured per-test with set_response / set_stream_response, then
-    injected via the x402HttpxClientv2 patch so LLM's normal __init__
+    injected via the x402HttpxClient patch so LLM's normal __init__
     assigns it to self._http_client.
     """
 
     def __init__(self, *_args, **_kwargs):
         self._response_status: int = 200
         self._response_body: bytes = b"{}"
+        self._response_headers: dict = {}
         self._post_calls: List[dict] = []
         self._stream_response = None
 
-    def set_response(self, status_code: int, body: dict) -> None:
+    def set_response(self, status_code: int, body: dict, headers: dict | None = None) -> None:
         self._response_status = status_code
         self._response_body = json.dumps(body).encode()
+        self._response_headers = headers or {}
 
-    def set_stream_response(self, status_code: int, chunks: List[bytes]) -> None:
-        self._stream_response = _FakeStreamResponse(status_code, chunks)
+    def set_stream_response(self, status_code: int, chunks: List[bytes], headers: dict | None = None) -> None:
+        self._stream_response = _FakeStreamResponse(status_code, chunks, headers=headers)
 
     @property
     def post_calls(self) -> List[dict]:
@@ -45,7 +48,7 @@ class FakeHTTPClient:
 
     async def post(self, url: str, *, json=None, headers=None, timeout=None) -> "_FakeResponse":
         self._post_calls.append({"url": url, "json": json, "headers": headers, "timeout": timeout})
-        resp = _FakeResponse(self._response_status, self._response_body)
+        resp = _FakeResponse(self._response_status, self._response_body, headers=self._response_headers)
         if self._response_status >= 400:
             resp.raise_for_status = MagicMock(side_effect=httpx.HTTPStatusError("error", request=MagicMock(), response=MagicMock()))
         return resp
@@ -60,9 +63,10 @@ class FakeHTTPClient:
 
 
 class _FakeResponse:
-    def __init__(self, status_code: int, body: bytes):
+    def __init__(self, status_code: int, body: bytes, headers: dict | None = None):
         self.status_code = status_code
         self._body = body
+        self.headers = headers or {}
 
     def raise_for_status(self):
         pass
@@ -72,9 +76,10 @@ class _FakeResponse:
 
 
 class _FakeStreamResponse:
-    def __init__(self, status_code: int, chunks: List[bytes]):
+    def __init__(self, status_code: int, chunks: List[bytes], headers: dict | None = None):
         self.status_code = status_code
         self._chunks = chunks
+        self.headers = headers or {}
 
     async def aiter_raw(self):
         for chunk in self._chunks:
@@ -90,11 +95,11 @@ class _FakeStreamResponse:
 # so LLM.__init__ runs its real code but gets our FakeHTTPClient.
 
 _PATCHES = {
-    "x402_httpx": "src.opengradient.client.llm.x402HttpxClientv2",
-    "x402_client": "src.opengradient.client.llm.x402Clientv2",
-    "signer": "src.opengradient.client.llm.EthAccountSignerv2",
-    "register_exact": "src.opengradient.client.llm.register_exact_evm_clientv2",
-    "register_upto": "src.opengradient.client.llm.register_upto_evm_clientv2",
+    "x402_httpx": "src.opengradient.client.llm.x402HttpxClient",
+    "x402_client": "src.opengradient.client.llm.x402Client",
+    "signer": "src.opengradient.client.llm.EthAccountSigner",
+    "register_exact": "src.opengradient.client.llm.register_exact_evm_client",
+    "register_upto": "src.opengradient.client.llm.register_upto_evm_client",
 }
 
 
@@ -151,6 +156,24 @@ class TestCompletion:
         assert result.transaction_hash == "external"
         assert result.tee_id == "test-tee-id"
         assert result.tee_payment_address == "0xTestPayment"
+
+    async def test_tee_metadata_falls_back_to_headers(self, fake_http):
+        fake_http.set_response(
+            200,
+            {"completion": "ok"},
+            headers={
+                "X-TEE-Signature": "sig-from-header",
+                "X-TEE-Timestamp": "2026-03-13T00:00:00Z",
+                "X-TEE-ID": "tee-id-from-header",
+            },
+        )
+        llm = _make_llm()
+
+        result = await llm.completion(model=TEE_LLM.GPT_5, prompt="Hi")
+
+        assert result.tee_signature == "sig-from-header"
+        assert result.tee_timestamp == "2026-03-13T00:00:00Z"
+        assert result.tee_id == "tee-id-from-header"
 
     async def test_sends_correct_payload(self, fake_http):
         fake_http.set_response(200, {"completion": "ok"})
@@ -235,6 +258,29 @@ class TestChat:
         assert result.chat_output["role"] == "assistant"
         assert result.finish_reason == "stop"
         assert result.tee_signature == "sig-xyz"
+
+    async def test_chat_tee_metadata_falls_back_to_headers(self, fake_http):
+        fake_http.set_response(
+            200,
+            {
+                "choices": [{"message": {"role": "assistant", "content": "Hi there!"}, "finish_reason": "stop"}],
+            },
+            headers={
+                "X-TEE-Signature": "sig-from-header",
+                "X-TEE-Timestamp": "2026-03-13T00:00:00Z",
+                "X-TEE-ID": "tee-id-from-header",
+            },
+        )
+        llm = _make_llm()
+
+        result = await llm.chat(
+            model=TEE_LLM.GPT_5,
+            messages=[{"role": "user", "content": "Hello"}],
+        )
+
+        assert result.tee_signature == "sig-from-header"
+        assert result.tee_timestamp == "2026-03-13T00:00:00Z"
+        assert result.tee_id == "tee-id-from-header"
 
     async def test_flattens_content_blocks(self, fake_http):
         fake_http.set_response(
@@ -361,6 +407,83 @@ class TestChat:
         with pytest.raises(RuntimeError, match="TEE LLM chat failed"):
             await llm.chat(model=TEE_LLM.GPT_5, messages=[{"role": "user", "content": "Hi"}])
 
+    async def test_retries_once_on_invalid_payment_required(self, fake_http):
+        fake_http.set_response(
+            200,
+            {
+                "choices": [{"message": {"role": "assistant", "content": "recovered"}, "finish_reason": "stop"}],
+            },
+        )
+        llm = _make_llm()
+        llm._reset_x402_stack = AsyncMock(return_value=None)
+        original_post = llm._http_client.post
+        attempts = {"count": 0}
+
+        async def flaky_post(*args, **kwargs):
+            attempts["count"] += 1
+            if attempts["count"] == 1:
+                raise RuntimeError("Failed to handle payment: Invalid payment required response")
+            return await original_post(*args, **kwargs)
+
+        llm._http_client.post = flaky_post
+
+        result = await llm.chat(model=TEE_LLM.GPT_5, messages=[{"role": "user", "content": "Hi"}])
+
+        assert result.chat_output["content"] == "recovered"
+        assert attempts["count"] == 2
+        llm._reset_x402_stack.assert_awaited_once()
+
+    async def test_retries_once_on_ssl_error(self, fake_http):
+        """SSL cert failure triggers TEE re-resolution and retry."""
+        fake_http.set_response(
+            200,
+            {
+                "choices": [{"message": {"role": "assistant", "content": "recovered"}, "finish_reason": "stop"}],
+            },
+        )
+        llm = _make_llm()
+        llm._refresh_tee_and_reset = AsyncMock(return_value=None)
+        original_post = llm._http_client.post
+        attempts = {"count": 0}
+
+        async def ssl_failing_post(*args, **kwargs):
+            attempts["count"] += 1
+            if attempts["count"] == 1:
+                # Simulate the exact error chain from production logs:
+                # httpx.ConnectError wrapping ssl.SSLCertVerificationError
+                ssl_err = ssl.SSLCertVerificationError(
+                    "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate (_ssl.c:1010)"
+                )
+                raise httpx.ConnectError(
+                    "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate (_ssl.c:1010)"
+                ) from ssl_err
+            return await original_post(*args, **kwargs)
+
+        llm._http_client.post = ssl_failing_post
+
+        result = await llm.chat(model=TEE_LLM.GPT_5, messages=[{"role": "user", "content": "Hi"}])
+
+        assert result.chat_output["content"] == "recovered"
+        assert attempts["count"] == 2
+        llm._refresh_tee_and_reset.assert_awaited_once()
+
+    async def test_ssl_error_not_retried_twice(self, fake_http):
+        """If the retry also fails with SSL, the error propagates."""
+        llm = _make_llm()
+        llm._refresh_tee_and_reset = AsyncMock(return_value=None)
+
+        async def always_ssl_fail(*args, **kwargs):
+            raise httpx.ConnectError(
+                "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate"
+            )
+
+        llm._http_client.post = always_ssl_fail
+
+        with pytest.raises(RuntimeError, match="TEE LLM chat failed"):
+            await llm.chat(model=TEE_LLM.GPT_5, messages=[{"role": "user", "content": "Hi"}])
+
+        llm._refresh_tee_and_reset.assert_awaited_once()
+
 
 # ── Streaming tests ──────────────────────────────────────────────────
 
@@ -427,6 +550,33 @@ class TestChatStreaming:
         assert final.tee_id == "test-tee-id"
         assert final.tee_payment_address == "0xTestPayment"
 
+    async def test_stream_tee_signature_timestamp_fallback_to_headers(self, fake_http):
+        fake_http.set_stream_response(
+            200,
+            [
+                b'data: {"model":"gpt-5","choices":[{"index":0,"delta":{"content":"done"},"finish_reason":"stop"}]}\n\n',
+                b"data: [DONE]\n\n",
+            ],
+            headers={
+                "X-TEE-Signature": "sig-from-header",
+                "X-TEE-Timestamp": "2026-03-13T00:00:00Z",
+                "X-TEE-ID": "tee-id-from-header",
+            },
+        )
+        llm = _make_llm()
+
+        gen = await llm.chat(
+            model=TEE_LLM.GPT_5,
+            messages=[{"role": "user", "content": "Hi"}],
+            stream=True,
+        )
+        chunks = [chunk async for chunk in gen]
+
+        final = chunks[-1]
+        assert final.tee_signature == "sig-from-header"
+        assert final.tee_timestamp == "2026-03-13T00:00:00Z"
+        assert final.tee_id == "tee-id-from-header"
+
     async def test_stream_error_raises(self, fake_http):
         fake_http.set_stream_response(500, [b"Internal Server Error"])
         llm = _make_llm()
@@ -468,6 +618,177 @@ class TestChatStreaming:
         assert chunks[0].is_final
         assert chunks[0].choices[0].delta.tool_calls == [{"id": "tc1"}]
         assert chunks[0].choices[0].finish_reason == "tool_calls"
+
+    async def test_stream_retries_once_on_invalid_payment_required(self, fake_http):
+        fake_http.set_stream_response(
+            200,
+            [
+                b'data: {"model":"gpt-5","choices":[{"index":0,"delta":{"content":"ok"},"finish_reason":"stop"}]}\n\n',
+                b"data: [DONE]\n\n",
+            ],
+        )
+        llm = _make_llm()
+        llm._reset_x402_stack = AsyncMock(return_value=None)
+        original_stream = llm._http_client.stream
+        attempts = {"count": 0}
+
+        @asynccontextmanager
+        async def flaky_stream(*args, **kwargs):
+            attempts["count"] += 1
+            if attempts["count"] == 1:
+                raise RuntimeError("Failed to handle payment: Invalid payment required response")
+            async with original_stream(*args, **kwargs) as response:
+                yield response
+
+        llm._http_client.stream = flaky_stream
+
+        gen = await llm.chat(
+            model=TEE_LLM.GPT_5,
+            messages=[{"role": "user", "content": "Hi"}],
+            stream=True,
+        )
+        chunks = [chunk async for chunk in gen]
+
+        assert attempts["count"] == 2
+        assert chunks[-1].choices[0].delta.content == "ok"
+        llm._reset_x402_stack.assert_awaited_once()
+
+    async def test_stream_retries_once_on_ssl_error(self, fake_http):
+        """SSL cert failure during streaming triggers TEE re-resolution and retry."""
+        fake_http.set_stream_response(
+            200,
+            [
+                b'data: {"model":"gpt-5","choices":[{"index":0,"delta":{"content":"ok"},"finish_reason":"stop"}]}\n\n',
+                b"data: [DONE]\n\n",
+            ],
+        )
+        llm = _make_llm()
+        llm._refresh_tee_and_reset = AsyncMock(return_value=None)
+        original_stream = llm._http_client.stream
+        attempts = {"count": 0}
+
+        @asynccontextmanager
+        async def ssl_failing_stream(*args, **kwargs):
+            attempts["count"] += 1
+            if attempts["count"] == 1:
+                ssl_err = ssl.SSLCertVerificationError(
+                    "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate"
+                )
+                raise httpx.ConnectError("SSL cert failed") from ssl_err
+            async with original_stream(*args, **kwargs) as response:
+                yield response
+
+        llm._http_client.stream = ssl_failing_stream
+
+        gen = await llm.chat(
+            model=TEE_LLM.GPT_5,
+            messages=[{"role": "user", "content": "Hi"}],
+            stream=True,
+        )
+        chunks = [chunk async for chunk in gen]
+
+        assert attempts["count"] == 2
+        assert chunks[-1].choices[0].delta.content == "ok"
+        llm._refresh_tee_and_reset.assert_awaited_once()
+
+
+# ── _is_ssl_error detection tests ────────────────────────────────────
+
+
+class TestIsSSLError:
+    def test_detects_ssl_error_instance(self):
+        exc = ssl.SSLError("something went wrong")
+        assert LLM._is_ssl_error(exc) is True
+
+    def test_detects_ssl_cert_verification_error(self):
+        exc = ssl.SSLCertVerificationError(
+            "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate (_ssl.c:1010)"
+        )
+        assert LLM._is_ssl_error(exc) is True
+
+    def test_detects_httpx_connect_error_wrapping_ssl(self):
+        """Matches the exact production error chain."""
+        ssl_err = ssl.SSLCertVerificationError(
+            "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate (_ssl.c:1010)"
+        )
+        httpx_err = httpx.ConnectError(
+            "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate (_ssl.c:1010)"
+        )
+        httpx_err.__cause__ = ssl_err
+        assert LLM._is_ssl_error(httpx_err) is True
+
+    def test_detects_certificate_verify_failed_in_message(self):
+        exc = RuntimeError("certificate verify failed")
+        assert LLM._is_ssl_error(exc) is True
+
+    def test_detects_self_signed_certificate_in_message(self):
+        exc = RuntimeError("self-signed certificate")
+        assert LLM._is_ssl_error(exc) is True
+
+    def test_detects_tlsv1_alert_in_message(self):
+        exc = RuntimeError("tlsv1 alert decode error")
+        assert LLM._is_ssl_error(exc) is True
+
+    def test_does_not_match_unrelated_error(self):
+        exc = RuntimeError("connection timeout")
+        assert LLM._is_ssl_error(exc) is False
+
+    def test_does_not_match_url_containing_ssl(self):
+        """Bare 'ssl' keyword was removed to avoid false positives like this."""
+        exc = RuntimeError("Failed to connect to ssl.example.com")
+        assert LLM._is_ssl_error(exc) is False
+
+    def test_does_not_match_generic_connection_error(self):
+        exc = httpx.ConnectError("Connection refused")
+        assert LLM._is_ssl_error(exc) is False
+
+
+# ── _refresh_tee_and_reset tests ─────────────────────────────────────
+
+
+@pytest.mark.asyncio
+class TestRefreshTeeAndReset:
+    async def test_re_resolves_registry_and_rebuilds_client(self, fake_http):
+        """Verifies that _refresh_tee_and_reset updates endpoint, cert, and HTTP client."""
+        llm = _make_llm()
+
+        mock_tee = MagicMock()
+        mock_tee.endpoint = "https://new.tee.server"
+        mock_tee.tls_cert_der = None  # simplify: no cert pinning
+        mock_tee.tee_id = "new-tee-id"
+        mock_tee.payment_address = "0xNewPayment"
+
+        # Override _llm_server_url to None so _resolve_tee hits the registry path
+        llm._llm_server_url = None
+        llm._rpc_url = "https://rpc"
+        llm._tee_registry_address = "0xRegistry"
+
+        new_http = FakeHTTPClient()
+        with (
+            patch("src.opengradient.client.llm.TEERegistry") as mock_reg,
+            patch("src.opengradient.client.llm.x402HttpxClient", return_value=new_http),
+        ):
+            mock_reg.return_value.get_llm_tee.return_value = mock_tee
+            await llm._refresh_tee_and_reset()
+
+        assert llm._tee_endpoint == "https://new.tee.server"
+        assert llm._tee_id == "new-tee-id"
+        assert llm._tee_payment_address == "0xNewPayment"
+        assert llm._http_client is new_http
+
+    async def test_direct_url_preserves_verify_false_after_refresh(self, fake_http):
+        """When llm_server_url is set, refresh must keep verify=False (not flip to True)."""
+        llm = _make_llm(endpoint="https://direct.tee.server")
+
+        # Confirm initial state: direct URL means no cert verification
+        assert llm._tls_verify is False
+
+        new_http = FakeHTTPClient()
+        with patch("src.opengradient.client.llm.x402HttpxClient", return_value=new_http):
+            await llm._refresh_tee_and_reset()
+
+        # After refresh, verify=False must be preserved for direct endpoints
+        assert llm._tls_verify is False
 
 
 # ── ensure_opg_approval tests ────────────────────────────────────────

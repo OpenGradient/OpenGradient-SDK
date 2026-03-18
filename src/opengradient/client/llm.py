@@ -3,22 +3,24 @@
 import json
 import logging
 import ssl
+import threading
 from dataclasses import dataclass
-from typing import AsyncGenerator, Dict, List, Optional, Union
+from typing import Any, AsyncGenerator, Awaitable, Callable, Dict, List, Optional, TypeVar, Union
 
 from eth_account import Account
 from eth_account.account import LocalAccount
-from x402v2 import x402Client as x402Clientv2
-from x402v2.http.clients import x402HttpxClient as x402HttpxClientv2
-from x402v2.mechanisms.evm import EthAccountSigner as EthAccountSignerv2
-from x402v2.mechanisms.evm.exact.register import register_exact_evm_client as register_exact_evm_clientv2
-from x402v2.mechanisms.evm.upto.register import register_upto_evm_client as register_upto_evm_clientv2
+from x402 import x402Client
+from x402.http.clients import x402HttpxClient
+from x402.mechanisms.evm import EthAccountSigner
+from x402.mechanisms.evm.exact.register import register_exact_evm_client
+from x402.mechanisms.evm.upto.register import register_upto_evm_client
 
 from ..types import TEE_LLM, StreamChoice, StreamChunk, StreamDelta, TextGenerationOutput, x402SettlementMode
 from .opg_token import Permit2ApprovalResult, ensure_opg_approval
 from .tee_registry import TEERegistry, build_ssl_context_from_der
 
 logger = logging.getLogger(__name__)
+T = TypeVar("T")
 
 DEFAULT_RPC_URL = "https://ogevmdevnet.opengradient.ai"
 DEFAULT_TEE_REGISTRY_ADDRESS = "0x4e72238852f3c918f4E4e57AeC9280dDB0c80248"
@@ -30,6 +32,9 @@ BASE_TESTNET_NETWORK = "eip155:84532"
 _CHAT_ENDPOINT = "/v1/chat/completions"
 _COMPLETION_ENDPOINT = "/v1/completions"
 _REQUEST_TIMEOUT = 60
+_TEE_SIGNATURE_HEADER = "X-TEE-Signature"
+_TEE_TIMESTAMP_HEADER = "X-TEE-Timestamp"
+_TEE_ID_HEADER = "X-TEE-ID"
 
 
 @dataclass
@@ -95,6 +100,11 @@ class LLM:
     ):
         self._wallet_account: LocalAccount = Account.from_key(private_key)
 
+        # Store registry params so we can re-resolve TEE on SSL failures
+        self._rpc_url = rpc_url
+        self._tee_registry_address = tee_registry_address
+        self._llm_server_url = llm_server_url
+
         endpoint, tls_cert_der, tee_id, tee_payment_address = self._resolve_tee(
             llm_server_url,
             rpc_url,
@@ -110,14 +120,125 @@ class LLM:
         # self-hosted TEE servers commonly use self-signed certificates.
         verify_ssl = llm_server_url is None
         self._tls_verify: Union[ssl.SSLContext, bool] = ssl_ctx if ssl_ctx else verify_ssl
+        self._reset_lock = threading.Lock()
 
-        # x402 client and signer
-        signer = EthAccountSignerv2(self._wallet_account)
-        self._x402_client = x402Clientv2()
-        register_exact_evm_clientv2(self._x402_client, signer, networks=[BASE_TESTNET_NETWORK])
-        register_upto_evm_clientv2(self._x402_client, signer, networks=[BASE_TESTNET_NETWORK])
+        # x402 client/signer/http stack
+        self._init_x402_stack()
+
+    def _init_x402_stack(self) -> None:
+        """Initialize x402 signer/client/http stack."""
+        signer = EthAccountSigner(self._wallet_account)
+        self._x402_client = x402Client()
+        register_exact_evm_client(self._x402_client, signer, networks=[BASE_TESTNET_NETWORK])
+        register_upto_evm_client(self._x402_client, signer, networks=[BASE_TESTNET_NETWORK])
         # httpx.AsyncClient subclass - construction is sync, connections open lazily
-        self._http_client = x402HttpxClientv2(self._x402_client, verify=self._tls_verify)
+        self._http_client = x402HttpxClient(self._x402_client, verify=self._tls_verify)
+
+    async def _reset_x402_stack(self) -> None:
+        """Reset x402 state and underlying HTTP client."""
+        with self._reset_lock:
+            old_http_client = self._http_client
+            self._init_x402_stack()
+
+        try:
+            await old_http_client.aclose()
+        except Exception:
+            logger.debug("Failed to close previous x402 HTTP client during reset.", exc_info=True)
+
+    @staticmethod
+    def _is_invalid_payment_required_error(exc: Exception) -> bool:
+        """Detect the known stale-session x402 failure mode."""
+        visited: set[int] = set()
+        current: Optional[BaseException] = exc
+
+        while current is not None and id(current) not in visited:
+            visited.add(id(current))
+            msg = str(current).lower()
+            if "invalid payment required response" in msg:
+                return True
+            current = current.__cause__ or current.__context__
+        return False
+
+    @staticmethod
+    def _is_ssl_error(exc: Exception) -> bool:
+        """Detect SSL/TLS errors that indicate a stale certificate or connection reset."""
+        visited: set[int] = set()
+        current: Optional[BaseException] = exc
+
+        while current is not None and id(current) not in visited:
+            visited.add(id(current))
+            if isinstance(current, ssl.SSLError):
+                return True
+            msg = str(current).lower()
+            if any(
+                keyword in msg
+                for keyword in (
+                    "certificate verify failed",
+                    "tlsv1 alert",
+                    "ssl handshake",
+                    "sslcertverificationerror",
+                    "ssl: certificate_verify_failed",
+                    "self-signed certificate",
+                )
+            ):
+                return True
+            current = current.__cause__ or current.__context__
+        return False
+
+    async def _refresh_tee_and_reset(self) -> None:
+        """Re-resolve TEE from registry and rebuild the HTTP client with a fresh SSL context."""
+        with self._reset_lock:
+            old_http_client = self._http_client
+
+            endpoint, tls_cert_der, tee_id, tee_payment_address = self._resolve_tee(
+                self._llm_server_url,
+                self._rpc_url,
+                self._tee_registry_address,
+            )
+
+            self._tee_id = tee_id
+            self._tee_endpoint = endpoint
+            self._tee_payment_address = tee_payment_address
+
+            ssl_ctx = build_ssl_context_from_der(tls_cert_der) if tls_cert_der else None
+            verify_ssl = self._llm_server_url is None
+            self._tls_verify = ssl_ctx if ssl_ctx else verify_ssl
+
+            self._init_x402_stack()
+
+        try:
+            await old_http_client.aclose()
+        except Exception:
+            logger.debug("Failed to close previous HTTP client during TEE refresh.", exc_info=True)
+
+    async def _retry_once_on_recoverable_error(
+        self,
+        operation_name: str,
+        call: Callable[[], Awaitable[T]],
+    ) -> T:
+        """Retry once after resetting state for recoverable payment or SSL errors."""
+        try:
+            return await call()
+        except Exception as first_error:
+            if self._is_ssl_error(first_error):
+                logger.warning(
+                    "SSL/TLS error during %s; re-resolving TEE from registry and retrying once: %s",
+                    operation_name,
+                    first_error,
+                )
+                await self._refresh_tee_and_reset()
+                return await call()
+
+            if self._is_invalid_payment_required_error(first_error):
+                logger.warning(
+                    "Recoverable x402 payment error during %s; resetting x402 client and retrying once: %s",
+                    operation_name,
+                    first_error,
+                )
+                await self._reset_x402_stack()
+                return await call()
+
+            raise
 
     # ── TEE resolution ──────────────────────────────────────────────────
 
@@ -187,6 +308,16 @@ class LLM:
             tee_endpoint=self._tee_endpoint,
             tee_payment_address=self._tee_payment_address,
         )
+
+    @staticmethod
+    def _extract_tee_headers(response: Any) -> Dict[str, Optional[str]]:
+        """Extract TEE proof metadata from HTTP headers."""
+        headers = getattr(response, "headers", {}) or {}
+        return {
+            "tee_signature": headers.get(_TEE_SIGNATURE_HEADER),
+            "tee_timestamp": headers.get(_TEE_TIMESTAMP_HEADER),
+            "tee_id": headers.get(_TEE_ID_HEADER),
+        }
 
     # ── Public API ──────────────────────────────────────────────────────
 
@@ -258,7 +389,7 @@ class LLM:
         if stop_sequence:
             payload["stop"] = stop_sequence
 
-        try:
+        async def _request() -> TextGenerationOutput:
             response = await self._http_client.post(
                 self._tee_endpoint + _COMPLETION_ENDPOINT,
                 json=payload,
@@ -268,13 +399,20 @@ class LLM:
             response.raise_for_status()
             raw_body = await response.aread()
             result = json.loads(raw_body.decode())
+            tee_headers = self._extract_tee_headers(response)
+            metadata = self._tee_metadata()
+            if tee_headers.get("tee_id"):
+                metadata["tee_id"] = tee_headers["tee_id"]
             return TextGenerationOutput(
                 transaction_hash="external",
                 completion_output=result.get("completion"),
-                tee_signature=result.get("tee_signature"),
-                tee_timestamp=result.get("tee_timestamp"),
-                **self._tee_metadata(),
+                tee_signature=result.get("tee_signature") or tee_headers.get("tee_signature"),
+                tee_timestamp=result.get("tee_timestamp") or tee_headers.get("tee_timestamp"),
+                **metadata,
             )
+
+        try:
+            return await self._retry_once_on_recoverable_error("completion", _request)
         except RuntimeError:
             raise
         except Exception as e:
@@ -345,7 +483,7 @@ class LLM:
         headers = self._headers(params.x402_settlement_mode)
         payload = self._chat_payload(params, messages)
 
-        try:
+        async def _request() -> TextGenerationOutput:
             response = await self._http_client.post(
                 self._tee_endpoint + _CHAT_ENDPOINT,
                 json=payload,
@@ -355,6 +493,10 @@ class LLM:
             response.raise_for_status()
             raw_body = await response.aread()
             result = json.loads(raw_body.decode())
+            tee_headers = self._extract_tee_headers(response)
+            metadata = self._tee_metadata()
+            if tee_headers.get("tee_id"):
+                metadata["tee_id"] = tee_headers["tee_id"]
 
             choices = result.get("choices")
             if not choices:
@@ -371,10 +513,13 @@ class LLM:
                 transaction_hash="external",
                 finish_reason=choices[0].get("finish_reason"),
                 chat_output=message,
-                tee_signature=result.get("tee_signature"),
-                tee_timestamp=result.get("tee_timestamp"),
-                **self._tee_metadata(),
+                tee_signature=result.get("tee_signature") or tee_headers.get("tee_signature"),
+                tee_timestamp=result.get("tee_timestamp") or tee_headers.get("tee_timestamp"),
+                **metadata,
             )
+
+        try:
+            return await self._retry_once_on_recoverable_error("chat", _request)
         except RuntimeError:
             raise
         except Exception as e:
@@ -410,17 +555,49 @@ class LLM:
         headers = self._headers(params.x402_settlement_mode)
         payload = self._chat_payload(params, messages, stream=True)
 
-        async with self._http_client.stream(
-            "POST",
-            self._tee_endpoint + _CHAT_ENDPOINT,
-            json=payload,
-            headers=headers,
-            timeout=_REQUEST_TIMEOUT,
-        ) as response:
-            async for chunk in self._parse_sse_response(response):
-                yield chunk
+        retried = False
+        while True:
+            chunks_yielded = False
+            try:
+                async with self._http_client.stream(
+                    "POST",
+                    self._tee_endpoint + _CHAT_ENDPOINT,
+                    json=payload,
+                    headers=headers,
+                    timeout=_REQUEST_TIMEOUT,
+                ) as response:
+                    tee_headers = self._extract_tee_headers(response)
+                    async for chunk in self._parse_sse_response(response, tee_headers=tee_headers):
+                        chunks_yielded = True
+                        yield chunk
+                return
+            except Exception as e:
+                if not retried and not chunks_yielded:
+                    if self._is_ssl_error(e):
+                        retried = True
+                        logger.warning(
+                            "SSL/TLS error during stream; re-resolving TEE from registry and retrying once: %s",
+                            e,
+                        )
+                        await self._refresh_tee_and_reset()
+                        # Re-read headers since endpoint may have changed
+                        headers = self._headers(params.x402_settlement_mode)
+                        continue
+                    if self._is_invalid_payment_required_error(e):
+                        retried = True
+                        logger.warning(
+                            "Recoverable x402 payment error during stream; resetting x402 client and retrying once: %s",
+                            e,
+                        )
+                        await self._reset_x402_stack()
+                        continue
+                raise
 
-    async def _parse_sse_response(self, response) -> AsyncGenerator[StreamChunk, None]:
+    async def _parse_sse_response(
+        self,
+        response,
+        tee_headers: Optional[Dict[str, Optional[str]]] = None,
+    ) -> AsyncGenerator[StreamChunk, None]:
         """Parse an SSE response stream into StreamChunk objects."""
         status_code = getattr(response, "status_code", None)
         if status_code is not None and status_code >= 400:
@@ -461,4 +638,8 @@ class LLM:
                     chunk.tee_id = self._tee_id
                     chunk.tee_endpoint = self._tee_endpoint
                     chunk.tee_payment_address = self._tee_payment_address
+                    if tee_headers:
+                        chunk.tee_signature = chunk.tee_signature or tee_headers.get("tee_signature")
+                        chunk.tee_timestamp = chunk.tee_timestamp or tee_headers.get("tee_timestamp")
+                        chunk.tee_id = tee_headers.get("tee_id") or chunk.tee_id
                 yield chunk
