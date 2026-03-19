@@ -87,9 +87,6 @@ class Twins:
         except RuntimeError:
             raise
         except httpx.HTTPStatusError as e:
-            raise RuntimeError(
-                f"Twins chat request failed: {e.response.status_code} {e.response.text}",
-                status_code=e.response.status_code,
-            )
+            raise RuntimeError(f"Twins chat request failed: {e.response.status_code} {e.response.text}")
         except Exception as e:
             raise RuntimeError(f"Twins chat request failed: {str(e)}")

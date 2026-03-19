@@ -2,7 +2,7 @@ import os
 
 import opengradient as og
 
-alpha = og.Alpha(private_key=os.environ.get("OG_PRIVATE_KEY"))
+alpha = og.Alpha(private_key=os.environ["OG_PRIVATE_KEY"])
 
 model_output = alpha.read_workflow_result(
     # This is the workflow contract address that you previously deployed

@@ -18,7 +18,7 @@ from web3.exceptions import ContractLogicError
 from web3.logs import DISCARD
 
 from ..types import HistoricalInputQuery, InferenceMode, InferenceResult, ModelOutput, SchedulerParams
-from ._conversions import convert_array_to_model_output, convert_to_model_input, convert_to_model_output
+from ._conversions import convert_array_to_model_output, convert_to_model_input, convert_to_model_output  # type: ignore[attr-defined]
 from ._utils import get_abi, get_bin, run_with_retry
 
 DEFAULT_RPC_URL = "https://ogevmdevnet.opengradient.ai"
@@ -57,8 +57,8 @@ class Alpha:
         self._wallet_account: LocalAccount = self._blockchain.eth.account.from_key(private_key)
         self._inference_hub_contract_address = inference_contract_address
         self._api_url = api_url
-        self._inference_abi = None
-        self._precompile_abi = None
+        self._inference_abi: Optional[dict] = None
+        self._precompile_abi: Optional[dict] = None
 
     @property
     def inference_abi(self) -> dict:
@@ -98,8 +98,12 @@ class Alpha:
         """
 
         def execute_transaction():
-            contract = self._blockchain.eth.contract(address=self._inference_hub_contract_address, abi=self.inference_abi)
-            precompile_contract = self._blockchain.eth.contract(address=PRECOMPILE_CONTRACT_ADDRESS, abi=self.precompile_abi)
+            contract = self._blockchain.eth.contract(
+                address=Web3.to_checksum_address(self._inference_hub_contract_address), abi=self.inference_abi
+            )
+            precompile_contract = self._blockchain.eth.contract(
+                address=Web3.to_checksum_address(PRECOMPILE_CONTRACT_ADDRESS), abi=self.precompile_abi
+            )
 
             inference_mode_uint8 = inference_mode.value
             converted_model_input = convert_to_model_input(model_input)
@@ -122,7 +126,8 @@ class Alpha:
 
             return InferenceResult(tx_hash.hex(), model_output)
 
-        return run_with_retry(execute_transaction, max_retries)
+        result: InferenceResult = run_with_retry(execute_transaction, max_retries)
+        return result
 
     def _send_tx_with_revert_handling(self, run_function):
         """
@@ -161,7 +166,7 @@ class Alpha:
             }
         )
 
-        signed_tx = self._wallet_account.sign_transaction(transaction)
+        signed_tx = self._wallet_account.sign_transaction(transaction)  # type: ignore[arg-type]
         tx_hash = self._blockchain.eth.send_raw_transaction(signed_tx.raw_transaction)
         tx_receipt = self._blockchain.eth.wait_for_transaction_receipt(tx_hash, timeout=INFERENCE_TX_TIMEOUT)
 
@@ -176,7 +181,7 @@ class Alpha:
 
         return tx_hash, tx_receipt
 
-    def _get_inference_result_from_node(self, inference_id: str, inference_mode: InferenceMode) -> Dict:
+    def _get_inference_result_from_node(self, inference_id: str, inference_mode: InferenceMode) -> Optional[Dict]:
         """
         Get the inference result from node.
 
@@ -317,7 +322,7 @@ class Alpha:
 
             return tx_receipt.contractAddress
 
-        contract_address = run_with_retry(deploy_transaction)
+        contract_address: str = run_with_retry(deploy_transaction)
 
         if scheduler_params:
             self._register_with_scheduler(contract_address, scheduler_params)
@@ -343,7 +348,7 @@ class Alpha:
 
         # Scheduler contract address
         scheduler_address = DEFAULT_SCHEDULER_ADDRESS
-        scheduler_contract = self._blockchain.eth.contract(address=scheduler_address, abi=scheduler_abi)
+        scheduler_contract = self._blockchain.eth.contract(address=Web3.to_checksum_address(scheduler_address), abi=scheduler_abi)
 
         try:
             # Register the workflow with the scheduler
@@ -359,7 +364,7 @@ class Alpha:
                 }
             )
 
-            signed_scheduler_tx = self._wallet_account.sign_transaction(scheduler_tx)
+            signed_scheduler_tx = self._wallet_account.sign_transaction(scheduler_tx)  # type: ignore[arg-type]
             scheduler_tx_hash = self._blockchain.eth.send_raw_transaction(signed_scheduler_tx.raw_transaction)
             self._blockchain.eth.wait_for_transaction_receipt(scheduler_tx_hash, timeout=REGULAR_TX_TIMEOUT)
         except Exception as e:
@@ -388,7 +393,8 @@ class Alpha:
         # Get the result
         result = contract.functions.getInferenceResult().call()
 
-        return convert_array_to_model_output(result)
+        output: ModelOutput = convert_array_to_model_output(result)
+        return output
 
     def run_workflow(self, contract_address: str) -> ModelOutput:
         """
@@ -423,17 +429,18 @@ class Alpha:
             }
         )
 
-        signed_txn = self._wallet_account.sign_transaction(transaction)
+        signed_txn = self._wallet_account.sign_transaction(transaction)  # type: ignore[arg-type]
         tx_hash = self._blockchain.eth.send_raw_transaction(signed_txn.raw_transaction)
         tx_receipt = self._blockchain.eth.wait_for_transaction_receipt(tx_hash, timeout=INFERENCE_TX_TIMEOUT)
 
-        if tx_receipt.status == 0:
+        if tx_receipt["status"] == 0:
             raise ContractLogicError(f"Run transaction failed. Receipt: {tx_receipt}")
 
         # Get the inference result from the contract
         result = contract.functions.getInferenceResult().call()
 
-        return convert_array_to_model_output(result)
+        run_output: ModelOutput = convert_array_to_model_output(result)
+        return run_output
 
     def read_workflow_history(self, contract_address: str, num_results: int) -> List[ModelOutput]:
         """

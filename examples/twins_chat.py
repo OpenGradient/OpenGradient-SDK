@@ -5,7 +5,7 @@ import os
 
 import opengradient as og
 
-twins = og.Twins(api_key=os.environ.get("TWINS_API_KEY"))
+twins = og.Twins(api_key=os.environ["TWINS_API_KEY"])
 
 # Chat with Elon Musk
 print("--------------------------------")
@@ -18,7 +18,7 @@ elon = twins.chat(
     messages=[{"role": "user", "content": "What do you think about AI?"}],
     max_tokens=1000,
 )
-print(f"Elon: {elon.chat_output['content']}")
+print(f"Elon: {elon.chat_output['content'] if elon.chat_output else None}")
 
 # Chat with Donald Trump
 print("--------------------------------")
@@ -31,4 +31,4 @@ trump = twins.chat(
     messages=[{"role": "user", "content": "What's your plan for America?"}],
     max_tokens=1000,
 )
-print(f"Trump: {trump.chat_output['content']}")
+print(f"Trump: {trump.chat_output['content'] if trump.chat_output else None}")

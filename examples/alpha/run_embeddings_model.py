@@ -2,7 +2,7 @@ import os
 
 import opengradient as og
 
-alpha = og.Alpha(private_key=os.environ.get("OG_PRIVATE_KEY"))
+alpha = og.Alpha(private_key=os.environ["OG_PRIVATE_KEY"])
 
 queries = [
     "how much protein should a female eat",
