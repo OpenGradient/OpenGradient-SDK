@@ -1,6 +1,7 @@
 # OpenGradient Python SDK
 
 [![Tests](https://github.com/OpenGradient/sdk/actions/workflows/test.yml/badge.svg)](https://github.com/OpenGradient/sdk/actions/workflows/test.yml)
+[![PyPI](https://img.shields.io/pypi/v/opengradient)](https://pypi.org/project/opengradient/)
 
 A Python SDK for decentralized model management and inference services on the OpenGradient platform. The SDK provides programmatic access to distributed AI infrastructure with cryptographic verification capabilities.
 
