@@ -78,3 +78,8 @@ ignore = []
 
 [tool.ruff.mccabe]
 max-complexity = 10
+
+[dependency-groups]
+dev = [
+    "setuptools>=82.0.1",
+]
