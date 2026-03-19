@@ -1,6 +1,6 @@
 """Tests for LLM class.
 
-Construction patches the x402 boundary (x402HttpxClientv2, EthAccountSignerv2, etc.)
+Construction patches the x402 boundary (x402HttpxClient, EthAccountSigner, etc.)
 so LLM builds normally — no test-only constructor params, no mocking of private methods.
 """
 
@@ -19,10 +19,10 @@ from src.opengradient.types import TEE_LLM, x402SettlementMode
 
 
 class FakeHTTPClient:
-    """Stands in for x402HttpxClientv2.
+    """Stands in for x402HttpxClient.
 
     Configured per-test with set_response / set_stream_response, then
-    injected via the x402HttpxClientv2 patch so LLM's normal __init__
+    injected via the x402HttpxClient patch so LLM's normal __init__
     assigns it to self._http_client.
     """
 
@@ -90,11 +90,11 @@ class _FakeStreamResponse:
 # so LLM.__init__ runs its real code but gets our FakeHTTPClient.
 
 _PATCHES = {
-    "x402_httpx": "src.opengradient.client.llm.x402HttpxClientv2",
-    "x402_client": "src.opengradient.client.llm.x402Clientv2",
-    "signer": "src.opengradient.client.llm.EthAccountSignerv2",
-    "register_exact": "src.opengradient.client.llm.register_exact_evm_clientv2",
-    "register_upto": "src.opengradient.client.llm.register_upto_evm_clientv2",
+    "x402_httpx": "src.opengradient.client.llm.x402HttpxClient",
+    "x402_client": "src.opengradient.client.llm.x402Client",
+    "signer": "src.opengradient.client.llm.EthAccountSigner",
+    "register_exact": "src.opengradient.client.llm.register_exact_evm_client",
+    "register_upto": "src.opengradient.client.llm.register_upto_evm_client",
 }
 
 

@@ -153,5 +153,5 @@ Key dependencies (Python >=3.11):
 - `click`: CLI framework
 - `firebase-rest-api`: Backend services
 - `pydantic`: Data validation
-- `og-test-v2-x402`: x402 payment protocol
+- `og-x402`: x402 payment protocol
 - `numpy`: Array handling

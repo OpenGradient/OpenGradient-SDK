@@ -8,11 +8,11 @@ from typing import AsyncGenerator, Dict, List, Optional, Union
 
 from eth_account import Account
 from eth_account.account import LocalAccount
-from x402v2 import x402Client as x402Clientv2
-from x402v2.http.clients import x402HttpxClient as x402HttpxClientv2
-from x402v2.mechanisms.evm import EthAccountSigner as EthAccountSignerv2
-from x402v2.mechanisms.evm.exact.register import register_exact_evm_client as register_exact_evm_clientv2
-from x402v2.mechanisms.evm.upto.register import register_upto_evm_client as register_upto_evm_clientv2
+from x402 import x402Client
+from x402.http.clients import x402HttpxClient
+from x402.mechanisms.evm import EthAccountSigner
+from x402.mechanisms.evm.exact.register import register_exact_evm_client
+from x402.mechanisms.evm.upto.register import register_upto_evm_client
 
 from ..types import TEE_LLM, StreamChoice, StreamChunk, StreamDelta, TextGenerationOutput, x402SettlementMode
 from .opg_token import Permit2ApprovalResult, ensure_opg_approval
@@ -112,12 +112,12 @@ class LLM:
         self._tls_verify: Union[ssl.SSLContext, bool] = ssl_ctx if ssl_ctx else verify_ssl
 
         # x402 client and signer
-        signer = EthAccountSignerv2(self._wallet_account)
-        self._x402_client = x402Clientv2()
-        register_exact_evm_clientv2(self._x402_client, signer, networks=[BASE_TESTNET_NETWORK])
-        register_upto_evm_clientv2(self._x402_client, signer, networks=[BASE_TESTNET_NETWORK])
+        signer = EthAccountSigner(self._wallet_account)
+        self._x402_client = x402Client()
+        register_exact_evm_client(self._x402_client, signer, networks=[BASE_TESTNET_NETWORK])
+        register_upto_evm_client(self._x402_client, signer, networks=[BASE_TESTNET_NETWORK])
         # httpx.AsyncClient subclass - construction is sync, connections open lazily
-        self._http_client = x402HttpxClientv2(self._x402_client, verify=self._tls_verify)
+        self._http_client = x402HttpxClient(self._x402_client, verify=self._tls_verify)
 
     # ── TEE resolution ──────────────────────────────────────────────────
 
