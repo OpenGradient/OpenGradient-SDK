@@ -30,6 +30,17 @@ dependencies = [
     "og-x402==0.0.1.dev2"
 ]
 
+[project.optional-dependencies]
+dev = [
+    "ruff",
+    "mypy",
+    "pytest",
+    "pytest-asyncio",
+    "langgraph",
+    "pdoc3==0.10.0",
+    "types-protobuf",
+]
+
 [project.scripts]
 opengradient = "opengradient.cli:cli"
 
