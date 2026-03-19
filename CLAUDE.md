@@ -4,14 +4,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-OpenGradient Python SDK - A decentralized model management and inference platform SDK. The SDK enables programmatic access to model repositories and decentralized AI infrastructure, including end-to-end verified AI execution. Use virtualenv for dependency management locally (in `venv` folder).
+OpenGradient Python SDK - A decentralized model management and inference platform SDK. The SDK enables programmatic access to model repositories and decentralized AI infrastructure, including end-to-end verified AI execution. Uses `uv` for dependency management.
 
 ## Development Commands
 
 ### Build & Installation
 ```bash
-# Install in development mode
-pip install -e .
+# Install dependencies (syncs from pyproject.toml/uv.lock)
+make install  # or: uv sync --all-extras
 
 # Build distribution
 make build
