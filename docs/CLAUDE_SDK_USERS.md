@@ -308,6 +308,30 @@ except ValueError as e:
 OG_PRIVATE_KEY=0x...          # Required: Ethereum private key
 ```
 
+## Command-Line Interface
+
+The SDK provides a CLI for config and inference without writing Python:
+
+```bash
+# Initialize config (interactive wizard)
+opengradient config init
+
+# View current config
+opengradient config show
+
+# Run inference (ONNX model)
+opengradient infer -m <model_cid> --input '{"key": "value"}'
+
+# Chat completion
+opengradient chat --model anthropic/claude-haiku-4-5 \
+  --messages '[{"role":"user","content":"Hello"}]' --max-tokens 100
+
+# Text completion
+opengradient completion --model anthropic/claude-haiku-4-5 --prompt "Hello" --max-tokens 50
+```
+
+For all commands and options: `opengradient --help`
+
 ## Resources
 
 - [OpenGradient Documentation](https://docs.opengradient.ai)
