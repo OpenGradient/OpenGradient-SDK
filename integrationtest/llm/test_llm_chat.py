@@ -1,7 +1,7 @@
-import asyncio
 import os
-import unittest
+import time
 
+import pytest
 from eth_account import Account
 from web3 import Web3
 
@@ -76,71 +76,74 @@ def _fund_account(funder_key: str, recipient_address: str):
     if opg_receipt.status != 1:
         raise RuntimeError(f"OPG transfer failed: {opg_hash.hex()}")
 
-
-class TestLLMChat(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        """Create a fresh account and fund it from the funder wallet."""
-        funder_key = os.environ.get("PRIVATE_KEY")
-        if not funder_key:
-            raise ValueError("PRIVATE_KEY environment variable is not set")
-
-        # Generate a fresh ephemeral account
-        cls._test_account = Account.create()
-        print(f"\nTest account: {cls._test_account.address}")
-
-        # Fund it with ETH + OPG from the funder
-        _fund_account(funder_key, cls._test_account.address)
-        print("Account funded with ETH and OPG")
-
-        # Initialize LLM client with the fresh account
-        cls._llm = og.LLM(private_key=cls._test_account.key.hex())
-        cls._llm.ensure_opg_approval(opg_amount=OPG_FUND_AMOUNT)
-        print("Permit2 approval complete")
-
-    def test_chat(self):
-        async def run():
-            messages = [
-                {"role": "user", "content": "What is the capital of France? Reply in one word."},
-            ]
-
-            result = await self._llm.chat(
-                model=og.TEE_LLM.GEMINI_2_5_FLASH,
-                messages=messages,
-                max_tokens=50,
-                x402_settlement_mode=og.x402SettlementMode.INDIVIDUAL_FULL,
-            )
-
-            self.assertIsNotNone(result)
-            self.assertIn("Paris", result.chat_output["content"])
-
-        asyncio.run(run())
-
-    def test_chat_streaming(self):
-        async def run():
-            messages = [
-                {"role": "user", "content": "What is 2 + 2? Reply with just the number."},
-            ]
-
-            stream = await self._llm.chat(
-                model=og.TEE_LLM.GEMINI_2_5_FLASH,
-                messages=messages,
-                max_tokens=50,
-                x402_settlement_mode=og.x402SettlementMode.INDIVIDUAL_FULL,
-                stream=True,
-            )
-
-            chunks = []
-            async for chunk in stream:
-                if chunk.choices[0].delta.content:
-                    chunks.append(chunk.choices[0].delta.content)
-
-            full_response = "".join(chunks)
-            self.assertTrue(len(chunks) > 0, "Expected at least one streamed chunk")
-            self.assertIn("4", full_response)
-
-        asyncio.run(run())
+    # Wait for the recipient balance to be visible on the RPC node
+    for _ in range(10):
+        if w3.eth.get_balance(recipient) > 0:
+            break
+        time.sleep(1)
+    else:
+        raise RuntimeError("Recipient ETH balance is still 0 after funding")
 
 
-if __name__ == "__main__":
-    unittest.main()
+@pytest.fixture(scope="module")
+def llm_client():
+    """Create a fresh account, fund it, and return an initialized LLM client."""
+    funder_key = os.environ.get("PRIVATE_KEY")
+    if not funder_key:
+        pytest.skip("PRIVATE_KEY environment variable is not set")
+
+    account = Account.create()
+    print(f"\nTest account: {account.address}")
+
+    _fund_account(funder_key, account.address)
+    print("Account funded with ETH and OPG")
+
+    llm = og.LLM(private_key=account.key.hex())
+    llm.ensure_opg_approval(opg_amount=OPG_FUND_AMOUNT)
+    print("Permit2 approval complete")
+
+    # Wait for the approval to propagate on-chain
+    time.sleep(2)
+
+    return llm
+
+
+@pytest.mark.asyncio(loop_scope="module")
+async def test_chat(llm_client):
+    messages = [
+        {"role": "user", "content": "What is the capital of France? Reply in one word."},
+    ]
+
+    result = await llm_client.chat(
+        model=og.TEE_LLM.GEMINI_2_5_FLASH,
+        messages=messages,
+        max_tokens=50,
+        x402_settlement_mode=og.x402SettlementMode.INDIVIDUAL_FULL,
+    )
+
+    assert result is not None
+    assert "Paris" in result.chat_output["content"]
+
+
+@pytest.mark.asyncio(loop_scope="module")
+async def test_chat_streaming(llm_client):
+    messages = [
+        {"role": "user", "content": "What is 2 + 2? Reply with just the number."},
+    ]
+
+    stream = await llm_client.chat(
+        model=og.TEE_LLM.GEMINI_2_5_FLASH,
+        messages=messages,
+        max_tokens=50,
+        x402_settlement_mode=og.x402SettlementMode.INDIVIDUAL_FULL,
+        stream=True,
+    )
+
+    chunks = []
+    async for chunk in stream:
+        if chunk.choices[0].delta.content:
+            chunks.append(chunk.choices[0].delta.content)
+
+    full_response = "".join(chunks)
+    assert len(chunks) > 0, "Expected at least one streamed chunk"
+    assert "4" in full_response
