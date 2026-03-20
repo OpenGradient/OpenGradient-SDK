@@ -23,9 +23,9 @@ ERC20_TRANSFER_ABI = [
 ]
 
 # Amount of OPG tokens to fund the test account with
-OPG_FUND_AMOUNT = 0.05
+OPG_FUND_AMOUNT = 0.005
 # Amount of ETH to fund the test account with (for gas)
-ETH_FUND_AMOUNT = 0.001
+ETH_FUND_AMOUNT = 0.0001
 
 
 def _fund_account(funder_key: str, recipient_address: str):
