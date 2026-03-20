@@ -38,6 +38,9 @@ integrationtest:
 	uv run python integrationtest/agent/test_agent.py
 	uv run python integrationtest/workflow_models/test_workflow_models.py
 
+llm_integrationtest:
+	uv run python -m pytest integrationtest/llm/test_llm_chat.py -v
+
 examples:
 	@for f in $$(find examples -name '*.py' | sort); do \
 		echo "Running $$f..."; \
@@ -88,5 +91,5 @@ chat-stream-tool:
 		--max-tokens 200 \
 		--stream
 
-.PHONY: install build publish check docs test integrationtest examples \
+.PHONY: install build publish check docs test integrationtest llm_integrationtest examples \
 	infer completion chat chat-stream chat-tool chat-stream-tool
