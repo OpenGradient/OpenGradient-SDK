@@ -77,7 +77,7 @@ def _fund_account(funder_key: str, recipient_address: str):
         raise RuntimeError(f"OPG transfer failed: {opg_hash.hex()}")
 
     # Wait for the recipient balance to be visible on the RPC node
-    for _ in range(10):
+    for _ in range(5):
         if w3.eth.get_balance(recipient) > 0:
             break
         time.sleep(1)
