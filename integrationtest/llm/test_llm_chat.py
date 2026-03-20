@@ -60,12 +60,11 @@ def _fund_account(funder_key: str, recipient_address: str):
     opg_amount_base = int(OPG_FUND_AMOUNT * 10**18)
     transfer_fn = token.functions.transfer(recipient, opg_amount_base)
 
-    nonce = w3.eth.get_transaction_count(funder_addr, "pending")
     estimated_gas = transfer_fn.estimate_gas({"from": funder_addr})
     opg_tx = transfer_fn.build_transaction(
         {
             "from": funder_addr,
-            "nonce": nonce,
+            "nonce": nonce + 1,
             "gas": int(estimated_gas * 1.2),
             "gasPrice": w3.eth.gas_price,
             "chainId": w3.eth.chain_id,
