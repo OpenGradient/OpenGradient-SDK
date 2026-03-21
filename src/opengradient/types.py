@@ -301,6 +301,12 @@ class TextGenerationStream:
         """Iterate over stream chunks."""
         return self
 
+    def __aiter__(self):
+        """Return async iterator (required for async for loops)."""
+        if not self._is_async:
+            raise TypeError("Use __iter__ for sync iterators")
+        return self
+
     def __next__(self) -> StreamChunk:
         """Get next stream chunk."""
         import json
