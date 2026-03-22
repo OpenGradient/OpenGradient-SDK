@@ -77,7 +77,6 @@ class TestEnsureOpgApprovalSkips:
 
         assert result.tx_hash is None
 
-
 class TestEnsureOpgApprovalSendsTx:
     """Cases where allowance is insufficient and a transaction is sent."""
 
@@ -150,6 +149,37 @@ class TestEnsureOpgApprovalSendsTx:
         tx_dict = approve_fn.build_transaction.call_args[0][0]
         assert tx_dict["gas"] == int(50_000 * 1.2)
 
+    def test_waits_for_allowance_update_after_receipt(self, mock_wallet, mock_web3, monkeypatch):
+        """After a successful receipt, poll allowance until the updated value is visible."""
+        monkeypatch.setattr("opengradient.client.opg_token.ALLOWANCE_POLL_INTERVAL", 0)
+        contract = _setup_allowance(mock_web3, 0)
+
+        approve_fn = MagicMock()
+        contract.functions.approve.return_value = approve_fn
+        approve_fn.estimate_gas.return_value = 50_000
+        approve_fn.build_transaction.return_value = {"mock": "tx"}
+
+        mock_web3.eth.get_transaction_count.return_value = 0
+        mock_web3.eth.gas_price = 1_000_000_000
+        mock_web3.eth.chain_id = 84532
+
+        signed = MagicMock()
+        signed.raw_transaction = b"\x00"
+        mock_wallet.sign_transaction.return_value = signed
+
+        tx_hash = MagicMock()
+        tx_hash.hex.return_value = "0xconfirmed"
+        mock_web3.eth.send_raw_transaction.return_value = tx_hash
+        mock_web3.eth.wait_for_transaction_receipt.return_value = SimpleNamespace(status=1, blockNumber=100)
+
+        amount_base = int(1.0 * 10**18)
+        contract.functions.allowance.return_value.call.side_effect = [0, 0, amount_base]
+
+        result = ensure_opg_approval(mock_wallet, 1.0)
+
+        assert result.allowance_before == 0
+        assert result.allowance_after == amount_base
+        assert result.tx_hash == "0xconfirmed"
 
 class TestEnsureOpgApprovalErrors:
     """Error handling paths."""
