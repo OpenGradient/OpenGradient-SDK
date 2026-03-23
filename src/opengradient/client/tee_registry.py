@@ -1,6 +1,7 @@
 """TEE Registry client for fetching verified TEE endpoints and TLS certificates."""
 
 import logging
+import random
 import ssl
 from dataclasses import dataclass
 from typing import List, NamedTuple, Optional
@@ -109,17 +110,32 @@ class TEERegistry:
 
     def get_llm_tee(self) -> Optional[TEEEndpoint]:
         """
-        Return the first active LLM proxy TEE from the registry.
+        Return a randomly selected active LLM proxy TEE from the registry.
+
+        Randomizing the selection distributes load across all healthy TEEs and
+        avoids repeatedly routing to the same TEE when it starts failing
+        (addresses issue #200 — improve TEE selection/retry logic).
 
         Returns:
-            TEEEndpoint for an active LLM proxy TEE, or None if none are available.
+            TEEEndpoint for a randomly chosen active LLM proxy TEE, or None if
+            none are available.
         """
         tees = self.get_active_tees_by_type(TEE_TYPE_LLM_PROXY)
         if not tees:
             logger.warning("No active LLM proxy TEEs found in registry")
             return None
 
-        return tees[0]
+        # Randomly select from all active TEEs to distribute load and improve
+        # resilience — if one TEE is failing, successive LLM() constructions
+        # will eventually land on a healthy one.
+        selected = random.choice(tees)
+        logger.debug(
+            "Selected TEE %s (endpoint=%s) from %d active LLM proxy TEE(s)",
+            selected.tee_id,
+            selected.endpoint,
+            len(tees),
+        )
+        return selected
 
 
 def build_ssl_context_from_der(der_cert: bytes) -> ssl.SSLContext:
