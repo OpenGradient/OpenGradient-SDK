@@ -1,11 +1,12 @@
 """LLM chat and completion via TEE-verified execution with x402 payments."""
 
-import json
+import json as _json
 import logging
 import ssl
 from dataclasses import dataclass
 from typing import AsyncGenerator, Dict, List, Optional, Union
 
+import httpx
 from eth_account import Account
 from eth_account.account import LocalAccount
 from x402 import x402Client
@@ -30,6 +31,12 @@ BASE_TESTNET_NETWORK = "eip155:84532"
 _CHAT_ENDPOINT = "/v1/chat/completions"
 _COMPLETION_ENDPOINT = "/v1/completions"
 _REQUEST_TIMEOUT = 60
+
+_402_HINT = (
+    "Payment required (HTTP 402): your wallet may have insufficient OPG token allowance. "
+    "Call llm.ensure_opg_approval(opg_amount=<amount>) to approve Permit2 spending "
+    "before making requests. Minimum amount is 0.05 OPG."
+)
 
 
 @dataclass
@@ -267,7 +274,7 @@ class LLM:
             )
             response.raise_for_status()
             raw_body = await response.aread()
-            result = json.loads(raw_body.decode())
+            result = _json.loads(raw_body.decode())
             return TextGenerationOutput(
                 transaction_hash="external",
                 completion_output=result.get("completion"),
@@ -277,6 +284,10 @@ class LLM:
             )
         except RuntimeError:
             raise
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 402:
+                raise RuntimeError(_402_HINT) from e
+            raise RuntimeError(f"TEE LLM completion failed: {e}") from e
         except Exception as e:
             raise RuntimeError(f"TEE LLM completion failed: {e}") from e
 
@@ -354,7 +365,7 @@ class LLM:
             )
             response.raise_for_status()
             raw_body = await response.aread()
-            result = json.loads(raw_body.decode())
+            result = _json.loads(raw_body.decode())
 
             choices = result.get("choices")
             if not choices:
@@ -377,6 +388,12 @@ class LLM:
             )
         except RuntimeError:
             raise
+        except httpx.HTTPStatusError as e:
+            # Provide an actionable error message for the very common 402 case
+            # (issue #188 — users see a cryptic RuntimeError instead of guidance).
+            if e.response.status_code == 402:
+                raise RuntimeError(_402_HINT) from e
+            raise RuntimeError(f"TEE LLM chat failed: {e}") from e
         except Exception as e:
             raise RuntimeError(f"TEE LLM chat failed: {e}") from e
 
@@ -425,6 +442,8 @@ class LLM:
         status_code = getattr(response, "status_code", None)
         if status_code is not None and status_code >= 400:
             body = await response.aread()
+            if status_code == 402:
+                raise RuntimeError(_402_HINT)
             raise RuntimeError(f"TEE LLM streaming request failed with status {status_code}: {body.decode('utf-8', errors='replace')}")
 
         buffer = b""
@@ -452,8 +471,8 @@ class LLM:
                     return
 
                 try:
-                    data = json.loads(data_str)
-                except json.JSONDecodeError:
+                    data = _json.loads(data_str)
+                except _json.JSONDecodeError:
                     continue
 
                 chunk = StreamChunk.from_sse_data(data)
