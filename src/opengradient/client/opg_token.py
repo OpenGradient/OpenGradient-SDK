@@ -82,8 +82,10 @@ def ensure_opg_approval(wallet_account: LocalAccount, opg_amount: float) -> Perm
 
     allowance_before = token.functions.allowance(owner, spender).call()
 
-    # Only approve if the allowance is less than 10% of the requested amount
-    if allowance_before >= amount_base * 0.1:
+    # Only skip approval if the existing allowance fully covers the requested amount.
+    # Previously this used 0.1 * amount_base (10%), which was insufficient and caused
+    # downstream x402 payment failures when the allowance was between 10% and 100%.
+    if allowance_before >= amount_base:
         return Permit2ApprovalResult(
             allowance_before=allowance_before,
             allowance_after=allowance_before,
@@ -123,7 +125,6 @@ def ensure_opg_approval(wallet_account: LocalAccount, opg_amount: float) -> Perm
                     f"was not visible within {ALLOWANCE_CONFIRMATION_TIMEOUT} seconds: {tx_hash.hex()}"
                 )
             time.sleep(ALLOWANCE_POLL_INTERVAL)
-
 
         return Permit2ApprovalResult(
             allowance_before=allowance_before,
