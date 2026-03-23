@@ -1,6 +1,7 @@
 """OPG token Permit2 approval utilities for x402 payments."""
 
 from dataclasses import dataclass
+import time
 from typing import Optional
 
 from eth_account.account import LocalAccount
@@ -9,6 +10,9 @@ from x402.mechanisms.evm.constants import PERMIT2_ADDRESS
 
 BASE_OPG_ADDRESS = "0x240b09731D96979f50B2C649C9CE10FcF9C7987F"
 BASE_SEPOLIA_RPC = "https://sepolia.base.org"
+APPROVAL_TX_TIMEOUT = 120
+ALLOWANCE_CONFIRMATION_TIMEOUT = 120
+ALLOWANCE_POLL_INTERVAL = 1.0
 
 ERC20_ABI = [
     {
@@ -102,12 +106,24 @@ def ensure_opg_approval(wallet_account: LocalAccount, opg_amount: float) -> Perm
 
         signed = wallet_account.sign_transaction(tx)  # type: ignore[arg-type]
         tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
-        receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
+        receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=APPROVAL_TX_TIMEOUT)
 
         if receipt.status != 1:  # type: ignore[attr-defined]
             raise RuntimeError(f"Permit2 approval transaction reverted: {tx_hash.hex()}")
 
-        allowance_after = token.functions.allowance(owner, spender).call()
+        deadline = time.time() + ALLOWANCE_CONFIRMATION_TIMEOUT
+        allowance_after = allowance_before
+        while allowance_after < amount_base:
+            allowance_after = token.functions.allowance(owner, spender).call()
+            if allowance_after >= amount_base:
+                break
+            if time.time() >= deadline:
+                raise RuntimeError(
+                    "Permit2 approval transaction was mined, but the updated allowance "
+                    f"was not visible within {ALLOWANCE_CONFIRMATION_TIMEOUT} seconds: {tx_hash.hex()}"
+                )
+            time.sleep(ALLOWANCE_POLL_INTERVAL)
+
 
         return Permit2ApprovalResult(
             allowance_before=allowance_before,
