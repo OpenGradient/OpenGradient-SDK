@@ -3,7 +3,7 @@
 import json
 import logging
 from decimal import Decimal
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Union
 
 import numpy as np
 from web3.datastructures import AttributeDict
@@ -36,11 +36,34 @@ def convert_to_fixed_point(number: float) -> Tuple[int, int]:
     return value, decimals
 
 
+def convert_fixed_point_to_python(value: int, decimals: int) -> Union[int, np.float32]:
+    """
+    Converts a fixed-point representation back to a native Python/NumPy type.
+
+    Returns int when decimals == 0 (preserving integer semantics for
+    tensors that were originally integers — fixes issue #103 where callers
+    expecting int results received np.float32 and had to cast manually).
+    Returns np.float32 for all other cases.
+
+    Args:
+        value:    The integer significand stored on-chain.
+        decimals: The scale factor exponent (value / 10**decimals).
+
+    Returns:
+        int if decimals == 0, np.float32 otherwise.
+    """
+    if decimals == 0:
+        return int(value)
+    return np.float32(Decimal(value) / (10 ** Decimal(decimals)))
+
+
 def convert_to_float32(value: int, decimals: int) -> np.float32:
     """
-    Converts fixed point back into floating point
+    Deprecated: use convert_fixed_point_to_python() instead.
 
-    Returns an np.float32 type
+    Kept for backwards compatibility — always returns np.float32 regardless
+    of the decimals value.  New callers should use convert_fixed_point_to_python
+    which correctly returns int when decimals == 0.
     """
     return np.float32(Decimal(value) / (10 ** Decimal(decimals)))
 
@@ -61,11 +84,11 @@ def convert_to_model_input(inputs: Dict[str, np.ndarray]) -> Tuple[List[Tuple[st
     for tensor_name, tensor_data in inputs.items():
         # Convert to NP array if list or single object
         if isinstance(tensor_data, list):
-            logging.debug(f"\tConverting {tensor_data} to np array")
+            logging.debug(f"	Converting {tensor_data} to np array")
             tensor_data = np.array(tensor_data)
 
         if isinstance(tensor_data, (str, int, float)):
-            logging.debug(f"\tConverting single entry {tensor_data} to a list")
+            logging.debug(f"	Converting single entry {tensor_data} to a list")
             tensor_data = np.array([tensor_data])
 
         # Check if type is np array
@@ -84,7 +107,7 @@ def convert_to_model_input(inputs: Dict[str, np.ndarray]) -> Tuple[List[Tuple[st
             converted_tensor_data = np.array([convert_to_fixed_point(i) for i in flat_data], dtype=data_type)
 
             input = (tensor_name, converted_tensor_data.tolist(), shape)
-            logging.debug("\tFloating tensor input: %s", input)
+            logging.debug("	Floating tensor input: %s", input)
 
             number_tensors.append(input)
         elif issubclass(tensor_data.dtype.type, np.integer):
@@ -93,13 +116,13 @@ def convert_to_model_input(inputs: Dict[str, np.ndarray]) -> Tuple[List[Tuple[st
             converted_tensor_data = np.array([convert_to_fixed_point(int(i)) for i in flat_data], dtype=data_type)
 
             input = (tensor_name, converted_tensor_data.tolist(), shape)
-            logging.debug("\tInteger tensor input: %s", input)
+            logging.debug("	Integer tensor input: %s", input)
 
             number_tensors.append(input)
         elif issubclass(tensor_data.dtype.type, np.str_):
             # TODO (Kyle): Add shape into here as well
             input = (tensor_name, [s for s in flat_data])
-            logging.debug("\tString tensor input: %s", input)
+            logging.debug("	String tensor input: %s", input)
 
             string_tensors.append(input)
         else:
@@ -131,10 +154,11 @@ def convert_to_model_output(event_data: AttributeDict) -> Dict[str, np.ndarray]:
                 name = tensor.get("name")
                 shape = tensor.get("shape")
                 values = []
-                # Convert from fixed point back into np.float32
+                # Use convert_fixed_point_to_python so integer tensors (decimals==0)
+                # come back as int instead of np.float32 (fixes issue #103).
                 for v in tensor.get("values", []):
                     if isinstance(v, (AttributeDict, dict)):
-                        values.append(convert_to_float32(value=int(v.get("value")), decimals=int(v.get("decimals"))))
+                        values.append(convert_fixed_point_to_python(value=int(v.get("value")), decimals=int(v.get("decimals"))))
                     else:
                         logging.warning(f"Unexpected number type: {type(v)}")
                 output_dict[name] = np.array(values).reshape(shape)
@@ -183,10 +207,11 @@ def convert_array_to_model_output(array_data: List) -> ModelOutput:
         values = tensor[1]
         shape = tensor[2]
 
-        # Convert from fixed point into np.float32
+        # Use convert_fixed_point_to_python so integer tensors (decimals==0)
+        # come back as int instead of np.float32 (fixes issue #103).
         converted_values = []
         for value in values:
-            converted_values.append(convert_to_float32(value=value[0], decimals=value[1]))
+            converted_values.append(convert_fixed_point_to_python(value=value[0], decimals=value[1]))
 
         number_data[name] = np.array(converted_values).reshape(shape)
 
