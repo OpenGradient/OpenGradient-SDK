@@ -324,7 +324,7 @@ class TextGenerationStream:
 
         while True:
             try:
-                line = next(self._iterator)
+                line = next(self._iterator)  # type: ignore[arg-type]
             except StopIteration:
                 raise
 
@@ -355,7 +355,7 @@ class TextGenerationStream:
 
         while True:
             try:
-                line = await self._iterator.__anext__()
+                line = await self._iterator.__anext__()  # type: ignore[union-attr]
             except StopAsyncIteration:
                 raise
 

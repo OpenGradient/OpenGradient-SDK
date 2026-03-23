@@ -2,7 +2,7 @@ import os
 
 import opengradient as og
 
-alpha = og.Alpha(private_key=os.environ.get("OG_PRIVATE_KEY"))
+alpha = og.Alpha(private_key=os.environ["OG_PRIVATE_KEY"])
 
 inference_result = alpha.infer(
     model_cid="hJD2Ja3akZFt1A2LT-D_1oxOCz_OtuGYw4V9eE1m39M",

@@ -4,14 +4,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-OpenGradient Python SDK - A decentralized model management and inference platform SDK. The SDK enables programmatic access to model repositories and decentralized AI infrastructure, including end-to-end verified AI execution. Use virtualenv for dependency management locally (in `venv` folder).
+OpenGradient Python SDK - A decentralized model management and inference platform SDK. The SDK enables programmatic access to model repositories and decentralized AI infrastructure, including end-to-end verified AI execution. Uses `uv` for dependency management.
 
 ## Development Commands
 
 ### Build & Installation
 ```bash
-# Install in development mode
-pip install -e .
+# Install dependencies (syncs from pyproject.toml/uv.lock)
+make install  # or: uv sync --all-extras
 
 # Build distribution
 make build
@@ -70,7 +70,6 @@ make chat-tool
    - `twins.py` — Digital twins chat integration (twin.fun)
    - `alpha.py` — Alpha Testnet on-chain inference and workflows
    - `opg_token.py` — OPG token Permit2 approval
-   - `exceptions.py` — Custom exception classes
 
 2. **CLI (`src/opengradient/cli.py`)**: Command-line interface using Click
    - Commands: `config`, `infer`, `completion`, `chat`
@@ -153,5 +152,5 @@ Key dependencies (Python >=3.11):
 - `click`: CLI framework
 - `firebase-rest-api`: Backend services
 - `pydantic`: Data validation
-- `og-test-v2-x402`: x402 payment protocol
+- `og-x402`: x402 payment protocol
 - `numpy`: Array handling

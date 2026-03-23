@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "opengradient"
-version = "0.8.1"
+version = "0.9.0"
 description = "Python SDK for OpenGradient decentralized model management & inference services"
 authors = [{name = "OpenGradient", email = "adam@vannalabs.ai"}]
 readme = "README.md"
@@ -28,6 +28,17 @@ dependencies = [
     "openai>=1.58.1",
     "pydantic>=2.9.2",
     "og-x402==0.0.1.dev4"
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff",
+    "mypy",
+    "pytest",
+    "pytest-asyncio",
+    "langgraph",
+    "pdoc3==0.10.0",
+    "types-protobuf",
 ]
 
 [project.scripts]
@@ -67,3 +78,8 @@ ignore = []
 
 [tool.ruff.mccabe]
 max-complexity = 10
+
+[dependency-groups]
+dev = [
+    "setuptools>=82.0.1",
+]

@@ -15,7 +15,7 @@ from langgraph.prebuilt import create_react_agent
 
 import opengradient as og
 
-private_key = os.environ.get("OG_PRIVATE_KEY")
+private_key = os.environ["OG_PRIVATE_KEY"]
 
 # One-time Permit2 approval for OPG spending (idempotent)
 llm_client = og.LLM(private_key=private_key)

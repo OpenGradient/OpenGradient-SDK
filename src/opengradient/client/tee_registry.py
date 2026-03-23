@@ -95,13 +95,7 @@ class TEERegistry:
             if not tee.endpoint or not tee.tls_certificate:
                 logger.warning("  teeId=%s  missing endpoint or TLS cert  (skipped)", tee_id_hex)
                 continue
-            logger.info(
-                "  teeId=%s  endpoint=%s  paymentAddress=%s  certBytes=%d",
-                tee_id_hex,
-                tee.endpoint,
-                tee.payment_address,
-                len(tee.tls_certificate),
-            )
+
             endpoints.append(
                 TEEEndpoint(
                     tee_id=tee_id_hex,
@@ -111,7 +105,6 @@ class TEERegistry:
                 )
             )
 
-        logger.info("Discovered %d active %s TEE(s) from registry", len(endpoints), type_label)
         return endpoints
 
     def get_llm_tee(self) -> Optional[TEEEndpoint]:
@@ -121,13 +114,12 @@ class TEERegistry:
         Returns:
             TEEEndpoint for an active LLM proxy TEE, or None if none are available.
         """
-        logger.debug("Querying TEE registry for active LLM proxy TEEs...")
         tees = self.get_active_tees_by_type(TEE_TYPE_LLM_PROXY)
-        if tees:
-            logger.info("Selected LLM TEE: endpoint=%s  teeId=%s", tees[0].endpoint, tees[0].tee_id)
-        else:
+        if not tees:
             logger.warning("No active LLM proxy TEEs found in registry")
-        return tees[0] if tees else None
+            return None
+
+        return tees[0]
 
 
 def build_ssl_context_from_der(der_cert: bytes) -> ssl.SSLContext:

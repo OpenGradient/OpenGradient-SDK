@@ -165,10 +165,10 @@ class ModelHub:
                     else:
                         raise RuntimeError("Empty or null response content received")
                 elif response.status_code == 500:
-                    raise RuntimeError("Internal server error occurred", status_code=500)
+                    raise RuntimeError(f"Internal server error occurred (status_code=500)")
                 else:
                     error_message = response.json().get("detail", "Unknown error occurred")
-                    raise RuntimeError(f"Upload failed: {error_message}", status_code=response.status_code)
+                    raise RuntimeError(f"Upload failed: {error_message} (status_code={response.status_code})")
 
         except requests.RequestException as e:
             raise RuntimeError(f"Upload failed: {str(e)}")
@@ -200,7 +200,8 @@ class ModelHub:
         try:
             response = requests.get(url, headers=headers)
             response.raise_for_status()
-            return response.json()
+            result: list[dict] = response.json()
+            return result
 
         except requests.RequestException as e:
             raise RuntimeError(f"File listing failed: {str(e)}")

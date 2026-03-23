@@ -1,4 +1,4 @@
-name: Tests
+name: E2E Tests
 
 on:
   pull_request:
@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 jobs:
-  test:
+  e2e:
     runs-on: ubuntu-latest
 
     steps:
@@ -22,5 +22,7 @@ jobs:
       - name: Install dependencies
         run: uv sync --all-extras
 
-      - name: Run tests
-        run: make test
+      - name: Run LLM E2E tests
+        env:
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+        run: make llm_integrationtest

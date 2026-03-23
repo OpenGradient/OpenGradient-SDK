@@ -20,7 +20,8 @@ def get_abi(abi_name: str) -> dict:
     """Returns the ABI for the requested contract."""
     abi_path = _ABI_DIR / abi_name
     with open(abi_path, "r") as f:
-        return json.load(f)
+        result: dict = json.load(f)
+        return result
 
 
 def get_bin(bin_name: str) -> str:
