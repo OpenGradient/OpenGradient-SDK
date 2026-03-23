@@ -1610,15 +1610,15 @@ wheels = [
 
 [[package]]
 name = "og-x402"
-version = "0.0.1.dev2"
+version = "0.0.1.dev4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pydantic" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/1e/75/40c43cd44aa394e68acc98f8d5b8376f3a5e3b9eddf55b1c0c34616c340b/og_x402-0.0.1.dev2.tar.gz", hash = "sha256:bf5d4484ece5a371358a336fcc79fe5678be611044c55ade45c4be9d19d7691b", size = 899662, upload-time = "2026-03-17T06:35:36.587Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b1/5b/46a55d93d9da5535ff2bb28d48d5766c9108d9e16546cb9c7a65cde0fb11/og_x402-0.0.1.dev4.tar.gz", hash = "sha256:2d8a71b2f4222284e65d45e2d122faafe3bdb33c4fae77903f9665d29e517a97", size = 900109, upload-time = "2026-03-23T15:10:37.144Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/4c/79/8c7543c2e647508e04ad0983e9a3a7b861f388ec591ccdc42c69a3128d42/og_x402-0.0.1.dev2-py3-none-any.whl", hash = "sha256:65e7d3bbb3c7f51e51dad974f6c405a230693816f72d874cf0d6d705a8eec271", size = 952331, upload-time = "2026-03-17T06:35:34.695Z" },
+    { url = "https://files.pythonhosted.org/packages/45/da/5e0be4b8415a6c557a94991367c6124998df3ba014bceb76b595ef48c8c7/og_x402-0.0.1.dev4-py3-none-any.whl", hash = "sha256:c329ceb4fe7cc4195fa5bf9c769f5c571b61c8333b33fd0fe204a2ab377d8366", size = 952662, upload-time = "2026-03-23T15:10:35.21Z" },
 ]
 
 [[package]]
@@ -1664,7 +1664,7 @@ requires-dist = [
     { name = "firebase-rest-api", specifier = ">=1.11.0" },
     { name = "langchain", specifier = ">=0.3.7" },
     { name = "numpy", specifier = ">=1.26.4" },
-    { name = "og-x402", specifier = "==0.0.1.dev2" },
+    { name = "og-x402", specifier = "==0.0.1.dev4" },
     { name = "openai", specifier = ">=1.58.1" },
     { name = "pydantic", specifier = ">=2.9.2" },
     { name = "requests", specifier = ">=2.32.3" },
