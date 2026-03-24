@@ -24,7 +24,7 @@ OpenGradient enables developers to build AI applications with verifiable executi
 pip install opengradient
 ```
 
-**Note**: Windows users should temporarily enable WSL during installation (fix in progress).
+**Note**: > **Windows users:** See the [Windows Installation Guide](./WINDOWS_INSTALL.md) for step-by-step setup instructions.
 
 ## Network Architecture
 
