@@ -77,6 +77,7 @@ class TestEnsureOpgApprovalSkips:
 
         assert result.tx_hash is None
 
+
 class TestEnsureOpgApprovalSendsTx:
     """Cases where allowance is insufficient and a transaction is sent."""
 
@@ -180,6 +181,7 @@ class TestEnsureOpgApprovalSendsTx:
         assert result.allowance_before == 0
         assert result.allowance_after == amount_base
         assert result.tx_hash == "0xconfirmed"
+
 
 class TestEnsureOpgApprovalErrors:
     """Error handling paths."""

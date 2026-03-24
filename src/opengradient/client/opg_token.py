@@ -124,7 +124,6 @@ def ensure_opg_approval(wallet_account: LocalAccount, opg_amount: float) -> Perm
                 )
             time.sleep(ALLOWANCE_POLL_INTERVAL)
 
-
         return Permit2ApprovalResult(
             allowance_before=allowance_before,
             allowance_after=allowance_after,

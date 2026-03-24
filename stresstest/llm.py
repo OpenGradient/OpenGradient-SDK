@@ -1,4 +1,5 @@
 import argparse
+import asyncio
 import statistics
 
 from utils import stress_test_wrapper
@@ -7,16 +8,16 @@ import opengradient as og
 
 # Number of requests to run serially
 NUM_REQUESTS = 100
-MODEL = "anthropic/claude-haiku-4-5"
+MODEL = og.TEE_LLM.CLAUDE_HAIKU_4_5
 
 
-def main(private_key: str):
+async def main(private_key: str):
     llm = og.LLM(private_key=private_key)
 
-    def run_prompt(prompt: str):
-        llm.completion(MODEL, prompt, max_tokens=50)
+    async def run_prompt(prompt: str):
+        await llm.completion(MODEL, prompt, max_tokens=50)
 
-    latencies, failures = stress_test_wrapper(run_prompt, num_requests=NUM_REQUESTS, is_llm=True)
+    latencies, failures = await stress_test_wrapper(run_prompt, num_requests=NUM_REQUESTS)
 
     # Calculate and print statistics
     total_requests = NUM_REQUESTS
@@ -55,4 +56,4 @@ if __name__ == "__main__":
     parser.add_argument("private_key", help="Private key for inference")
     args = parser.parse_args()
 
-    main(args.private_key)
+    asyncio.run(main(args.private_key))
