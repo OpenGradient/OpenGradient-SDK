@@ -80,7 +80,7 @@ class ModelHub:
             expires_in = int(refreshed.get("expiresIn", 3600))
             self._token_expiry = time.time() + expires_in
 
-        return self._hub_user["idToken"]
+        return str(self._hub_user["idToken"])  # cast Any->str for mypy [no-any-return]
 
     def create_model(self, model_name: str, model_desc: str, version: str = "1.00") -> ModelRepository:
         """
