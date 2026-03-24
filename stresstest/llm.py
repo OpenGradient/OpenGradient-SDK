@@ -13,9 +13,11 @@ MODEL = og.TEE_LLM.CLAUDE_HAIKU_4_5
 
 async def main(private_key: str):
     llm = og.LLM(private_key=private_key)
+    llm.ensure_opg_approval(opg_amount=0.1)
 
     async def run_prompt(prompt: str):
-        await llm.completion(MODEL, prompt, max_tokens=50)
+        messages = [{"role": "user", "content": prompt}]
+        await llm.chat(MODEL, messages=messages, max_tokens=50, x402_settlement_mode=og.x402SettlementMode.INDIVIDUAL_FULL)
 
     latencies, failures = await stress_test_wrapper(run_prompt, num_requests=NUM_REQUESTS)
 
