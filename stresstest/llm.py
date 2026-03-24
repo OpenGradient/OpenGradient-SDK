@@ -8,7 +8,7 @@ import opengradient as og
 
 # Number of requests to run serially
 NUM_REQUESTS = 100
-MODEL = og.TEE_LLM.CLAUDE_HAIKU_4_5
+MODEL = og.TEE_LLM.GEMINI_2_5_FLASH
 
 
 async def main(private_key: str):
