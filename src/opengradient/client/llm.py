@@ -3,7 +3,6 @@
 import json
 import logging
 import ssl
-import threading
 from dataclasses import dataclass
 from typing import AsyncGenerator, Awaitable, Callable, Dict, List, Optional, TypeVar, Union
 
@@ -99,8 +98,6 @@ class LLM:
         self._rpc_url = rpc_url
         self._tee_registry_address = tee_registry_address
         self._llm_server_url = llm_server_url
-        self._reset_lock = threading.Lock()
-
         self._refresh_tee_config()
         self._init_x402_stack()
 
@@ -143,10 +140,9 @@ class LLM:
 
     async def _refresh_tee_and_reset(self) -> None:
         """Re-resolve TEE and rebuild the HTTP client with fresh TLS config."""
-        with self._reset_lock:
-            old_http_client = self._http_client
-            self._refresh_tee_config()
-            self._http_client = x402HttpxClient(self._x402_client, verify=self._tls_verify)
+        old_http_client = self._http_client
+        self._refresh_tee_config()
+        self._http_client = x402HttpxClient(self._x402_client, verify=self._tls_verify)
 
         try:
             await old_http_client.aclose()
