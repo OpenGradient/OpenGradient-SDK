@@ -590,6 +590,20 @@ class TestHasSSLCause:
         wrapper.__cause__ = root
         assert LLM._has_ssl_cause(wrapper) is False
 
+    def test_ssl_on_context_when_cause_is_dead_end(self):
+        """SSL sits on __context__ while __cause__ leads to a non-SSL chain."""
+        ssl_root = ssl.SSLError("cert expired")
+        context_mid = OSError("transport")
+        context_mid.__cause__ = ssl_root  # __context__ branch has SSL
+
+        cause_dead_end = ValueError("unrelated")  # __cause__ branch, no SSL
+
+        top = RuntimeError("top")
+        top.__cause__ = cause_dead_end
+        top.__context__ = context_mid
+
+        assert LLM._has_ssl_cause(top) is True
+
     def test_cycle_detection(self):
         """Self-referencing chain should not loop forever."""
         exc = RuntimeError("cycle")
@@ -645,10 +659,8 @@ class TestSSLRetryCompletion:
         fake_http.post = always_ssl
         llm = _make_llm()
 
-        # The second SSL error bubbles out of _call_with_ssl_retry as a
-        # RuntimeError (our wrapper), then caught by completion()'s outer
-        # handler which re-wraps it.
-        with pytest.raises(RuntimeError):
+        # The retry's RuntimeError is re-raised as-is (no double-wrapping).
+        with pytest.raises(RuntimeError, match="connection failed"):
             await llm.completion(model=TEE_LLM.GPT_5, prompt="Hi")
         assert call_count == 2  # original + retry
 

@@ -126,13 +126,19 @@ class LLM:
     @staticmethod
     def _has_ssl_cause(exc: BaseException) -> bool:
         """Return true when the exception chain contains an SSL error."""
+        stack: list[BaseException] = [exc]
         visited: set[int] = set()
-        current: Optional[BaseException] = exc
-        while current is not None and id(current) not in visited:
+        while stack:
+            current = stack.pop()
+            if id(current) in visited:
+                continue
             visited.add(id(current))
             if isinstance(current, ssl.SSLError):
                 return True
-            current = current.__cause__ or current.__context__
+            if current.__cause__ is not None:
+                stack.append(current.__cause__)
+            if current.__context__ is not None:
+                stack.append(current.__context__)
         return False
 
     async def _refresh_tee_and_reset(self) -> None:
