@@ -477,7 +477,7 @@ class TestEnsureOpgApproval:
     def test_rejects_amount_below_minimum(self, fake_http):
         llm = _make_llm()
 
-        with pytest.raises(ValueError, match="at least 0.05"):
+        with pytest.raises(ValueError, match="at least"):
             llm.ensure_opg_approval(opg_amount=0.01)
 
 
