@@ -210,8 +210,8 @@ class LLM:
             ValueError: If the OPG amount is less than 0.05.
             RuntimeError: If the approval transaction fails.
         """
-        if opg_amount < 0.05:
-            raise ValueError("OPG amount must be at least 0.05.")
+        if opg_amount < 0.1:
+            raise ValueError("OPG amount must be at least 0.1.")
         return ensure_opg_approval(self._wallet_account, opg_amount)
 
     async def completion(
