@@ -146,7 +146,7 @@ class LLM:
         with self._reset_lock:
             old_http_client = self._http_client
             self._refresh_tee_config()
-            self._init_x402_stack()
+            self._http_client = x402HttpxClient(self._x402_client, verify=self._tls_verify)
 
         try:
             await old_http_client.aclose()
