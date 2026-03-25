@@ -500,6 +500,7 @@ class TEE_LLM(str, Enum):
     GPT_5_2 = "openai/gpt-5.2"
 
     # Anthropic models via TEE
+    CLAUDE_SONNET_4_0 = "anthropic/claude-sonnet-4-0"
     CLAUDE_SONNET_4_5 = "anthropic/claude-sonnet-4-5"
     CLAUDE_SONNET_4_6 = "anthropic/claude-sonnet-4-6"
     CLAUDE_HAIKU_4_5 = "anthropic/claude-haiku-4-5"
@@ -514,6 +515,8 @@ class TEE_LLM(str, Enum):
     GEMINI_3_FLASH = "google/gemini-3-flash-preview"
 
     # xAI Grok models via TEE
+    GROK_3 = "x-ai/grok-3"
+    GROK_3_MINI = "x-ai/grok-3-mini"
     GROK_4 = "x-ai/grok-4"
     GROK_4_FAST = "x-ai/grok-4-fast"
     GROK_4_1_FAST = "x-ai/grok-4-1-fast"
