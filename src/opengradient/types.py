@@ -511,7 +511,6 @@ class TEE_LLM(str, Enum):
     GEMINI_2_5_FLASH = "google/gemini-2.5-flash"
     GEMINI_2_5_PRO = "google/gemini-2.5-pro"
     GEMINI_2_5_FLASH_LITE = "google/gemini-2.5-flash-lite"
-    GEMINI_3_PRO = "google/gemini-3-pro-preview"
     GEMINI_3_FLASH = "google/gemini-3-flash-preview"
 
     # xAI Grok models via TEE
