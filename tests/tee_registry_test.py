@@ -1,6 +1,7 @@
 import os
 import ssl
 import sys
+import random
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -148,18 +149,35 @@ class TestGetActiveTeesByType:
 
 
 class TestGetLlmTee:
-    def test_returns_first_active_tee(self, mock_contract):
+    def test_returns_active_tee_from_pool(self, mock_contract):
+        """get_llm_tee uses random.choice; patch it to make the test deterministic."""
         registry, contract = mock_contract
 
-        contract.functions.getActiveTEEs.return_value.call.return_value = [
+        tee_infos = [
             _make_tee_info(endpoint="https://tee-1.example.com"),
             _make_tee_info(endpoint="https://tee-2.example.com"),
+        ]
+        contract.functions.getActiveTEEs.return_value.call.return_value = tee_infos
+
+        with patch("src.opengradient.client.tee_registry.random.choice", side_effect=lambda seq: seq[0]):
+            result = registry.get_llm_tee()
+
+        assert result is not None
+        assert result.endpoint == "https://tee-1.example.com"
+
+    def test_returns_any_active_tee(self, mock_contract):
+        """Without patching random.choice, result must still be one of the active TEEs."""
+        registry, contract = mock_contract
+
+        endpoints = {"https://tee-1.example.com", "https://tee-2.example.com"}
+        contract.functions.getActiveTEEs.return_value.call.return_value = [
+            _make_tee_info(endpoint=ep) for ep in sorted(endpoints)
         ]
 
         result = registry.get_llm_tee()
 
         assert result is not None
-        assert result.endpoint == "https://tee-1.example.com"
+        assert result.endpoint in endpoints
 
     def test_returns_none_when_no_tees(self, mock_contract):
         registry, contract = mock_contract
