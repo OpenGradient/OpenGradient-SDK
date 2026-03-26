@@ -108,6 +108,8 @@ class LLM:
 
         self._connect_tee()
 
+    # ── TEE resolution and connection ───────────────────────────────────────────
+
     def _connect_tee(self) -> None:
         """Resolve TEE from registry and create a secure HTTP client for it."""
         endpoint, tls_cert_der, tee_id, tee_payment_address = self._resolve_tee(
@@ -132,30 +134,6 @@ class LLM:
         except Exception:
             logger.debug("Failed to close previous HTTP client during TEE refresh.", exc_info=True)
 
-    async def _call_with_tee_retry(
-        self,
-        operation_name: str,
-        call: Callable[[], Awaitable[T]],
-    ) -> T:
-        """Execute *call*; on connection failure, pick a new TEE and retry once.
-
-        Only retries when the request never reached the server (no HTTP response).
-        Server-side errors (4xx/5xx) are not retried.
-        """
-        try:
-            return await call()
-        except httpx.HTTPStatusError:
-            raise
-        except Exception as exc:
-            logger.warning(
-                "Connection failure during %s; refreshing TEE and retrying once: %s",
-                operation_name,
-                exc,
-            )
-            await self._refresh_tee()
-            return await call()
-
-    # ── TEE resolution ──────────────────────────────────────────────────
 
     @staticmethod
     def _resolve_tee(
@@ -223,6 +201,29 @@ class LLM:
             tee_endpoint=self._tee_endpoint,
             tee_payment_address=self._tee_payment_address,
         )
+
+    async def _call_with_tee_retry(
+        self,
+        operation_name: str,
+        call: Callable[[], Awaitable[T]],
+    ) -> T:
+        """Execute *call*; on connection failure, pick a new TEE and retry once.
+
+        Only retries when the request never reached the server (no HTTP response).
+        Server-side errors (4xx/5xx) are not retried.
+        """
+        try:
+            return await call()
+        except httpx.HTTPStatusError:
+            raise
+        except Exception as exc:
+            logger.warning(
+                "Connection failure during %s; refreshing TEE and retrying once: %s",
+                operation_name,
+                exc,
+            )
+            await self._refresh_tee()
+            return await call()
 
     # ── Public API ──────────────────────────────────────────────────────
 
