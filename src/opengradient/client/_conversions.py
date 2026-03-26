@@ -36,24 +36,22 @@ def convert_to_fixed_point(number: float) -> Tuple[int, int]:
     return value, decimals
 
 
-def convert_fixed_point_to_python(value: int, decimals: int) -> Union[int, np.float32]:
+def convert_fixed_point_to_python(value: int, decimals: int) -> np.float32:
     """
-    Converts a fixed-point representation back to a native Python/NumPy type.
+    Converts a fixed-point representation back to a NumPy float32.
 
-    Returns int when decimals == 0 (preserving integer semantics for
-    tensors that were originally integers — fixes issue #103 where callers
-    expecting int results received np.float32 and had to cast manually).
-    Returns np.float32 for all other cases.
+    This function is intentionally type-stable and always returns np.float32,
+    regardless of the value of `decimals`. Callers that require integer
+    semantics should perform an explicit cast (e.g., int(...)) based on
+    their own dtype metadata or application logic.
 
     Args:
         value:    The integer significand stored on-chain.
         decimals: The scale factor exponent (value / 10**decimals).
 
     Returns:
-        int if decimals == 0, np.float32 otherwise.
+        np.float32 corresponding to `value / 10**decimals`.
     """
-    if decimals == 0:
-        return int(value)
     return np.float32(Decimal(value) / (10 ** Decimal(decimals)))
 
 
@@ -61,9 +59,9 @@ def convert_to_float32(value: int, decimals: int) -> np.float32:
     """
     Deprecated: use convert_fixed_point_to_python() instead.
 
-    Kept for backwards compatibility — always returns np.float32 regardless
-    of the decimals value.  New callers should use convert_fixed_point_to_python
-    which correctly returns int when decimals == 0.
+    Kept for backwards compatibility. New callers should use
+    convert_fixed_point_to_python which is type-stable and always
+    returns np.float32.
     """
     return np.float32(Decimal(value) / (10 ** Decimal(decimals)))
 
@@ -84,11 +82,11 @@ def convert_to_model_input(inputs: Dict[str, np.ndarray]) -> Tuple[List[Tuple[st
     for tensor_name, tensor_data in inputs.items():
         # Convert to NP array if list or single object
         if isinstance(tensor_data, list):
-            logging.debug(f"	Converting {tensor_data} to np array")
+            logging.debug(f"\tConverting {tensor_data} to np array")
             tensor_data = np.array(tensor_data)
 
         if isinstance(tensor_data, (str, int, float)):
-            logging.debug(f"	Converting single entry {tensor_data} to a list")
+            logging.debug(f"\tConverting single entry {tensor_data} to a list")
             tensor_data = np.array([tensor_data])
 
         # Check if type is np array
@@ -107,7 +105,7 @@ def convert_to_model_input(inputs: Dict[str, np.ndarray]) -> Tuple[List[Tuple[st
             converted_tensor_data = np.array([convert_to_fixed_point(i) for i in flat_data], dtype=data_type)
 
             input = (tensor_name, converted_tensor_data.tolist(), shape)
-            logging.debug("	Floating tensor input: %s", input)
+            logging.debug("\tFloating tensor input: %s", input)
 
             number_tensors.append(input)
         elif issubclass(tensor_data.dtype.type, np.integer):
@@ -116,13 +114,13 @@ def convert_to_model_input(inputs: Dict[str, np.ndarray]) -> Tuple[List[Tuple[st
             converted_tensor_data = np.array([convert_to_fixed_point(int(i)) for i in flat_data], dtype=data_type)
 
             input = (tensor_name, converted_tensor_data.tolist(), shape)
-            logging.debug("	Integer tensor input: %s", input)
+            logging.debug("\tInteger tensor input: %s", input)
 
             number_tensors.append(input)
         elif issubclass(tensor_data.dtype.type, np.str_):
             # TODO (Kyle): Add shape into here as well
             input = (tensor_name, [s for s in flat_data])
-            logging.debug("	String tensor input: %s", input)
+            logging.debug("\tString tensor input: %s", input)
 
             string_tensors.append(input)
         else:
