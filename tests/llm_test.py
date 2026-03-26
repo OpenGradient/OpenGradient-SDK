@@ -5,9 +5,10 @@ so LLM builds normally — no test-only constructor params, no mocking of privat
 """
 
 import json
+import ssl
 from contextlib import asynccontextmanager
 from typing import List
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
@@ -31,6 +32,8 @@ class FakeHTTPClient:
         self._response_body: bytes = b"{}"
         self._post_calls: List[dict] = []
         self._stream_response = None
+        self._error_on_next: BaseException | None = None
+        self._stream_error_on_next: BaseException | None = None
 
     def set_response(self, status_code: int, body: dict) -> None:
         self._response_status = status_code
@@ -43,8 +46,19 @@ class FakeHTTPClient:
     def post_calls(self) -> List[dict]:
         return self._post_calls
 
+    def fail_next_post(self, exc: BaseException) -> None:
+        """Make the next post() call raise *exc*, then revert to normal."""
+        self._error_on_next = exc
+
+    def fail_next_stream(self, exc: BaseException) -> None:
+        """Make the next stream() call raise *exc*, then revert to normal."""
+        self._stream_error_on_next = exc
+
     async def post(self, url: str, *, json=None, headers=None, timeout=None) -> "_FakeResponse":
         self._post_calls.append({"url": url, "json": json, "headers": headers, "timeout": timeout})
+        if self._error_on_next is not None:
+            exc, self._error_on_next = self._error_on_next, None
+            raise exc
         resp = _FakeResponse(self._response_status, self._response_body)
         if self._response_status >= 400:
             resp.raise_for_status = MagicMock(side_effect=httpx.HTTPStatusError("error", request=MagicMock(), response=MagicMock()))
@@ -53,6 +67,9 @@ class FakeHTTPClient:
     @asynccontextmanager
     async def stream(self, method: str, url: str, *, json=None, headers=None, timeout=None):
         self._post_calls.append({"method": method, "url": url, "json": json, "headers": headers, "timeout": timeout})
+        if self._stream_error_on_next is not None:
+            exc, self._stream_error_on_next = self._stream_error_on_next, None
+            raise exc
         yield self._stream_response
 
     async def aclose(self):
@@ -535,3 +552,237 @@ class TestResolveTeE:
             assert cert == b"cert-bytes"
             assert tee_id == "tee-42"
             assert pay_addr == "0xPay"
+
+
+# ── TEE retry tests (non-streaming) ──────────────────────────────────
+
+
+@pytest.mark.asyncio
+class TestTeeRetryCompletion:
+    async def test_retries_on_connection_error_and_succeeds(self, fake_http):
+        """First call hits connection error → refresh TEE → second call succeeds."""
+        fake_http.set_response(200, {"completion": "retried ok", "tee_signature": "s", "tee_timestamp": "t"})
+        fake_http.fail_next_post(ConnectionError("connection refused"))
+        llm = _make_llm()
+
+        result = await llm.completion(model=TEE_LLM.GPT_5, prompt="Hi")
+
+        assert result.completion_output == "retried ok"
+        assert len(fake_http.post_calls) == 2
+
+    async def test_http_status_error_not_retried(self, fake_http):
+        """A server-side error (HTTP 500) should not trigger a TEE retry."""
+        fake_http.set_response(500, {"error": "boom"})
+        llm = _make_llm()
+
+        with pytest.raises(RuntimeError, match="TEE LLM completion failed"):
+            await llm.completion(model=TEE_LLM.GPT_5, prompt="Hi")
+        assert len(fake_http.post_calls) == 1
+
+    async def test_second_failure_propagates(self, fake_http):
+        """If the retry also fails, the error should propagate."""
+        call_count = 0
+
+        async def always_fail(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            raise ConnectionError("still broken")
+
+        fake_http.post = always_fail
+        llm = _make_llm()
+
+        with pytest.raises(RuntimeError, match="TEE LLM completion failed"):
+            await llm.completion(model=TEE_LLM.GPT_5, prompt="Hi")
+        assert call_count == 2
+
+
+@pytest.mark.asyncio
+class TestTeeRetryChat:
+    async def test_retries_on_connection_error_and_succeeds(self, fake_http):
+        fake_http.set_response(
+            200,
+            {"choices": [{"message": {"role": "assistant", "content": "retry ok"}, "finish_reason": "stop"}]},
+        )
+        fake_http.fail_next_post(OSError("network unreachable"))
+        llm = _make_llm()
+
+        result = await llm.chat(model=TEE_LLM.GPT_5, messages=[{"role": "user", "content": "Hi"}])
+
+        assert result.chat_output["content"] == "retry ok"
+        assert len(fake_http.post_calls) == 2
+
+    async def test_http_status_error_not_retried(self, fake_http):
+        fake_http.set_response(500, {"error": "internal"})
+        llm = _make_llm()
+
+        with pytest.raises(RuntimeError, match="TEE LLM chat failed"):
+            await llm.chat(model=TEE_LLM.GPT_5, messages=[{"role": "user", "content": "Hi"}])
+        assert len(fake_http.post_calls) == 1
+
+
+# ── TEE retry tests (streaming) ──────────────────────────────────────
+
+
+@pytest.mark.asyncio
+class TestTeeRetryStreaming:
+    async def test_retries_stream_on_connection_error_before_chunks(self, fake_http):
+        """Connection failure during stream setup (no chunks yielded) → retry succeeds."""
+        fake_http.set_stream_response(
+            200,
+            [
+                b'data: {"model":"m","choices":[{"index":0,"delta":{"content":"ok"},"finish_reason":"stop"}]}\n\n',
+                b"data: [DONE]\n\n",
+            ],
+        )
+        fake_http.fail_next_stream(ConnectionError("reset by peer"))
+        llm = _make_llm()
+
+        gen = await llm.chat(
+            model=TEE_LLM.GPT_5,
+            messages=[{"role": "user", "content": "Hi"}],
+            stream=True,
+        )
+        chunks = [c async for c in gen]
+
+        assert len(chunks) == 1
+        assert chunks[0].choices[0].delta.content == "ok"
+        assert len(fake_http.post_calls) == 2
+
+    async def test_no_retry_after_chunks_yielded(self, fake_http):
+        """Failure AFTER chunks were yielded must raise, not retry."""
+
+        class _FailMidStream:
+            def __init__(self):
+                self.status_code = 200
+
+            async def aiter_raw(self):
+                yield b'data: {"model":"m","choices":[{"index":0,"delta":{"content":"partial"},"finish_reason":null}]}\n\n'
+                raise ConnectionError("mid-stream disconnect")
+
+            async def aread(self) -> bytes:
+                return b""
+
+        fake_http._stream_response = _FailMidStream()
+        llm = _make_llm()
+
+        gen = await llm.chat(
+            model=TEE_LLM.GPT_5,
+            messages=[{"role": "user", "content": "Hi"}],
+            stream=True,
+        )
+
+        with pytest.raises(ConnectionError):
+            _ = [c async for c in gen]
+
+        assert len(fake_http.post_calls) == 1
+
+
+# ── _refresh_tee tests ─────────────────────────────────────
+
+
+@pytest.mark.asyncio
+class TestRefreshTeeAndReset:
+    async def test_replaces_http_client(self):
+        """After refresh, the http client should be a new instance."""
+        clients_created = []
+
+        def make_client(*args, **kwargs):
+            c = FakeHTTPClient()
+            clients_created.append(c)
+            return c
+
+        with (
+            patch(_PATCHES["x402_httpx"], side_effect=make_client),
+            patch(_PATCHES["x402_client"]),
+            patch(_PATCHES["signer"]),
+            patch(_PATCHES["register_exact"]),
+            patch(_PATCHES["register_upto"]),
+        ):
+            llm = _make_llm()
+            old_client = llm._http_client
+
+            await llm._refresh_tee()
+
+            assert llm._http_client is not old_client
+            assert len(clients_created) == 2  # init + refresh
+
+    async def test_closes_old_client(self, fake_http):
+        llm = _make_llm()
+        old_client = llm._http_client
+        old_client.aclose = AsyncMock()
+
+        await llm._refresh_tee()
+
+        old_client.aclose.assert_awaited_once()
+
+    async def test_close_failure_is_swallowed(self, fake_http):
+        llm = _make_llm()
+        old_client = llm._http_client
+        old_client.aclose = AsyncMock(side_effect=OSError("already closed"))
+
+        # Should not raise
+        await llm._refresh_tee()
+
+
+# ── TEE cert rotation (crash + re-register) tests ────────────────────
+
+
+@pytest.mark.asyncio
+class TestTeeCertRotation:
+    """Simulate a TEE crashing and a new one registering at the same IP
+    with a different ephemeral TLS certificate.  The old cert is now
+    invalid, so the first request fails with SSLCertVerificationError.
+    The retry should re-resolve from the registry (getting the new cert)
+    and succeed."""
+
+    async def test_ssl_verification_failure_triggers_tee_refresh_completion(self, fake_http):
+        fake_http.set_response(200, {"completion": "ok after refresh", "tee_signature": "s", "tee_timestamp": "t"})
+        fake_http.fail_next_post(ssl.SSLCertVerificationError("certificate verify failed"))
+        llm = _make_llm()
+
+        with patch.object(llm, "_connect_tee", wraps=llm._connect_tee) as spy:
+            result = await llm.completion(model=TEE_LLM.GPT_5, prompt="Hi")
+
+        # _connect_tee was called once during the retry (refresh)
+        spy.assert_called_once()
+        assert result.completion_output == "ok after refresh"
+        assert len(fake_http.post_calls) == 2
+
+    async def test_ssl_verification_failure_triggers_tee_refresh_chat(self, fake_http):
+        fake_http.set_response(
+            200,
+            {"choices": [{"message": {"role": "assistant", "content": "ok after refresh"}, "finish_reason": "stop"}]},
+        )
+        fake_http.fail_next_post(ssl.SSLCertVerificationError("certificate verify failed"))
+        llm = _make_llm()
+
+        with patch.object(llm, "_connect_tee", wraps=llm._connect_tee) as spy:
+            result = await llm.chat(model=TEE_LLM.GPT_5, messages=[{"role": "user", "content": "Hi"}])
+
+        spy.assert_called_once()
+        assert result.chat_output["content"] == "ok after refresh"
+        assert len(fake_http.post_calls) == 2
+
+    async def test_ssl_verification_failure_triggers_tee_refresh_streaming(self, fake_http):
+        fake_http.set_stream_response(
+            200,
+            [
+                b'data: {"model":"m","choices":[{"index":0,"delta":{"content":"ok"},"finish_reason":"stop"}]}\n\n',
+                b"data: [DONE]\n\n",
+            ],
+        )
+        fake_http.fail_next_stream(ssl.SSLCertVerificationError("certificate verify failed"))
+        llm = _make_llm()
+
+        with patch.object(llm, "_connect_tee", wraps=llm._connect_tee) as spy:
+            gen = await llm.chat(
+                model=TEE_LLM.GPT_5,
+                messages=[{"role": "user", "content": "Hi"}],
+                stream=True,
+            )
+            chunks = [c async for c in gen]
+
+        spy.assert_called_once()
+        assert len(chunks) == 1
+        assert chunks[0].choices[0].delta.content == "ok"
+        assert len(fake_http.post_calls) == 2
