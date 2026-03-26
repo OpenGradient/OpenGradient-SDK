@@ -1,7 +1,6 @@
 import json
 import os
 import sys
-import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -93,14 +92,14 @@ class TestGenerate:
         assert result.generations[0].message.content == "Hello there!"
         assert result.generations[0].generation_info == {"finish_reason": "stop"}
 
-    def test_async_text_response(self, model, mock_llm_client):
+    async def test_async_text_response(self, model, mock_llm_client):
         mock_llm_client.chat.return_value = TextGenerationOutput(
             transaction_hash="external",
             finish_reason="stop",
             chat_output={"role": "assistant", "content": "Hello async!"},
         )
 
-        result = asyncio.run(model._agenerate([HumanMessage(content="Hi")]))
+        result = await model._agenerate([HumanMessage(content="Hi")])
 
         assert result.generations[0].message.content == "Hello async!"
         assert result.generations[0].generation_info == {"finish_reason": "stop"}
