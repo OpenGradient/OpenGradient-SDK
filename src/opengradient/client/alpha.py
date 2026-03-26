@@ -435,8 +435,18 @@ class Alpha:
         try:
             estimated_gas = run_function.estimate_gas({"from": self._wallet_account.address})
             gas_limit = int(estimated_gas * 3)
+        except ContractLogicError as exc:
+            # Estimation failed due to a contract revert — simulate the call to
+            # surface the revert reason and avoid sending a transaction that will fail.
+            try:
+                run_function.call({"from": self._wallet_account.address})
+            except ContractLogicError as call_exc:
+                # Re-raise the detailed revert reason from the simulated call.
+                raise call_exc
+            # If the simulated call somehow doesn't raise, re-raise the original error.
+            raise exc
         except Exception:
-            gas_limit = 30000000  # Conservative fallback if estimation fails
+            gas_limit = 30000000  # Conservative fallback for transient/RPC estimation errors
 
         transaction = run_function.build_transaction(
             {
