@@ -1,8 +1,10 @@
 """LLM chat and completion via TEE-verified execution with x402 payments."""
 
+import asyncio
 import json
 import logging
 import ssl
+import time
 from dataclasses import dataclass
 from typing import AsyncGenerator, Awaitable, Callable, Dict, List, Optional, TypeVar, Union
 import httpx
@@ -32,6 +34,7 @@ BASE_TESTNET_NETWORK = "eip155:84532"
 _CHAT_ENDPOINT = "/v1/chat/completions"
 _COMPLETION_ENDPOINT = "/v1/completions"
 _REQUEST_TIMEOUT = 60
+_TEE_REFRESH_INTERVAL = 300  # Re-resolve TEE from registry every 5 minutes
 
 
 @dataclass
@@ -107,6 +110,8 @@ class LLM:
         register_upto_evm_client(self._x402_client, signer, networks=[BASE_TESTNET_NETWORK])
 
         self._connect_tee()
+        self._tee_refreshed_at: float = time.monotonic()
+        self._refresh_lock = asyncio.Lock()
 
     # ── TEE resolution and connection ───────────────────────────────────────────
 
@@ -127,12 +132,27 @@ class LLM:
 
     async def _refresh_tee(self) -> None:
         """Re-resolve TEE from the registry and rebuild the HTTP client."""
-        old_http_client = self._http_client
-        self._connect_tee()
-        try:
-            await old_http_client.aclose()
-        except Exception:
-            logger.debug("Failed to close previous HTTP client during TEE refresh.", exc_info=True)
+        async with self._refresh_lock:
+            old_http_client = self._http_client
+            self._connect_tee()
+            self._tee_refreshed_at = time.monotonic()
+            try:
+                await old_http_client.aclose()
+            except Exception:
+                logger.debug("Failed to close previous HTTP client during TEE refresh.", exc_info=True)
+
+    async def _maybe_refresh_tee(self) -> None:
+        """Re-resolve TEE if the current one is older than ``_TEE_REFRESH_INTERVAL``.
+
+        Skips the refresh for explicit ``llm_server_url`` overrides since they
+        bypass the registry entirely.
+        """
+        if self._llm_server_url is not None:
+            return
+        if time.monotonic() - self._tee_refreshed_at < _TEE_REFRESH_INTERVAL:
+            return
+        logger.debug("TEE endpoint stale (>%ds); refreshing from registry.", _TEE_REFRESH_INTERVAL)
+        await self._refresh_tee()
 
 
     @staticmethod
@@ -212,6 +232,7 @@ class LLM:
         Only retries when the request never reached the server (no HTTP response).
         Server-side errors (4xx/5xx) are not retried.
         """
+        await self._maybe_refresh_tee()
         try:
             return await call()
         except httpx.HTTPStatusError:
@@ -448,6 +469,7 @@ class LLM:
 
     async def _chat_stream(self, params: _ChatParams, messages: List[Dict]) -> AsyncGenerator[StreamChunk, None]:
         """Async SSE streaming implementation."""
+        await self._maybe_refresh_tee()
         headers = self._headers(params.x402_settlement_mode)
         payload = self._chat_payload(params, messages, stream=True)
 
