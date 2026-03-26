@@ -6,6 +6,10 @@ import ssl
 from dataclasses import dataclass
 from typing import AsyncGenerator, Awaitable, Callable, Dict, List, Optional, TypeVar, Union
 
+import httpx
+
+import httpx
+
 from eth_account import Account
 from eth_account.account import LocalAccount
 from x402 import x402Client
@@ -98,74 +102,60 @@ class LLM:
         self._rpc_url = rpc_url
         self._tee_registry_address = tee_registry_address
         self._llm_server_url = llm_server_url
-        self._refresh_tee_config()
-        self._init_x402_stack()
 
-    def _refresh_tee_config(self) -> None:
-        """Resolve TEE metadata from the registry and update TLS config."""
-        endpoint, tls_cert_der, tee_id, payment_addr = self._resolve_tee(
-            self._llm_server_url, self._rpc_url, self._tee_registry_address,
-        )
-        ssl_ctx = build_ssl_context_from_der(tls_cert_der) if tls_cert_der else None
-        self._tee_id = tee_id
-        self._tee_endpoint = endpoint
-        self._tee_payment_address = payment_addr
-        self._tls_verify: Union[ssl.SSLContext, bool] = ssl_ctx if ssl_ctx else (self._llm_server_url is None)
-
-    def _init_x402_stack(self) -> None:
-        """Initialize x402 signer/client/http stack."""
+        # x402 payment stack (created once, reused across TEE refreshes)
         signer = EthAccountSigner(self._wallet_account)
         self._x402_client = x402Client()
         register_exact_evm_client(self._x402_client, signer, networks=[BASE_TESTNET_NETWORK])
         register_upto_evm_client(self._x402_client, signer, networks=[BASE_TESTNET_NETWORK])
+
+        self._connect_tee()
+
+    def _connect_tee(self) -> None:
+        """Resolve TEE from registry and create a secure HTTP client for it."""
+        endpoint, tls_cert_der, tee_id, tee_payment_address = self._resolve_tee(
+            self._llm_server_url,
+            self._rpc_url,
+            self._tee_registry_address,
+        )
+        self._tee_id = tee_id
+        self._tee_endpoint = endpoint
+        self._tee_payment_address = tee_payment_address
+
+        ssl_ctx = build_ssl_context_from_der(tls_cert_der) if tls_cert_der else None
+        self._tls_verify: Union[ssl.SSLContext, bool] = ssl_ctx if ssl_ctx else (self._llm_server_url is None)
         self._http_client = x402HttpxClient(self._x402_client, verify=self._tls_verify)
 
-    @staticmethod
-    def _has_ssl_cause(exc: BaseException) -> bool:
-        """Return true when the exception chain contains an SSL error."""
-        stack: list[BaseException] = [exc]
-        visited: set[int] = set()
-        while stack:
-            current = stack.pop()
-            if id(current) in visited:
-                continue
-            visited.add(id(current))
-            if isinstance(current, ssl.SSLError):
-                return True
-            if current.__cause__ is not None:
-                stack.append(current.__cause__)
-            if current.__context__ is not None:
-                stack.append(current.__context__)
-        return False
-
-    async def _refresh_tee_and_reset(self) -> None:
-        """Re-resolve TEE and rebuild the HTTP client with fresh TLS config."""
+    async def _refresh_tee(self) -> None:
+        """Re-resolve TEE from the registry and rebuild the HTTP client."""
         old_http_client = self._http_client
-        self._refresh_tee_config()
-        self._http_client = x402HttpxClient(self._x402_client, verify=self._tls_verify)
-
+        self._connect_tee()
         try:
             await old_http_client.aclose()
         except Exception:
             logger.debug("Failed to close previous HTTP client during TEE refresh.", exc_info=True)
 
-    async def _call_with_ssl_retry(
+    async def _call_with_tee_retry(
         self,
         operation_name: str,
         call: Callable[[], Awaitable[T]],
     ) -> T:
-        """Retry once with fresh TEE/TLS state when the failure is SSL-related."""
+        """Execute *call*; on connection failure, pick a new TEE and retry once.
+
+        Only retries when the request never reached the server (no HTTP response).
+        Server-side errors (4xx/5xx) are not retried.
+        """
         try:
             return await call()
+        except httpx.HTTPStatusError:
+            raise
         except Exception as exc:
-            if not self._has_ssl_cause(exc):
-                raise
             logger.warning(
-                "SSL failure during %s; refreshing TEE and retrying once: %s",
+                "Connection failure during %s; refreshing TEE and retrying once: %s",
                 operation_name,
                 exc,
             )
-            await self._refresh_tee_and_reset()
+            await self._refresh_tee()
             return await call()
 
     # ── TEE resolution ──────────────────────────────────────────────────
@@ -325,7 +315,7 @@ class LLM:
             )
 
         try:
-            return await self._call_with_ssl_retry("completion", _request)
+            return await self._call_with_tee_retry("completion", _request)
         except RuntimeError:
             raise
         except Exception as e:
@@ -427,7 +417,7 @@ class LLM:
             )
 
         try:
-            return await self._call_with_ssl_retry("chat", _request)
+            return await self._call_with_tee_retry("chat", _request)
         except RuntimeError:
             raise
         except Exception as e:
@@ -476,15 +466,17 @@ class LLM:
                     chunks_yielded = True
                     yield chunk
             return
+        except httpx.HTTPStatusError:
+            raise
         except Exception as exc:
-            if chunks_yielded or not self._has_ssl_cause(exc):
+            if chunks_yielded:
                 raise
             logger.warning(
-                "SSL failure during stream setup; refreshing TEE and retrying once: %s",
+                "Connection failure during stream setup; refreshing TEE and retrying once: %s",
                 exc,
             )
 
-        await self._refresh_tee_and_reset()
+        await self._refresh_tee()
         headers = self._headers(params.x402_settlement_mode)
         async with self._http_client.stream(
             "POST",
