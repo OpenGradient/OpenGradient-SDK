@@ -110,6 +110,10 @@ __all__ = [
     "x402SettlementMode",
     "agents",
     "alphasense",
+    "InferenceResult",
+    "ModelOutput",
+    "ModelRepository",
+    "FileUploadResult",
 ]
 
 __pdoc__ = {
