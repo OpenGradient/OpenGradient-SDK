@@ -5,9 +5,6 @@ import logging
 import ssl
 from dataclasses import dataclass
 from typing import AsyncGenerator, Awaitable, Callable, Dict, List, Optional, TypeVar, Union
-
-import httpx
-
 import httpx
 
 from eth_account import Account
