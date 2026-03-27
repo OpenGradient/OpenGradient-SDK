@@ -421,7 +421,7 @@ class LLM:
                 headers=headers,
                 timeout=_REQUEST_TIMEOUT,
             ) as response:
-                async for chunk in self._parse_sse_response(response):
+                async for chunk in self._parse_sse_response(response, tee):
                     chunks_yielded = True
                     yield chunk
             return
@@ -450,10 +450,10 @@ class LLM:
             headers=headers,
             timeout=_REQUEST_TIMEOUT,
         ) as response:
-            async for chunk in self._parse_sse_response(response):
+            async for chunk in self._parse_sse_response(response, tee):
                 yield chunk
 
-    async def _parse_sse_response(self, response) -> AsyncGenerator[StreamChunk, None]:
+    async def _parse_sse_response(self, response, tee) -> AsyncGenerator[StreamChunk, None]:
         """Parse an SSE response stream into StreamChunk objects."""
         status_code = getattr(response, "status_code", None)
         if status_code is not None and status_code >= 400:
@@ -491,7 +491,6 @@ class LLM:
 
                 chunk = StreamChunk.from_sse_data(data)
                 if chunk.is_final:
-                    tee = self._tee.get()
                     chunk.tee_id = tee.tee_id
                     chunk.tee_endpoint = tee.endpoint
                     chunk.tee_payment_address = tee.payment_address
