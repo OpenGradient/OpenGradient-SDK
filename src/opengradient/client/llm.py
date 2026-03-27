@@ -320,12 +320,12 @@ class LLM:
 
         try:
             return await self._call_with_tee_retry("completion", _request)
+        except RuntimeError:
+            raise
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 402:
                 raise RuntimeError(_402_HINT) from e
             raise RuntimeError(f"TEE LLM completion failed: {e}") from e
-        except RuntimeError:
-            raise
         except Exception as e:
             raise RuntimeError(f"TEE LLM completion failed: {e}") from e
 
@@ -426,14 +426,14 @@ class LLM:
 
         try:
             return await self._call_with_tee_retry("chat", _request)
+        except RuntimeError:
+            raise
         except httpx.HTTPStatusError as e:
             # Provide an actionable error message for the very common 402 case
             # (issue #188 — users see a cryptic RuntimeError instead of guidance).
             if e.response.status_code == 402:
                 raise RuntimeError(_402_HINT) from e
             raise RuntimeError(f"TEE LLM chat failed: {e}") from e
-        except RuntimeError:
-            raise
         except Exception as e:
             raise RuntimeError(f"TEE LLM chat failed: {e}") from e
 
@@ -507,9 +507,9 @@ class LLM:
     async def _parse_sse_response(self, response) -> AsyncGenerator[StreamChunk, None]:
         """Parse an SSE response stream into StreamChunk objects."""
         status_code = getattr(response, "status_code", None)
+        if status_code is not None and status_code == 402:
+            raise RuntimeError(_402_HINT)
         if status_code is not None and status_code >= 400:
-            if status_code == 402:
-                raise RuntimeError(_402_HINT)
             body = await response.aread()
             raise RuntimeError(f"TEE LLM streaming request failed with status {status_code}: {body.decode('utf-8', errors='replace')}")
 
