@@ -110,7 +110,7 @@ class TestEnsureOpgAllowanceSendsTx:
         result = ensure_opg_approval(mock_wallet, min_allowance=5.0)
 
         assert result.tx_hash == "0xabc123"
-        # Verify approve was called with 10x amount
+        # Verify approve was called with 2x min_allowance
         args = contract.functions.approve.call_args[0]
         assert args[1] == approve_base
 
