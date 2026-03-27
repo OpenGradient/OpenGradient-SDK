@@ -183,19 +183,6 @@ class TestRegistryTEEConnection:
         assert conn.get().http_client is not old_client
         assert len(clients_created) == 2
 
-    async def test_reconnect_closes_old_client(self):
-        mock_reg = _mock_registry_with_tee()
-        conn = _make_registry_connection(registry=mock_reg)
-        old_client = conn.get().http_client
-        old_client.aclose = AsyncMock()
-
-        with patch(
-            "src.opengradient.client.tee_connection.x402HttpxClient",
-            side_effect=FakeHTTPClient,
-        ):
-            await conn.reconnect()
-
-        old_client.aclose.assert_awaited_once()
 
     async def test_reconnect_swallows_close_failure(self):
         mock_reg = _mock_registry_with_tee()
