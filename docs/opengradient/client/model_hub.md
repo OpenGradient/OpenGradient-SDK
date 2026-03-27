@@ -43,15 +43,16 @@ Create a new model with the given model_name and model_desc, and a specified ver
 
 * **`model_name (str)`**: The name of the model.
 * **`model_desc (str)`**: The description of the model.
-* **`version (str)`**: The version identifier (default is "1.00").
+* **`version (str)`**: A label used in the initial version notes (default is "1.00").
+* **`Note`**: the actual version string is assigned by the server.
 
 **Returns**
 
-dict: The server response containing model details.
+ModelRepository: Object containing the model name and server-assigned version string.
 
 **Raises**
 
-* **`CreateModelError`**: If the model creation fails.
+* **`RuntimeError`**: If the model creation fails.
 
 ---
 
@@ -125,7 +126,7 @@ Upload a model file to the server.
 
 **Returns**
 
-dict: The processed result.
+FileUploadResult: The processed result.
 
 **Raises**
 

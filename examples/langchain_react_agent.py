@@ -17,9 +17,9 @@ import opengradient as og
 
 private_key = os.environ["OG_PRIVATE_KEY"]
 
-# One-time Permit2 approval for OPG spending (idempotent)
+# Ensure sufficient OPG allowance for Permit2 spending
 llm_client = og.LLM(private_key=private_key)
-llm_client.ensure_opg_approval(opg_amount=5)
+llm_client.ensure_opg_approval(min_allowance=5)
 
 # Create the OpenGradient LangChain adapter
 llm = og.agents.langchain_adapter(

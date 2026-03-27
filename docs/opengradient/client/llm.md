@@ -22,8 +22,6 @@ All request methods (``chat``, ``completion``) are async.
 
 Before making LLM requests, ensure your wallet has approved sufficient
 OPG tokens for Permit2 spending by calling ``ensure_opg_approval``.
-This only sends an on-chain transaction when the current allowance is
-below the requested amount.
 
 #### Constructor
 
@@ -193,18 +191,30 @@ TextGenerationOutput: Generated text results including:
 #### `ensure_opg_approval()`
 
 ```python
-def ensure_opg_approval(self, opg_amount: float) ‑> [Permit2ApprovalResult](./opg_token)
+def ensure_opg_approval(
+    self,
+    min_allowance: float,
+    approve_amount: Optional[float] = None
+) ‑> [Permit2ApprovalResult](./opg_token)
 ```
-Ensure the Permit2 allowance for OPG is at least ``opg_amount``.
+Ensure the Permit2 allowance stays above a minimum threshold.
 
-Checks the current Permit2 allowance for the wallet. If the allowance
-is already >= the requested amount, returns immediately without sending
-a transaction. Otherwise, sends an ERC-20 approve transaction.
+Only sends a transaction when the current allowance drops below
+``min_allowance``. When approval is needed, approves ``approve_amount``
+(defaults to ``2 * min_allowance``) to create a buffer that survives
+multiple service restarts without re-approving.
+
+Best for backend servers that call this on startup::
+
+    llm.ensure_opg_approval(min_allowance=5.0, approve_amount=100.0)
 
 **Arguments**
 
-* **`opg_amount`**: Minimum number of OPG tokens required (e.g. ``0.1``
-        for 0.1 OPG). Must be at least 0.1 OPG.
+* **`min_allowance`**: The minimum acceptable allowance in OPG. Must be
+        at least 0.1 OPG.
+* **`approve_amount`**: The amount of OPG to approve when a transaction
+        is needed. Defaults to ``2 * min_allowance``. Must be
+        >= ``min_allowance``.
 
 **Returns**
 
@@ -214,5 +224,6 @@ Permit2ApprovalResult: Contains ``allowance_before``,
 
 **Raises**
 
-* **`ValueError`**: If the OPG amount is less than 0.1.
+* **`ValueError`**: If ``min_allowance`` is less than 0.1 or
+        ``approve_amount`` is less than ``min_allowance``.
 * **`RuntimeError`**: If the approval transaction fails.

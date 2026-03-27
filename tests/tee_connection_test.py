@@ -15,11 +15,11 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import NameOID
 from x402 import x402Client
 
-from src.opengradient.client.tee_connection import (
+from opengradient.client.tee_connection import (
     ActiveTEE,
     RegistryTEEConnection,
 )
-from src.opengradient.client.tee_registry import build_ssl_context_from_der
+from opengradient.client.tee_registry import build_ssl_context_from_der
 
 
 # ── Helpers ──────────────────────────────────────────────────────────
@@ -44,11 +44,11 @@ def _make_registry_connection(*, registry=None, http_factory=None):
     factory = http_factory or FakeHTTPClient
     with (
         patch(
-            "src.opengradient.client.tee_connection.x402HttpxClient",
+            "opengradient.client.tee_connection.x402HttpxClient",
             side_effect=factory,
         ),
         patch(
-            "src.opengradient.client.tee_connection.build_ssl_context_from_der",
+            "opengradient.client.tee_connection.build_ssl_context_from_der",
             return_value=MagicMock(spec=ssl.SSLContext),
         ),
     ):
@@ -122,7 +122,7 @@ class TestRegistryTEEConnection:
         mock_reg.get_llm_tee.return_value = None
 
         with patch(
-            "src.opengradient.client.tee_connection.x402HttpxClient",
+            "opengradient.client.tee_connection.x402HttpxClient",
             side_effect=FakeHTTPClient,
         ):
             with pytest.raises(ValueError, match="No active LLM proxy TEE"):
@@ -133,7 +133,7 @@ class TestRegistryTEEConnection:
         mock_reg.get_llm_tee.side_effect = Exception("rpc down")
 
         with patch(
-            "src.opengradient.client.tee_connection.x402HttpxClient",
+            "opengradient.client.tee_connection.x402HttpxClient",
             side_effect=FakeHTTPClient,
         ):
             with pytest.raises(RuntimeError, match="Failed to fetch LLM TEE"):
@@ -157,11 +157,11 @@ class TestRegistryTEEConnection:
 
         with (
             patch(
-                "src.opengradient.client.tee_connection.x402HttpxClient",
+                "opengradient.client.tee_connection.x402HttpxClient",
                 side_effect=FakeHTTPClient,
             ),
             patch(
-                "src.opengradient.client.tee_connection.build_ssl_context_from_der",
+                "opengradient.client.tee_connection.build_ssl_context_from_der",
                 return_value=mock_ssl_ctx,
             ) as mock_build,
         ):
@@ -187,11 +187,11 @@ class TestRegistryTEEConnection:
 
         with (
             patch(
-                "src.opengradient.client.tee_connection.x402HttpxClient",
+                "opengradient.client.tee_connection.x402HttpxClient",
                 side_effect=make_client,
             ),
             patch(
-                "src.opengradient.client.tee_connection.build_ssl_context_from_der",
+                "opengradient.client.tee_connection.build_ssl_context_from_der",
                 return_value=MagicMock(spec=ssl.SSLContext),
             ),
         ):
@@ -211,7 +211,7 @@ class TestRegistryTEEConnection:
         conn.get().http_client.aclose = AsyncMock(side_effect=OSError("already closed"))
 
         with patch(
-            "src.opengradient.client.tee_connection.x402HttpxClient",
+            "opengradient.client.tee_connection.x402HttpxClient",
             side_effect=FakeHTTPClient,
         ):
             await conn.reconnect()  # should not raise
@@ -229,12 +229,16 @@ class TestRegistryTEEConnection:
         mock_reg = _mock_registry_with_tee()
         conn = _make_registry_connection(registry=mock_reg)
 
-        with patch.object(RegistryTEEConnection, "_connect", slow_connect), patch(
-            "src.opengradient.client.tee_connection.build_ssl_context_from_der",
-            return_value=MagicMock(spec=ssl.SSLContext),
-        ), patch(
-            "src.opengradient.client.tee_connection.x402HttpxClient",
-            side_effect=FakeHTTPClient,
+        with (
+            patch.object(RegistryTEEConnection, "_connect", slow_connect),
+            patch(
+                "opengradient.client.tee_connection.build_ssl_context_from_der",
+                return_value=MagicMock(spec=ssl.SSLContext),
+            ),
+            patch(
+                "opengradient.client.tee_connection.x402HttpxClient",
+                side_effect=FakeHTTPClient,
+            ),
         ):
             await asyncio.gather(conn.reconnect(), conn.reconnect())
 
@@ -283,7 +287,7 @@ class TestRegistryTEEConnection:
 
         with patch.object(conn, "reconnect", new_callable=AsyncMock) as mock_reconnect:
             with patch(
-                "src.opengradient.client.tee_connection.asyncio.sleep",
+                "opengradient.client.tee_connection.asyncio.sleep",
                 side_effect=[None, asyncio.CancelledError],
             ):
                 with pytest.raises(asyncio.CancelledError):
@@ -301,7 +305,7 @@ class TestRegistryTEEConnection:
 
         with patch.object(conn, "reconnect", new_callable=AsyncMock) as mock_reconnect:
             with patch(
-                "src.opengradient.client.tee_connection.asyncio.sleep",
+                "opengradient.client.tee_connection.asyncio.sleep",
                 side_effect=[None, asyncio.CancelledError],
             ):
                 with pytest.raises(asyncio.CancelledError):
@@ -319,7 +323,7 @@ class TestRegistryTEEConnection:
         conn = _make_registry_connection(registry=mock_reg)
 
         with patch(
-            "src.opengradient.client.tee_connection.asyncio.sleep",
+            "opengradient.client.tee_connection.asyncio.sleep",
             side_effect=[None, None],
         ):
             with pytest.raises(asyncio.CancelledError):

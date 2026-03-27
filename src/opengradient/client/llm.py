@@ -59,8 +59,6 @@ class LLM:
 
     Before making LLM requests, ensure your wallet has approved sufficient
     OPG tokens for Permit2 spending by calling ``ensure_opg_approval``.
-    This only sends an on-chain transaction when the current allowance is
-    below the requested amount.
 
     Usage:
         # Via on-chain registry (default)
@@ -69,8 +67,8 @@ class LLM:
         # Via hardcoded URL (development / self-hosted)
         llm = og.LLM.from_url(private_key="0x...", llm_server_url="https://1.2.3.4")
 
-        # One-time approval (idempotent — skips if allowance is already sufficient)
-        llm.ensure_opg_approval(opg_amount=5)
+        # Ensure sufficient OPG allowance (only sends tx when below threshold)
+        llm.ensure_opg_approval(min_allowance=5)
 
         result = await llm.chat(model=TEE_LLM.CLAUDE_HAIKU_4_5, messages=[...])
         result = await llm.completion(model=TEE_LLM.CLAUDE_HAIKU_4_5, prompt="Hello")
@@ -184,16 +182,28 @@ class LLM:
 
     # ── Public API ──────────────────────────────────────────────────────
 
-    def ensure_opg_approval(self, opg_amount: float) -> Permit2ApprovalResult:
-        """Ensure the Permit2 allowance for OPG is at least ``opg_amount``.
+    def ensure_opg_approval(
+        self,
+        min_allowance: float,
+        approve_amount: Optional[float] = None,
+    ) -> Permit2ApprovalResult:
+        """Ensure the Permit2 allowance stays above a minimum threshold.
 
-        Checks the current Permit2 allowance for the wallet. If the allowance
-        is already >= the requested amount, returns immediately without sending
-        a transaction. Otherwise, sends an ERC-20 approve transaction.
+        Only sends a transaction when the current allowance drops below
+        ``min_allowance``. When approval is needed, approves ``approve_amount``
+        (defaults to ``2 * min_allowance``) to create a buffer that survives
+        multiple service restarts without re-approving.
+
+        Best for backend servers that call this on startup::
+
+            llm.ensure_opg_approval(min_allowance=5.0, approve_amount=100.0)
 
         Args:
-            opg_amount: Minimum number of OPG tokens required (e.g. ``0.1``
-                for 0.1 OPG). Must be at least 0.1 OPG.
+            min_allowance: The minimum acceptable allowance in OPG. Must be
+                at least 0.1 OPG.
+            approve_amount: The amount of OPG to approve when a transaction
+                is needed. Defaults to ``2 * min_allowance``. Must be
+                >= ``min_allowance``.
 
         Returns:
             Permit2ApprovalResult: Contains ``allowance_before``,
@@ -201,12 +211,13 @@ class LLM:
                 was needed).
 
         Raises:
-            ValueError: If the OPG amount is less than 0.1.
+            ValueError: If ``min_allowance`` is less than 0.1 or
+                ``approve_amount`` is less than ``min_allowance``.
             RuntimeError: If the approval transaction fails.
         """
-        if opg_amount < 0.1:
-            raise ValueError("OPG amount must be at least 0.1.")
-        return ensure_opg_approval(self._wallet_account, opg_amount)
+        if min_allowance < 0.1:
+            raise ValueError("min_allowance must be at least 0.1.")
+        return ensure_opg_approval(self._wallet_account, min_allowance, approve_amount)
 
     async def completion(
         self,

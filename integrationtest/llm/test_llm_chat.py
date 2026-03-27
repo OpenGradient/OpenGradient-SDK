@@ -20,6 +20,13 @@ ERC20_TRANSFER_ABI = [
         "stateMutability": "nonpayable",
         "type": "function",
     },
+    {
+        "inputs": [{"name": "account", "type": "address"}],
+        "name": "balanceOf",
+        "outputs": [{"name": "", "type": "uint256"}],
+        "stateMutability": "view",
+        "type": "function",
+    },
 ]
 
 # Amount of OPG tokens to fund the test account with
@@ -76,13 +83,20 @@ def _fund_account(funder_key: str, recipient_address: str):
     if opg_receipt.status != 1:
         raise RuntimeError(f"OPG transfer failed: {opg_hash.hex()}")
 
-    # Wait for the recipient balance to be visible on the RPC node
+    # Wait for the recipient balances to be visible on the RPC node
     for _ in range(5):
         if w3.eth.get_balance(recipient) > 0:
             break
         time.sleep(1)
     else:
         raise RuntimeError("Recipient ETH balance is still 0 after funding")
+
+    for _ in range(10):
+        if token.functions.balanceOf(recipient).call() > 0:
+            break
+        time.sleep(1)
+    else:
+        raise RuntimeError("Recipient OPG token balance is still 0 after funding")
 
 
 @pytest.fixture(scope="module")
@@ -99,7 +113,7 @@ def llm_client():
     print("Account funded with ETH and OPG")
 
     llm = og.LLM(private_key=account.key.hex())
-    llm.ensure_opg_approval(opg_amount=OPG_FUND_AMOUNT)
+    llm.ensure_opg_approval(min_allowance=OPG_FUND_AMOUNT, approve_amount=OPG_FUND_AMOUNT)
     print("Permit2 approval complete")
 
     # Wait for the approval to propagate on-chain

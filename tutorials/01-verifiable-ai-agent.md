@@ -37,8 +37,8 @@ export OG_PRIVATE_KEY="0x..."
 
 Before making any LLM calls, you need to approve OPG token spending for the x402
 payment protocol. The `ensure_opg_approval` method checks your wallet's current
-Permit2 allowance and only sends an on-chain transaction if the allowance is below
-the requested amount -- so it's safe to call every time.
+Permit2 allowance and only sends an on-chain transaction if the allowance drops
+below the threshold -- so it's safe to call every time.
 
 ```python
 import os
@@ -46,9 +46,9 @@ import opengradient as og
 
 private_key = os.environ["OG_PRIVATE_KEY"]
 
-# Approve OPG spending for x402 payments (idempotent -- skips if already approved).
+# Ensure sufficient OPG allowance for x402 payments (only sends tx when below threshold).
 llm_client = og.LLM(private_key=private_key)
-llm_client.ensure_opg_approval(opg_amount=5)
+llm_client.ensure_opg_approval(min_allowance=5)
 
 # Create the LangChain chat model backed by OpenGradient TEE.
 # The adapter creates its own internal LLM client. The approval above applies
@@ -287,9 +287,9 @@ SAMPLE_PRICES = {
 # ── Clients ───────────────────────────────────────────────────────────────
 private_key = os.environ["OG_PRIVATE_KEY"]
 
-# Approve OPG spending for x402 payments (idempotent -- skips if already approved).
+# Ensure sufficient OPG allowance for x402 payments (only sends tx when below threshold).
 llm_client = og.LLM(private_key=private_key)
-llm_client.ensure_opg_approval(opg_amount=5)
+llm_client.ensure_opg_approval(min_allowance=5)
 
 # Alpha client for on-chain model inference.
 alpha = og.Alpha(private_key=private_key)

@@ -35,9 +35,9 @@ export OG_PRIVATE_KEY="0x..."
 ## Step 1: Basic Non-Streaming Chat
 
 Start with the simplest possible call -- send a message and get a response. Before
-making any LLM calls, approve OPG token spending for the x402 payment protocol using
-`ensure_opg_approval`. This is idempotent -- it checks the current Permit2 allowance
-and only sends a transaction if the allowance is below the requested amount.
+making any LLM calls, ensure sufficient OPG token allowance for the x402 payment
+protocol using `ensure_opg_approval`. This only sends a transaction when the
+current allowance drops below the threshold.
 
 ```python
 import asyncio
@@ -52,8 +52,8 @@ if not private_key:
 
 llm = og.LLM(private_key=private_key)
 
-# Approve OPG spending for x402 payments (one-time, idempotent).
-llm.ensure_opg_approval(opg_amount=5)
+# Ensure sufficient OPG allowance for x402 payments (only sends tx when below threshold).
+llm.ensure_opg_approval(min_allowance=5)
 
 async def main():
     result = await llm.chat(
@@ -273,8 +273,8 @@ if not private_key:
 
 llm = og.LLM(private_key=private_key)
 
-# Approve OPG spending for x402 payments (idempotent -- skips if already approved).
-llm.ensure_opg_approval(opg_amount=5)
+# Ensure sufficient OPG allowance for x402 payments (only sends tx when below threshold).
+llm.ensure_opg_approval(min_allowance=5)
 
 PROMPT = "Explain what a Trusted Execution Environment is in two sentences."
 
