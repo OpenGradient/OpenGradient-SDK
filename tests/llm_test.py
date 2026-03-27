@@ -107,11 +107,11 @@ class _FakeStreamResponse:
 # so LLM.__init__ runs its real code but gets our FakeHTTPClient.
 
 _PATCHES = {
-    "x402_httpx": "src.opengradient.client.tee_connection.x402HttpxClient",
-    "x402_client": "src.opengradient.client.llm.x402Client",
-    "signer": "src.opengradient.client.llm.EthAccountSigner",
-    "register_exact": "src.opengradient.client.llm.register_exact_evm_client",
-    "register_upto": "src.opengradient.client.llm.register_upto_evm_client",
+    "x402_httpx": "opengradient.client.tee_connection.x402HttpxClient",
+    "x402_client": "opengradient.client.llm.x402Client",
+    "signer": "opengradient.client.llm.EthAccountSigner",
+    "register_exact": "opengradient.client.llm.register_exact_evm_client",
+    "register_upto": "opengradient.client.llm.register_upto_evm_client",
 }
 
 
