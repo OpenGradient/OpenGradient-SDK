@@ -49,6 +49,9 @@ def run_with_retry(
     """
     effective_retries = max_retries if max_retries is not None else DEFAULT_MAX_RETRY
 
+    if effective_retries < 1:
+        raise ValueError(f"max_retries must be at least 1, got {effective_retries}")
+
     for attempt in range(effective_retries):
         try:
             return txn_function()
@@ -62,3 +65,5 @@ def run_with_retry(
                 continue
 
             raise
+
+    raise RuntimeError(f"run_with_retry exhausted {effective_retries} attempts without returning or raising")

@@ -22,10 +22,16 @@ FAKE_PRIVATE_KEY = "0x" + "a" * 64
 @pytest.fixture
 def mock_tee_registry():
     """Mock the TEE registry so LLM.__init__ doesn't need a live registry."""
-    with patch("src.opengradient.client.llm.TEERegistry") as mock_tee_registry:
+    with (
+        patch("src.opengradient.client.llm.TEERegistry") as mock_tee_registry,
+        patch(
+            "src.opengradient.client.tee_connection.build_ssl_context_from_der",
+            return_value=MagicMock(),
+        ),
+    ):
         mock_tee = MagicMock()
         mock_tee.endpoint = "https://test.tee.server"
-        mock_tee.tls_cert_der = None
+        mock_tee.tls_cert_der = b"fake-der"
         mock_tee.tee_id = "test-tee-id"
         mock_tee.payment_address = "0xTestPaymentAddress"
         mock_tee_registry.return_value.get_llm_tee.return_value = mock_tee
@@ -72,13 +78,13 @@ class TestLLMInitialization:
     def test_llm_initialization(self, mock_tee_registry):
         """Test basic LLM initialization."""
         llm = LLM(private_key=FAKE_PRIVATE_KEY)
-        assert llm._tee_endpoint == "https://test.tee.server"
+        assert llm._tee.get().endpoint == "https://test.tee.server"
 
     def test_llm_initialization_custom_url(self, mock_tee_registry):
         """Test LLM initialization with custom server URL."""
         custom_llm_url = "https://custom.llm.server"
-        llm = LLM(private_key=FAKE_PRIVATE_KEY, llm_server_url=custom_llm_url)
-        assert llm._tee_endpoint == custom_llm_url
+        llm = LLM.from_url(private_key=FAKE_PRIVATE_KEY, llm_server_url=custom_llm_url)
+        assert llm._tee.get().endpoint == custom_llm_url
 
 
 # --- ModelHub Authentication Tests ---
