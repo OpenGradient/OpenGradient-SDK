@@ -77,7 +77,7 @@ class TestLLMInitialization:
     def test_llm_initialization_custom_url(self, mock_tee_registry):
         """Test LLM initialization with custom server URL."""
         custom_llm_url = "https://custom.llm.server"
-        llm = LLM(private_key=FAKE_PRIVATE_KEY, llm_server_url=custom_llm_url)
+        llm = LLM.from_url(private_key=FAKE_PRIVATE_KEY, llm_server_url=custom_llm_url)
         assert llm._tee.get().endpoint == custom_llm_url
 
 

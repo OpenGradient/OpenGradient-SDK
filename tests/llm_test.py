@@ -137,9 +137,10 @@ def _make_llm(
     endpoint: str = "https://test.tee.server",
 ) -> LLM:
     """Build an LLM with an explicit server URL (skips registry lookup)."""
-    llm = LLM(private_key=FAKE_PRIVATE_KEY, llm_server_url=endpoint)
-    # llm_server_url path sets tee_id/payment_address to None; replace with test values.
     from dataclasses import replace
+
+    llm = LLM.from_url(private_key=FAKE_PRIVATE_KEY, llm_server_url=endpoint)
+    # from_url sets tee_id/payment_address to None; replace with test values.
     llm._tee._active = replace(llm._tee.get(), tee_id="test-tee-id", payment_address="0xTestPayment")
     return llm
 

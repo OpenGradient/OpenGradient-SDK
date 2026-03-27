@@ -1,4 +1,4 @@
-"""Tests for TEEConnection and ActiveTEE.
+"""Tests for StaticTEEConnection, RegistryTEEConnection, and ActiveTEE.
 
 Covers TEE resolution, connection lifecycle, reconnect, background refresh,
 and the ActiveTEE data snapshot.
@@ -12,7 +12,8 @@ import pytest
 
 from src.opengradient.client.tee_connection import (
     ActiveTEE,
-    TEEConnection,
+    RegistryTEEConnection,
+    StaticTEEConnection,
     _TEE_REFRESH_INTERVAL,
 )
 from src.opengradient.client.tee_registry import TEE_TYPE_LLM_PROXY
@@ -35,23 +36,45 @@ def _mock_x402_client():
     return MagicMock()
 
 
-def _make_connection(
+def _make_static_connection(
     *,
-    llm_server_url: str = "https://test.tee",
-    registry=None,
+    endpoint: str = "https://test.tee",
     http_factory=None,
 ):
-    """Build a TEEConnection with patched externals."""
+    """Build a StaticTEEConnection with patched externals."""
     factory = http_factory or FakeHTTPClient
     with patch(
         "src.opengradient.client.tee_connection.x402HttpxClient",
         side_effect=factory,
     ):
-        return TEEConnection(
+        return StaticTEEConnection(
+            x402_client=_mock_x402_client(),
+            endpoint=endpoint,
+        )
+
+
+def _make_registry_connection(*, registry=None, http_factory=None):
+    """Build a RegistryTEEConnection with patched externals."""
+    factory = http_factory or FakeHTTPClient
+    with patch(
+        "src.opengradient.client.tee_connection.x402HttpxClient",
+        side_effect=factory,
+    ):
+        return RegistryTEEConnection(
             x402_client=_mock_x402_client(),
             registry=registry,
-            llm_server_url=llm_server_url,
         )
+
+
+def _mock_registry_with_tee(endpoint="https://tee.endpoint", tls_cert_der=None, tee_id="tee-1", payment_address="0xPay"):
+    mock_reg = MagicMock()
+    mock_tee = MagicMock()
+    mock_tee.endpoint = endpoint
+    mock_tee.tls_cert_der = tls_cert_der
+    mock_tee.tee_id = tee_id
+    mock_tee.payment_address = payment_address
+    mock_reg.get_llm_tee.return_value = mock_tee
+    return mock_reg
 
 
 # ── ActiveTEE tests ─────────────────────────────────────────────────
@@ -96,77 +119,26 @@ class TestActiveTEE:
             tee.endpoint = "https://other"
 
 
-# ── _resolve_tee (static) tests ─────────────────────────────────────
+# ── StaticTEEConnection tests ───────────────────────────────────────
 
 
-class TestResolveTee:
-    def test_explicit_url_skips_registry(self):
-        endpoint, cert, tee_id, pay_addr = TEEConnection._resolve_tee(
-            "https://explicit.url", None
-        )
-
-        assert endpoint == "https://explicit.url"
-        assert cert is None
-        assert tee_id is None
-        assert pay_addr is None
-
-    def test_no_url_and_no_registry_raises(self):
-        with pytest.raises(ValueError, match="Either llm_server_url or"):
-            TEEConnection._resolve_tee(None, None)
-
-    def test_registry_returns_none_raises(self):
-        mock_reg = MagicMock()
-        mock_reg.get_llm_tee.return_value = None
-
-        with pytest.raises(ValueError, match="No active LLM proxy TEE"):
-            TEEConnection._resolve_tee(None, mock_reg)
-
-    def test_registry_exception_wraps_in_runtime_error(self):
-        mock_reg = MagicMock()
-        mock_reg.get_llm_tee.side_effect = Exception("rpc down")
-
-        with pytest.raises(RuntimeError, match="Failed to fetch LLM TEE"):
-            TEEConnection._resolve_tee(None, mock_reg)
-
-    def test_registry_success(self):
-        mock_reg = MagicMock()
-        mock_tee = MagicMock()
-        mock_tee.endpoint = "https://registry.tee"
-        mock_tee.tls_cert_der = b"cert-bytes"
-        mock_tee.tee_id = "tee-42"
-        mock_tee.payment_address = "0xPay"
-        mock_reg.get_llm_tee.return_value = mock_tee
-
-        endpoint, cert, tee_id, pay_addr = TEEConnection._resolve_tee(
-            None, mock_reg
-        )
-
-        assert endpoint == "https://registry.tee"
-        assert cert == b"cert-bytes"
-        assert tee_id == "tee-42"
-        assert pay_addr == "0xPay"
-
-
-# ── TEEConnection.__init__ / get / _connect tests ───────────────────
-
-
-class TestConnectionInit:
+class TestStaticConnectionInit:
     def test_get_returns_active_tee(self):
-        conn = _make_connection()
+        conn = _make_static_connection()
         active = conn.get()
 
         assert isinstance(active, ActiveTEE)
         assert active.endpoint == "https://test.tee"
 
-    def test_explicit_url_sets_none_tee_id(self):
-        conn = _make_connection(llm_server_url="https://custom.url")
+    def test_sets_none_tee_id_and_payment(self):
+        conn = _make_static_connection(endpoint="https://custom.url")
         active = conn.get()
 
         assert active.tee_id is None
         assert active.payment_address is None
 
-    def test_ssl_verify_false_for_explicit_url(self):
-        """When using an explicit URL with no TLS cert, verify should be False."""
+    def test_ssl_verify_false(self):
+        """Static connections disable TLS verification."""
         clients = []
 
         def capture_client(*args, **kwargs):
@@ -179,51 +151,21 @@ class TestConnectionInit:
             "src.opengradient.client.tee_connection.x402HttpxClient",
             side_effect=capture_client,
         ):
-            TEEConnection(
+            StaticTEEConnection(
                 x402_client=_mock_x402_client(),
-                llm_server_url="https://custom.url",
+                endpoint="https://custom.url",
             )
 
-        # verify=False because llm_server_url is set and no TLS cert
         assert clients[0]._verify is False
 
-    def test_registry_path_creates_ssl_context(self):
-        """When registry provides a TLS cert, an SSLContext should be built."""
-        mock_reg = MagicMock()
-        mock_tee = MagicMock()
-        mock_tee.endpoint = "https://registry.tee"
-        mock_tee.tls_cert_der = b"fake-der"
-        mock_tee.tee_id = "tee-1"
-        mock_tee.payment_address = "0xPay"
-        mock_reg.get_llm_tee.return_value = mock_tee
-
-        mock_ssl_ctx = MagicMock(spec=ssl.SSLContext)
-
-        with (
-            patch(
-                "src.opengradient.client.tee_connection.x402HttpxClient",
-                side_effect=FakeHTTPClient,
-            ),
-            patch(
-                "src.opengradient.client.tee_connection.build_ssl_context_from_der",
-                return_value=mock_ssl_ctx,
-            ) as mock_build,
-        ):
-            conn = TEEConnection(
-                x402_client=_mock_x402_client(),
-                registry=mock_reg,
-            )
-
-        mock_build.assert_called_once_with(b"fake-der")
-        assert conn.get().endpoint == "https://registry.tee"
-        assert conn.get().tee_id == "tee-1"
-
-
-# ── reconnect tests ─────────────────────────────────────────────────
+    def test_ensure_refresh_loop_is_noop(self):
+        conn = _make_static_connection()
+        conn.ensure_refresh_loop()
+        # No task created, no error raised
 
 
 @pytest.mark.asyncio
-class TestReconnect:
+class TestStaticReconnect:
     async def test_replaces_active_tee(self):
         clients_created = []
 
@@ -236,9 +178,9 @@ class TestReconnect:
             "src.opengradient.client.tee_connection.x402HttpxClient",
             side_effect=make_client,
         ):
-            conn = TEEConnection(
+            conn = StaticTEEConnection(
                 x402_client=_mock_x402_client(),
-                llm_server_url="https://test.tee",
+                endpoint="https://test.tee",
             )
             old_client = conn.get().http_client
 
@@ -248,7 +190,7 @@ class TestReconnect:
         assert len(clients_created) == 2
 
     async def test_closes_old_client(self):
-        conn = _make_connection()
+        conn = _make_static_connection()
         old_client = conn.get().http_client
         old_client.aclose = AsyncMock()
 
@@ -261,7 +203,164 @@ class TestReconnect:
         old_client.aclose.assert_awaited_once()
 
     async def test_close_failure_is_swallowed(self):
-        conn = _make_connection()
+        conn = _make_static_connection()
+        old_client = conn.get().http_client
+        old_client.aclose = AsyncMock(side_effect=OSError("already closed"))
+
+        with patch(
+            "src.opengradient.client.tee_connection.x402HttpxClient",
+            side_effect=FakeHTTPClient,
+        ):
+            # Should not raise
+            await conn.reconnect()
+
+
+@pytest.mark.asyncio
+class TestStaticClose:
+    async def test_closes_http_client(self):
+        conn = _make_static_connection()
+        conn.get().http_client.aclose = AsyncMock()
+
+        await conn.close()
+
+        conn.get().http_client.aclose.assert_awaited_once()
+
+
+# ── RegistryTEEConnection._resolve_tee tests ────────────────────────
+
+
+class TestResolveTee:
+    def test_registry_returns_none_raises(self):
+        mock_reg = MagicMock()
+        mock_reg.get_llm_tee.return_value = None
+
+        with patch(
+            "src.opengradient.client.tee_connection.x402HttpxClient",
+            side_effect=FakeHTTPClient,
+        ):
+            with pytest.raises(ValueError, match="No active LLM proxy TEE"):
+                RegistryTEEConnection(x402_client=_mock_x402_client(), registry=mock_reg)
+
+    def test_registry_exception_wraps_in_runtime_error(self):
+        mock_reg = MagicMock()
+        mock_reg.get_llm_tee.side_effect = Exception("rpc down")
+
+        with patch(
+            "src.opengradient.client.tee_connection.x402HttpxClient",
+            side_effect=FakeHTTPClient,
+        ):
+            with pytest.raises(RuntimeError, match="Failed to fetch LLM TEE"):
+                RegistryTEEConnection(x402_client=_mock_x402_client(), registry=mock_reg)
+
+    def test_registry_success(self):
+        mock_reg = _mock_registry_with_tee(
+            endpoint="https://registry.tee",
+            tls_cert_der=b"cert-bytes",
+            tee_id="tee-42",
+            payment_address="0xPay",
+        )
+
+        with (
+            patch(
+                "src.opengradient.client.tee_connection.x402HttpxClient",
+                side_effect=FakeHTTPClient,
+            ),
+            patch(
+                "src.opengradient.client.tee_connection.build_ssl_context_from_der",
+                return_value=MagicMock(spec=ssl.SSLContext),
+            ),
+        ):
+            conn = RegistryTEEConnection(x402_client=_mock_x402_client(), registry=mock_reg)
+
+        assert conn.get().endpoint == "https://registry.tee"
+        assert conn.get().tee_id == "tee-42"
+        assert conn.get().payment_address == "0xPay"
+
+
+# ── RegistryTEEConnection init / connect tests ──────────────────────
+
+
+class TestRegistryConnectionInit:
+    def test_get_returns_active_tee(self):
+        mock_reg = _mock_registry_with_tee()
+        conn = _make_registry_connection(registry=mock_reg)
+        active = conn.get()
+
+        assert isinstance(active, ActiveTEE)
+        assert active.endpoint == "https://tee.endpoint"
+
+    def test_registry_path_creates_ssl_context(self):
+        """When registry provides a TLS cert, an SSLContext should be built."""
+        mock_reg = _mock_registry_with_tee(tls_cert_der=b"fake-der")
+        mock_ssl_ctx = MagicMock(spec=ssl.SSLContext)
+
+        with (
+            patch(
+                "src.opengradient.client.tee_connection.x402HttpxClient",
+                side_effect=FakeHTTPClient,
+            ),
+            patch(
+                "src.opengradient.client.tee_connection.build_ssl_context_from_der",
+                return_value=mock_ssl_ctx,
+            ) as mock_build,
+        ):
+            conn = RegistryTEEConnection(
+                x402_client=_mock_x402_client(),
+                registry=mock_reg,
+            )
+
+        mock_build.assert_called_once_with(b"fake-der")
+        assert conn.get().endpoint == "https://tee.endpoint"
+        assert conn.get().tee_id == "tee-1"
+
+
+# ── RegistryTEEConnection reconnect tests ───────────────────────────
+
+
+@pytest.mark.asyncio
+class TestRegistryReconnect:
+    async def test_replaces_active_tee(self):
+        clients_created = []
+
+        def make_client(*args, **kwargs):
+            c = FakeHTTPClient()
+            clients_created.append(c)
+            return c
+
+        mock_reg = _mock_registry_with_tee()
+
+        with patch(
+            "src.opengradient.client.tee_connection.x402HttpxClient",
+            side_effect=make_client,
+        ):
+            conn = RegistryTEEConnection(
+                x402_client=_mock_x402_client(),
+                registry=mock_reg,
+            )
+            old_client = conn.get().http_client
+
+            await conn.reconnect()
+
+        assert conn.get().http_client is not old_client
+        assert len(clients_created) == 2
+
+    async def test_closes_old_client(self):
+        mock_reg = _mock_registry_with_tee()
+        conn = _make_registry_connection(registry=mock_reg)
+        old_client = conn.get().http_client
+        old_client.aclose = AsyncMock()
+
+        with patch(
+            "src.opengradient.client.tee_connection.x402HttpxClient",
+            side_effect=FakeHTTPClient,
+        ):
+            await conn.reconnect()
+
+        old_client.aclose.assert_awaited_once()
+
+    async def test_close_failure_is_swallowed(self):
+        mock_reg = _mock_registry_with_tee()
+        conn = _make_registry_connection(registry=mock_reg)
         old_client = conn.get().http_client
         old_client.aclose = AsyncMock(side_effect=OSError("already closed"))
 
@@ -276,16 +375,18 @@ class TestReconnect:
         """Concurrent reconnect calls should not race."""
         call_order = []
 
-        original_connect = TEEConnection._connect
+        original_connect = RegistryTEEConnection._connect
 
         def slow_connect(self):
             call_order.append("start")
-            original_connect(self)
+            result = original_connect(self)
             call_order.append("end")
+            return result
 
-        conn = _make_connection()
+        mock_reg = _mock_registry_with_tee()
+        conn = _make_registry_connection(registry=mock_reg)
 
-        with patch.object(TEEConnection, "_connect", slow_connect):
+        with patch.object(RegistryTEEConnection, "_connect", slow_connect):
             await asyncio.gather(conn.reconnect(), conn.reconnect())
 
         # Both should complete without interleaving (lock serializes them)
@@ -297,30 +398,9 @@ class TestReconnect:
 
 @pytest.mark.asyncio
 class TestEnsureRefreshLoop:
-    async def test_noop_when_llm_server_url_set(self):
-        conn = _make_connection(llm_server_url="https://explicit.url")
-
-        conn.ensure_refresh_loop()
-
-        assert conn._refresh_task is None
-
-    async def test_starts_task_when_no_llm_server_url(self):
-        mock_reg = MagicMock()
-        mock_tee = MagicMock()
-        mock_tee.endpoint = "https://tee.endpoint"
-        mock_tee.tls_cert_der = None
-        mock_tee.tee_id = "tee-1"
-        mock_tee.payment_address = "0xPay"
-        mock_reg.get_llm_tee.return_value = mock_tee
-
-        with patch(
-            "src.opengradient.client.tee_connection.x402HttpxClient",
-            side_effect=FakeHTTPClient,
-        ):
-            conn = TEEConnection(
-                x402_client=_mock_x402_client(),
-                registry=mock_reg,
-            )
+    async def test_starts_task(self):
+        mock_reg = _mock_registry_with_tee()
+        conn = _make_registry_connection(registry=mock_reg)
 
         conn.ensure_refresh_loop()
 
@@ -335,22 +415,8 @@ class TestEnsureRefreshLoop:
             pass
 
     async def test_idempotent_when_already_running(self):
-        mock_reg = MagicMock()
-        mock_tee = MagicMock()
-        mock_tee.endpoint = "https://tee.endpoint"
-        mock_tee.tls_cert_der = None
-        mock_tee.tee_id = "tee-1"
-        mock_tee.payment_address = "0xPay"
-        mock_reg.get_llm_tee.return_value = mock_tee
-
-        with patch(
-            "src.opengradient.client.tee_connection.x402HttpxClient",
-            side_effect=FakeHTTPClient,
-        ):
-            conn = TEEConnection(
-                x402_client=_mock_x402_client(),
-                registry=mock_reg,
-            )
+        mock_reg = _mock_registry_with_tee()
+        conn = _make_registry_connection(registry=mock_reg)
 
         conn.ensure_refresh_loop()
         first_task = conn._refresh_task
@@ -373,26 +439,13 @@ class TestEnsureRefreshLoop:
 @pytest.mark.asyncio
 class TestTeeRefreshLoop:
     async def test_no_reconnect_when_tee_still_active(self):
-        mock_reg = MagicMock()
-        mock_tee = MagicMock()
-        mock_tee.endpoint = "https://tee.endpoint"
-        mock_tee.tls_cert_der = None
-        mock_tee.tee_id = "tee-1"
-        mock_tee.payment_address = "0xPay"
-        mock_reg.get_llm_tee.return_value = mock_tee
+        mock_reg = _mock_registry_with_tee(tee_id="tee-1")
 
         active_tee = MagicMock()
         active_tee.tee_id = "tee-1"
         mock_reg.get_active_tees_by_type.return_value = [active_tee]
 
-        with patch(
-            "src.opengradient.client.tee_connection.x402HttpxClient",
-            side_effect=FakeHTTPClient,
-        ):
-            conn = TEEConnection(
-                x402_client=_mock_x402_client(),
-                registry=mock_reg,
-            )
+        conn = _make_registry_connection(registry=mock_reg)
 
         with patch.object(conn, "reconnect", new_callable=AsyncMock) as mock_reconnect:
             with patch(
@@ -405,27 +458,14 @@ class TestTeeRefreshLoop:
             mock_reconnect.assert_not_called()
 
     async def test_reconnects_when_tee_no_longer_active(self):
-        mock_reg = MagicMock()
-        mock_tee = MagicMock()
-        mock_tee.endpoint = "https://tee.endpoint"
-        mock_tee.tls_cert_der = None
-        mock_tee.tee_id = "tee-1"
-        mock_tee.payment_address = "0xPay"
-        mock_reg.get_llm_tee.return_value = mock_tee
+        mock_reg = _mock_registry_with_tee(tee_id="tee-1")
 
         # Registry says a different TEE is now active
         other_tee = MagicMock()
         other_tee.tee_id = "tee-99"
         mock_reg.get_active_tees_by_type.return_value = [other_tee]
 
-        with patch(
-            "src.opengradient.client.tee_connection.x402HttpxClient",
-            side_effect=FakeHTTPClient,
-        ):
-            conn = TEEConnection(
-                x402_client=_mock_x402_client(),
-                registry=mock_reg,
-            )
+        conn = _make_registry_connection(registry=mock_reg)
 
         with patch.object(conn, "reconnect", new_callable=AsyncMock) as mock_reconnect:
             with patch(
@@ -438,13 +478,7 @@ class TestTeeRefreshLoop:
             mock_reconnect.assert_awaited_once()
 
     async def test_registry_error_does_not_crash_loop(self):
-        mock_reg = MagicMock()
-        mock_tee = MagicMock()
-        mock_tee.endpoint = "https://tee.endpoint"
-        mock_tee.tls_cert_der = None
-        mock_tee.tee_id = "tee-1"
-        mock_tee.payment_address = "0xPay"
-        mock_reg.get_llm_tee.return_value = mock_tee
+        mock_reg = _mock_registry_with_tee(tee_id="tee-1")
 
         # First check fails, second check cancels
         mock_reg.get_active_tees_by_type.side_effect = [
@@ -452,14 +486,7 @@ class TestTeeRefreshLoop:
             asyncio.CancelledError,
         ]
 
-        with patch(
-            "src.opengradient.client.tee_connection.x402HttpxClient",
-            side_effect=FakeHTTPClient,
-        ):
-            conn = TEEConnection(
-                x402_client=_mock_x402_client(),
-                registry=mock_reg,
-            )
+        conn = _make_registry_connection(registry=mock_reg)
 
         with patch(
             "src.opengradient.client.tee_connection.asyncio.sleep",
@@ -472,13 +499,14 @@ class TestTeeRefreshLoop:
         assert mock_reg.get_active_tees_by_type.call_count == 2
 
 
-# ── close tests ──────────────────────────────────────────────────────
+# ── RegistryTEEConnection close tests ───────────────────────────────
 
 
 @pytest.mark.asyncio
-class TestClose:
+class TestRegistryClose:
     async def test_closes_http_client(self):
-        conn = _make_connection()
+        mock_reg = _mock_registry_with_tee()
+        conn = _make_registry_connection(registry=mock_reg)
         conn.get().http_client.aclose = AsyncMock()
 
         await conn.close()
@@ -486,7 +514,8 @@ class TestClose:
         conn.get().http_client.aclose.assert_awaited_once()
 
     async def test_cancels_refresh_task(self):
-        conn = _make_connection()
+        mock_reg = _mock_registry_with_tee()
+        conn = _make_registry_connection(registry=mock_reg)
         mock_task = MagicMock()
         conn._refresh_task = mock_task
 
@@ -496,14 +525,8 @@ class TestClose:
         assert conn._refresh_task is None
 
     async def test_close_without_refresh_task(self):
-        conn = _make_connection()
+        mock_reg = _mock_registry_with_tee()
+        conn = _make_registry_connection(registry=mock_reg)
 
         # Should not raise when no refresh task exists
-        await conn.close()
-
-    async def test_close_with_no_active_tee(self):
-        conn = _make_connection()
-        conn._active = None
-
-        # Should not raise
         await conn.close()

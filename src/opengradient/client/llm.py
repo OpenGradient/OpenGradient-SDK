@@ -15,7 +15,7 @@ from x402.mechanisms.evm.upto.register import register_upto_evm_client
 
 from ..types import TEE_LLM, StreamChoice, StreamChunk, StreamDelta, TextGenerationOutput, x402SettlementMode
 from .opg_token import Permit2ApprovalResult, ensure_opg_approval
-from .tee_connection import TEEConnection
+from .tee_connection import RegistryTEEConnection, StaticTEEConnection, TEEConnectionInterface
 from .tee_registry import TEERegistry
 
 logger = logging.getLogger(__name__)
@@ -62,29 +62,17 @@ class LLM:
     below the requested amount.
 
     Usage:
+        # Via on-chain registry (default)
         llm = og.LLM(private_key="0x...")
+
+        # Via hardcoded URL (development / self-hosted)
+        llm = og.LLM.from_url(private_key="0x...", llm_server_url="https://1.2.3.4")
 
         # One-time approval (idempotent — skips if allowance is already sufficient)
         llm.ensure_opg_approval(opg_amount=5)
 
         result = await llm.chat(model=TEE_LLM.CLAUDE_HAIKU_4_5, messages=[...])
         result = await llm.completion(model=TEE_LLM.CLAUDE_HAIKU_4_5, prompt="Hello")
-
-    Args:
-        private_key (str): Ethereum private key for signing x402 payments.
-        rpc_url (str): RPC URL for the OpenGradient network. Used to fetch the
-            active TEE endpoint from the on-chain registry when ``llm_server_url``
-            is not provided.
-        tee_registry_address (str): Address of the on-chain TEE registry contract.
-        llm_server_url (str, optional): Bypass the registry and connect directly
-            to this TEE endpoint URL (e.g. ``"https://1.2.3.4"``). When set,
-            TLS certificate verification is disabled automatically because
-            self-hosted TEE servers typically use self-signed certificates.
-
-            .. warning::
-                Using ``llm_server_url`` disables TLS certificate verification,
-                which removes protection against man-in-the-middle attacks.
-                Only connect to servers you trust and over secure network paths.
     """
 
     def __init__(
@@ -92,32 +80,49 @@ class LLM:
         private_key: str,
         rpc_url: str = DEFAULT_RPC_URL,
         tee_registry_address: str = DEFAULT_TEE_REGISTRY_ADDRESS,
-        llm_server_url: Optional[str] = None,
     ):
         if not private_key:
-            raise ValueError(
-                "A private key is required to use the LLM client. "
-                "Pass a valid private_key to the constructor."
-            )
+            raise ValueError("A private key is required to use the LLM client. Pass a valid private_key to the constructor.")
         self._wallet_account: LocalAccount = Account.from_key(private_key)
 
-        # x402 payment stack (created once, reused across TEE refreshes)
-        signer = EthAccountSigner(self._wallet_account)
-        x402_client = x402Client()
-        register_exact_evm_client(x402_client, signer, networks=[BASE_TESTNET_NETWORK])
-        register_upto_evm_client(x402_client, signer, networks=[BASE_TESTNET_NETWORK])
+        x402_client = LLM._build_x402_client(private_key)
+        onchain_registry = TEERegistry(rpc_url=rpc_url, registry_address=tee_registry_address)
+        self._tee: TEEConnectionInterface = RegistryTEEConnection(x402_client=x402_client, registry=onchain_registry)
 
-        registry: Optional[TEERegistry] = (
-            TEERegistry(rpc_url=rpc_url, registry_address=tee_registry_address)
-            if llm_server_url is None
-            else None
-        )
+    @classmethod
+    def from_url(
+        cls,
+        private_key: str,
+        llm_server_url: str,
+    ) -> "LLM":
+        """**[Dev]** Create an LLM client with a hardcoded TEE endpoint URL.
 
-        self._tee = TEEConnection(
-            x402_client=x402_client,
-            registry=registry,
-            llm_server_url=llm_server_url,
-        )
+        Intended for development and self-hosted TEE servers. TLS certificate
+        verification is disabled because these servers typically use self-signed
+        certificates. For production use, prefer the default constructor which
+        resolves TEEs from the on-chain registry.
+
+        Args:
+            private_key: Ethereum private key for signing x402 payments.
+            llm_server_url: The TEE endpoint URL (e.g. ``"https://1.2.3.4"``).
+        """
+        instance = cls.__new__(cls)
+        if not private_key:
+            raise ValueError("A private key is required to use the LLM client. Pass a valid private_key to the constructor.")
+        instance._wallet_account = Account.from_key(private_key)
+        x402_client = cls._build_x402_client(private_key)
+        instance._tee = StaticTEEConnection(x402_client=x402_client, endpoint=llm_server_url)
+        return instance
+
+    @staticmethod
+    def _build_x402_client(private_key: str) -> x402Client:
+        """Build the x402 payment stack from a private key."""
+        account = Account.from_key(private_key)
+        signer = EthAccountSigner(account)
+        client = x402Client()
+        register_exact_evm_client(client, signer, networks=[BASE_TESTNET_NETWORK])
+        register_upto_evm_client(client, signer, networks=[BASE_TESTNET_NETWORK])
+        return client
 
     # ── Lifecycle ───────────────────────────────────────────────────────
 
