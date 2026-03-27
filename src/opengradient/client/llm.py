@@ -94,6 +94,11 @@ class LLM:
         tee_registry_address: str = DEFAULT_TEE_REGISTRY_ADDRESS,
         llm_server_url: Optional[str] = None,
     ):
+        if not private_key:
+            raise ValueError(
+                "A private key is required to use the LLM client. "
+                "Pass a valid private_key to the constructor."
+            )
         self._wallet_account: LocalAccount = Account.from_key(private_key)
 
         # x402 payment stack (created once, reused across TEE refreshes)
