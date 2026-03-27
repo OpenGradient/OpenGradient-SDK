@@ -191,7 +191,7 @@ class LLM:
 
         Only sends a transaction when the current allowance drops below
         ``min_allowance``. When approval is needed, approves ``approve_amount``
-        (defaults to ``10 * min_allowance``) to create a buffer that survives
+        (defaults to ``2 * min_allowance``) to create a buffer that survives
         multiple service restarts without re-approving.
 
         Best for backend servers that call this on startup::
@@ -202,7 +202,7 @@ class LLM:
             min_allowance: The minimum acceptable allowance in OPG. Must be
                 at least 0.1 OPG.
             approve_amount: The amount of OPG to approve when a transaction
-                is needed. Defaults to ``10 * min_allowance``. Must be
+                is needed. Defaults to ``2 * min_allowance``. Must be
                 >= ``min_allowance``.
 
         Returns:
