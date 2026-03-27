@@ -76,13 +76,20 @@ def _fund_account(funder_key: str, recipient_address: str):
     if opg_receipt.status != 1:
         raise RuntimeError(f"OPG transfer failed: {opg_hash.hex()}")
 
-    # Wait for the recipient balance to be visible on the RPC node
+    # Wait for the recipient balances to be visible on the RPC node
     for _ in range(5):
         if w3.eth.get_balance(recipient) > 0:
             break
         time.sleep(1)
     else:
         raise RuntimeError("Recipient ETH balance is still 0 after funding")
+
+    for _ in range(10):
+        if token.functions.balanceOf(recipient).call() > 0:
+            break
+        time.sleep(1)
+    else:
+        raise RuntimeError("Recipient OPG token balance is still 0 after funding")
 
 
 @pytest.fixture(scope="module")
