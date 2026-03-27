@@ -184,12 +184,72 @@ class LLM:
 
     # ── Public API ──────────────────────────────────────────────────────
 
+    def approve_opg(self, opg_amount: float) -> Permit2ApprovalResult:
+        """Approve Permit2 to spend ``opg_amount`` OPG if the current allowance is insufficient.
+
+        Idempotent: if the current allowance is already >= ``opg_amount``, no
+        transaction is sent. Best for one-off usage — scripts, notebooks, CLI tools.
+
+        Args:
+            opg_amount: Number of OPG tokens to approve (e.g. ``0.1``
+                for 0.1 OPG). Must be at least 0.1 OPG.
+
+        Returns:
+            Permit2ApprovalResult: Contains ``allowance_before``,
+                ``allowance_after``, and ``tx_hash`` (None when no approval
+                was needed).
+
+        Raises:
+            ValueError: If the OPG amount is less than 0.1.
+            RuntimeError: If the approval transaction fails.
+        """
+        if opg_amount < 0.1:
+            raise ValueError("OPG amount must be at least 0.1.")
+        return approve_opg(self._wallet_account, opg_amount)
+
+    def ensure_opg_allowance(
+        self,
+        min_allowance: float,
+        approve_amount: Optional[float] = None,
+    ) -> Permit2ApprovalResult:
+        """Ensure the Permit2 allowance stays above a minimum threshold.
+
+        Only sends a transaction when the current allowance drops below
+        ``min_allowance``. When approval is needed, approves ``approve_amount``
+        (defaults to ``10 * min_allowance``) to create a buffer that survives
+        multiple service restarts without re-approving.
+
+        Best for backend servers that call this on startup::
+
+            llm.ensure_opg_allowance(min_allowance=5.0, approve_amount=100.0)
+
+        Args:
+            min_allowance: The minimum acceptable allowance in OPG. Must be
+                at least 0.1 OPG.
+            approve_amount: The amount of OPG to approve when a transaction
+                is needed. Defaults to ``10 * min_allowance``. Must be
+                >= ``min_allowance``.
+
+        Returns:
+            Permit2ApprovalResult: Contains ``allowance_before``,
+                ``allowance_after``, and ``tx_hash`` (None when no approval
+                was needed).
+
+        Raises:
+            ValueError: If ``min_allowance`` is less than 0.1 or
+                ``approve_amount`` is less than ``min_allowance``.
+            RuntimeError: If the approval transaction fails.
+        """
+        if min_allowance < 0.1:
+            raise ValueError("min_allowance must be at least 0.1.")
+        return ensure_opg_allowance(self._wallet_account, min_allowance, approve_amount)
+
     def ensure_opg_approval(self, opg_amount: float) -> Permit2ApprovalResult:
         """Ensure the Permit2 allowance for OPG is at least ``opg_amount``.
 
-        Checks the current Permit2 allowance for the wallet. If the allowance
-        is already >= the requested amount, returns immediately without sending
-        a transaction. Otherwise, sends an ERC-20 approve transaction.
+        .. deprecated::
+            Use ``approve_opg`` for one-off approvals or
+            ``ensure_opg_allowance`` for server-startup usage.
 
         Args:
             opg_amount: Minimum number of OPG tokens required (e.g. ``0.1``

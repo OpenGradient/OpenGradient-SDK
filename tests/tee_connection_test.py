@@ -229,12 +229,16 @@ class TestRegistryTEEConnection:
         mock_reg = _mock_registry_with_tee()
         conn = _make_registry_connection(registry=mock_reg)
 
-        with patch.object(RegistryTEEConnection, "_connect", slow_connect), patch(
-            "src.opengradient.client.tee_connection.build_ssl_context_from_der",
-            return_value=MagicMock(spec=ssl.SSLContext),
-        ), patch(
-            "src.opengradient.client.tee_connection.x402HttpxClient",
-            side_effect=FakeHTTPClient,
+        with (
+            patch.object(RegistryTEEConnection, "_connect", slow_connect),
+            patch(
+                "src.opengradient.client.tee_connection.build_ssl_context_from_der",
+                return_value=MagicMock(spec=ssl.SSLContext),
+            ),
+            patch(
+                "src.opengradient.client.tee_connection.x402HttpxClient",
+                side_effect=FakeHTTPClient,
+            ),
         ):
             await asyncio.gather(conn.reconnect(), conn.reconnect())
 

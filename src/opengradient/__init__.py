@@ -26,7 +26,7 @@ import opengradient as og
 llm = og.LLM(private_key="0x...")
 
 # One-time OPG token approval (idempotent -- skips if allowance is sufficient)
-llm.ensure_opg_approval(opg_amount=5)
+llm.approve_opg(opg_amount=5)
 
 # Chat with an LLM (TEE-verified)
 response = asyncio.run(llm.chat(

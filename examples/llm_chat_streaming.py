@@ -6,7 +6,7 @@ import opengradient as og
 
 async def main():
     llm = og.LLM(private_key=os.environ.get("OG_PRIVATE_KEY"))
-    llm.ensure_opg_approval(opg_amount=0.1)
+    llm.approve_opg(opg_amount=0.1)
 
     messages = [
         {"role": "user", "content": "What is Python?"},

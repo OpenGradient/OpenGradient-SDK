@@ -269,8 +269,7 @@ def ensure_opg_approval(wallet_account: LocalAccount, opg_amount: float) -> Perm
         RuntimeError: If the approval transaction fails.
     """
     warnings.warn(
-        "ensure_opg_approval is deprecated. Use approve_opg for one-off approvals "
-        "or ensure_opg_allowance for server-startup usage.",
+        "ensure_opg_approval is deprecated. Use approve_opg for one-off approvals or ensure_opg_allowance for server-startup usage.",
         DeprecationWarning,
         stacklevel=2,
     )
