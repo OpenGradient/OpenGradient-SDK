@@ -133,7 +133,7 @@ class RegistryTEEConnection:
             raise RuntimeError(f"Failed to fetch LLM TEE endpoint from registry: {e}") from e
 
         if tee is None:
-            raise ValueError("No active LLM proxy TEE found in the registry. Pass llm_server_url explicitly to override.")
+            raise ValueError("No active LLM proxy TEE found in the registry.")
 
         logger.info("Using TEE endpoint from registry: %s (teeId=%s)", tee.endpoint, tee.tee_id)
         return tee
@@ -155,10 +155,8 @@ class RegistryTEEConnection:
     async def reconnect(self) -> None:
         """Connect to a new TEE from the registry and rebuild the HTTP client."""
         async with self._refresh_lock:
-            old_client = self._active.http_client
-            self._active = self._connect()
             try:
-                await old_client.aclose()
+                self._active = self._connect()
             except Exception:
                 logger.debug("Failed to close previous HTTP client during TEE refresh.", exc_info=True)
 
@@ -188,6 +186,9 @@ class RegistryTEEConnection:
                     continue
                 logger.info("Current TEE %s no longer active; switching to a new one.", self._active.tee_id)
                 await self.reconnect()
+            except asyncio.CancelledError:
+                logger.debug("Background TEE health check cancelled; exiting loop.")
+                raise
             except Exception:
                 logger.warning("Background TEE health check failed; will retry next cycle.", exc_info=True)
 

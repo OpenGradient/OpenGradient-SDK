@@ -5,6 +5,7 @@ import logging
 from dataclasses import dataclass
 from typing import AsyncGenerator, Awaitable, Callable, Dict, List, Optional, TypeVar, Union
 import httpx
+import asyncio
 
 from eth_account import Account
 from eth_account.account import LocalAccount
@@ -169,6 +170,8 @@ class LLM:
         try:
             return await call()
         except httpx.HTTPStatusError:
+            raise
+        except asyncio.CancelledError:
             raise
         except Exception as exc:
             logger.warning(
@@ -423,6 +426,8 @@ class LLM:
                     yield chunk
             return
         except httpx.HTTPStatusError:
+            raise
+        except asyncio.CancelledError:
             raise
         except Exception as exc:
             if chunks_yielded:
