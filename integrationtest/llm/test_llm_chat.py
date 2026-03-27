@@ -23,7 +23,7 @@ ERC20_TRANSFER_ABI = [
 ]
 
 # Amount of OPG tokens to fund the test account with
-OPG_FUND_AMOUNT = 0.05
+OPG_FUND_AMOUNT = 0.1
 # Amount of ETH to fund the test account with (for gas)
 ETH_FUND_AMOUNT = 0.0001
 
