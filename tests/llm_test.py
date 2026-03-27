@@ -47,7 +47,11 @@ class FakeHTTPClient:
         self._post_calls.append({"url": url, "json": json, "headers": headers, "timeout": timeout})
         resp = _FakeResponse(self._response_status, self._response_body)
         if self._response_status >= 400:
-            resp.raise_for_status = MagicMock(side_effect=httpx.HTTPStatusError("error", request=MagicMock(), response=MagicMock()))
+            mock_response = MagicMock()
+            mock_response.status_code = self._response_status
+            resp.raise_for_status = MagicMock(
+                side_effect=httpx.HTTPStatusError("error", request=MagicMock(), response=mock_response)
+            )
         return resp
 
     @asynccontextmanager
@@ -209,6 +213,14 @@ class TestCompletion:
         with pytest.raises(RuntimeError, match="TEE LLM completion failed"):
             await llm.completion(model=TEE_LLM.GPT_5, prompt="Hi")
 
+    async def test_http_402_raises_hint(self, fake_http):
+        """HTTP 402 from the TEE must surface the actionable _402_HINT message."""
+        fake_http.set_response(402, {})
+        llm = _make_llm()
+
+        with pytest.raises(RuntimeError, match="Payment required \(HTTP 402\)"):
+            await llm.completion(model=TEE_LLM.GPT_5, prompt="Hi")
+
 
 # ── Chat (non-streaming) tests ───────────────────────────────────────
 
@@ -361,6 +373,14 @@ class TestChat:
         with pytest.raises(RuntimeError, match="TEE LLM chat failed"):
             await llm.chat(model=TEE_LLM.GPT_5, messages=[{"role": "user", "content": "Hi"}])
 
+    async def test_http_402_raises_hint(self, fake_http):
+        """HTTP 402 from the TEE must surface the actionable _402_HINT message."""
+        fake_http.set_response(402, {})
+        llm = _make_llm()
+
+        with pytest.raises(RuntimeError, match="Payment required \(HTTP 402\)"):
+            await llm.chat(model=TEE_LLM.GPT_5, messages=[{"role": "user", "content": "Hi"}])
+
 
 # ── Streaming tests ──────────────────────────────────────────────────
 
@@ -438,6 +458,20 @@ class TestChatStreaming:
         )
 
         with pytest.raises(RuntimeError, match="streaming request failed"):
+            _ = [chunk async for chunk in gen]
+
+    async def test_stream_402_raises_hint(self, fake_http):
+        """HTTP 402 during streaming must surface the actionable _402_HINT message."""
+        fake_http.set_stream_response(402, [b"Payment Required"])
+        llm = _make_llm()
+
+        gen = await llm.chat(
+            model=TEE_LLM.GPT_5,
+            messages=[{"role": "user", "content": "Hi"}],
+            stream=True,
+        )
+
+        with pytest.raises(RuntimeError, match="Payment required \(HTTP 402\)"):
             _ = [chunk async for chunk in gen]
 
     async def test_tools_with_stream_falls_back_to_single_chunk(self, fake_http):
