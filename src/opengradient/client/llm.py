@@ -427,8 +427,11 @@ class LLM:
                 exc,
             )
 
+        # Only reached if the first attempt failed before yielding any chunks.
+        # Re-resolve the TEE endpoint from the registry and retry once.
         await self._tee.reconnect()
         tee = self._tee.get()
+
         headers = self._headers(params.x402_settlement_mode)
         async with tee.http_client.stream(
             "POST",
