@@ -22,7 +22,7 @@ import os
 llm = og.LLM(private_key=os.environ["OG_PRIVATE_KEY"])
 
 # Ensure sufficient OPG allowance (only sends tx when below threshold)
-llm.ensure_opg_allowance(min_allowance=0.1)
+llm.ensure_opg_approval(min_allowance=0.1)
 
 # LLM Chat (TEE-verified with x402 payments, async)
 result = await llm.chat(

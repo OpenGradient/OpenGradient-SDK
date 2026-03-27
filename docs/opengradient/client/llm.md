@@ -21,7 +21,7 @@ Supports both streaming and non-streaming responses.
 All request methods (``chat``, ``completion``) are async.
 
 Before making LLM requests, ensure your wallet has approved sufficient
-OPG tokens for Permit2 spending by calling ``ensure_opg_allowance``.
+OPG tokens for Permit2 spending by calling ``ensure_opg_approval``.
 
 #### Constructor
 
@@ -188,10 +188,10 @@ TextGenerationOutput: Generated text results including:
 
 ---
 
-#### `ensure_opg_allowance()`
+#### `ensure_opg_approval()`
 
 ```python
-def ensure_opg_allowance(
+def ensure_opg_approval(
     self,
     min_allowance: float,
     approve_amount: Optional[float] = None
@@ -206,7 +206,7 @@ multiple service restarts without re-approving.
 
 Best for backend servers that call this on startup::
 
-    llm.ensure_opg_allowance(min_allowance=5.0, approve_amount=100.0)
+    llm.ensure_opg_approval(min_allowance=5.0, approve_amount=100.0)
 
 **Arguments**
 

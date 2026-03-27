@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from opengradient.client.opg_token import (
-    ensure_opg_allowance,
+    ensure_opg_approval,
 )
 
 OWNER_ADDRESS = "0x1234567890abcdef1234567890ABCDEF12345678"
@@ -70,7 +70,7 @@ def _setup_approval_mocks(mock_web3, mock_wallet, contract):
     return approve_fn, tx_hash
 
 
-# ── ensure_opg_allowance tests ──────────────────────────────────────
+# ── ensure_opg_approval tests ──────────────────────────────────────
 
 
 class TestEnsureOpgAllowanceSkips:
@@ -81,7 +81,7 @@ class TestEnsureOpgAllowanceSkips:
         min_base = int(5.0 * 10**18)
         _setup_allowance(mock_web3, min_base * 2)
 
-        result = ensure_opg_allowance(mock_wallet, min_allowance=5.0)
+        result = ensure_opg_approval(mock_wallet, min_allowance=5.0)
 
         assert result.tx_hash is None
         assert result.allowance_before == min_base * 2
@@ -91,7 +91,7 @@ class TestEnsureOpgAllowanceSkips:
         min_base = int(5.0 * 10**18)
         _setup_allowance(mock_web3, min_base)
 
-        result = ensure_opg_allowance(mock_wallet, min_allowance=5.0)
+        result = ensure_opg_approval(mock_wallet, min_allowance=5.0)
 
         assert result.tx_hash is None
 
@@ -107,7 +107,7 @@ class TestEnsureOpgAllowanceSendsTx:
         approve_base = int(10.0 * 10**18)  # 2x of 5.0
         contract.functions.allowance.return_value.call.side_effect = [0, 0, approve_base]
 
-        result = ensure_opg_allowance(mock_wallet, min_allowance=5.0)
+        result = ensure_opg_approval(mock_wallet, min_allowance=5.0)
 
         assert result.tx_hash == "0xabc123"
         # Verify approve was called with 10x amount
@@ -122,7 +122,7 @@ class TestEnsureOpgAllowanceSendsTx:
         approve_base = int(100.0 * 10**18)
         contract.functions.allowance.return_value.call.side_effect = [0, 0, approve_base]
 
-        result = ensure_opg_allowance(mock_wallet, min_allowance=5.0, approve_amount=100.0)
+        result = ensure_opg_approval(mock_wallet, min_allowance=5.0, approve_amount=100.0)
 
         assert result.tx_hash == "0xabc123"
         args = contract.functions.approve.call_args[0]
@@ -135,7 +135,7 @@ class TestEnsureOpgAllowanceSendsTx:
         remaining = int(60.0 * 10**18)
         _setup_allowance(mock_web3, remaining)
 
-        result = ensure_opg_allowance(mock_wallet, min_allowance=5.0, approve_amount=100.0)
+        result = ensure_opg_approval(mock_wallet, min_allowance=5.0, approve_amount=100.0)
 
         assert result.tx_hash is None
         assert result.allowance_before == remaining
@@ -153,7 +153,7 @@ class TestEnsureOpgAllowanceBalanceCheck:
         # allowance calls: 1st for the check, 2nd in _send_approve_tx before, 3rd in post-tx poll
         contract.functions.allowance.return_value.call.side_effect = [0, 0, balance]
 
-        result = ensure_opg_allowance(mock_wallet, min_allowance=0.1)
+        result = ensure_opg_approval(mock_wallet, min_allowance=0.1)
 
         # Default approve_amount would be 0.2, but balance is only 0.1 — capped
         args = contract.functions.approve.call_args[0]
@@ -165,7 +165,7 @@ class TestEnsureOpgAllowanceBalanceCheck:
         _setup_allowance(mock_web3, 0, balance=0)
 
         with pytest.raises(ValueError, match="has no OPG tokens"):
-            ensure_opg_allowance(mock_wallet, min_allowance=0.1)
+            ensure_opg_approval(mock_wallet, min_allowance=0.1)
 
     def test_no_cap_when_balance_sufficient(self, mock_wallet, mock_web3):
         """When balance >= approve_amount, no capping occurs."""
@@ -176,7 +176,7 @@ class TestEnsureOpgAllowanceBalanceCheck:
 
         contract.functions.allowance.return_value.call.side_effect = [0, 0, approve_base]
 
-        result = ensure_opg_allowance(mock_wallet, min_allowance=0.1)
+        result = ensure_opg_approval(mock_wallet, min_allowance=0.1)
 
         args = contract.functions.approve.call_args[0]
         assert args[1] == approve_base
@@ -190,7 +190,7 @@ class TestEnsureOpgAllowanceValidation:
         _setup_allowance(mock_web3, 0)
 
         with pytest.raises(ValueError, match="approve_amount.*must be >= min_allowance"):
-            ensure_opg_allowance(mock_wallet, min_allowance=10.0, approve_amount=5.0)
+            ensure_opg_approval(mock_wallet, min_allowance=10.0, approve_amount=5.0)
 
 
 class TestAmountConversion:
@@ -201,7 +201,7 @@ class TestAmountConversion:
         expected_base = int(0.5 * 10**18)
         _setup_allowance(mock_web3, expected_base)
 
-        result = ensure_opg_allowance(mock_wallet, min_allowance=0.5)
+        result = ensure_opg_approval(mock_wallet, min_allowance=0.5)
 
         assert result.allowance_before == expected_base
         assert result.tx_hash is None
@@ -211,7 +211,7 @@ class TestAmountConversion:
         expected_base = int(1000.0 * 10**18)
         _setup_allowance(mock_web3, expected_base)
 
-        result = ensure_opg_allowance(mock_wallet, min_allowance=1000.0)
+        result = ensure_opg_approval(mock_wallet, min_allowance=1000.0)
 
         assert result.allowance_before == expected_base
         assert result.tx_hash is None

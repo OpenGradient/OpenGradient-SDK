@@ -36,7 +36,7 @@ export OG_PRIVATE_KEY="0x..."
 ## Step 1: Initialize the Client
 
 Before making any LLM calls, ensure sufficient OPG token allowance for the x402
-payment protocol. The `ensure_opg_allowance` method only sends a transaction when
+payment protocol. The `ensure_opg_approval` method only sends a transaction when
 the current allowance drops below the threshold.
 
 ```python
@@ -54,7 +54,7 @@ if not private_key:
 llm = og.LLM(private_key=private_key)
 
 # Ensure sufficient OPG allowance for x402 payments (only sends tx when below threshold).
-llm.ensure_opg_allowance(min_allowance=5)
+llm.ensure_opg_approval(min_allowance=5)
 ```
 
 ## Step 2: Define Local Tool Implementations
@@ -317,7 +317,7 @@ if not private_key:
 llm = og.LLM(private_key=private_key)
 
 # Ensure sufficient OPG allowance for x402 payments (only sends tx when below threshold).
-llm.ensure_opg_allowance(min_allowance=5)
+llm.ensure_opg_approval(min_allowance=5)
 
 # ── Mock data ─────────────────────────────────────────────────────────────
 PORTFOLIO      = {"ETH": {"amount": 5.0, "avg_cost": 1950.00},

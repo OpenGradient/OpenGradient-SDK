@@ -36,7 +36,7 @@ export OG_PRIVATE_KEY="0x..."
 
 Start with the simplest possible call -- send a message and get a response. Before
 making any LLM calls, ensure sufficient OPG token allowance for the x402 payment
-protocol using `ensure_opg_allowance`. This only sends a transaction when the
+protocol using `ensure_opg_approval`. This only sends a transaction when the
 current allowance drops below the threshold.
 
 ```python
@@ -53,7 +53,7 @@ if not private_key:
 llm = og.LLM(private_key=private_key)
 
 # Ensure sufficient OPG allowance for x402 payments (only sends tx when below threshold).
-llm.ensure_opg_allowance(min_allowance=5)
+llm.ensure_opg_approval(min_allowance=5)
 
 async def main():
     result = await llm.chat(
@@ -274,7 +274,7 @@ if not private_key:
 llm = og.LLM(private_key=private_key)
 
 # Ensure sufficient OPG allowance for x402 payments (only sends tx when below threshold).
-llm.ensure_opg_allowance(min_allowance=5)
+llm.ensure_opg_approval(min_allowance=5)
 
 PROMPT = "Explain what a Trusted Execution Environment is in two sentences."
 

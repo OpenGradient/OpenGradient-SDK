@@ -144,7 +144,7 @@ def _get_web3_and_contract():
     return w3, token, spender
 
 
-def ensure_opg_allowance(
+def ensure_opg_approval(
     wallet_account: LocalAccount,
     min_allowance: float,
     approve_amount: Optional[float] = None,
@@ -160,7 +160,7 @@ def ensure_opg_allowance(
 
         # On startup — only sends a tx when allowance < 5 OPG,
         # then approves 100 OPG so subsequent restarts are free.
-        result = ensure_opg_allowance(wallet, min_allowance=5.0, approve_amount=100.0)
+        result = ensure_opg_approval(wallet, min_allowance=5.0, approve_amount=100.0)
 
     Args:
         wallet_account: The wallet account to check and approve from.

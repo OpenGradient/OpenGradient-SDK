@@ -15,7 +15,7 @@ from x402.mechanisms.evm.exact.register import register_exact_evm_client
 from x402.mechanisms.evm.upto.register import register_upto_evm_client
 
 from ..types import TEE_LLM, StreamChoice, StreamChunk, StreamDelta, TextGenerationOutput, x402SettlementMode
-from .opg_token import Permit2ApprovalResult, ensure_opg_allowance
+from .opg_token import Permit2ApprovalResult, ensure_opg_approval
 from .tee_connection import RegistryTEEConnection, StaticTEEConnection, TEEConnectionInterface
 from .tee_registry import TEERegistry
 
@@ -58,7 +58,7 @@ class LLM:
     All request methods (``chat``, ``completion``) are async.
 
     Before making LLM requests, ensure your wallet has approved sufficient
-    OPG tokens for Permit2 spending by calling ``ensure_opg_allowance``.
+    OPG tokens for Permit2 spending by calling ``ensure_opg_approval``.
 
     Usage:
         # Via on-chain registry (default)
@@ -68,7 +68,7 @@ class LLM:
         llm = og.LLM.from_url(private_key="0x...", llm_server_url="https://1.2.3.4")
 
         # Ensure sufficient OPG allowance (only sends tx when below threshold)
-        llm.ensure_opg_allowance(min_allowance=5)
+        llm.ensure_opg_approval(min_allowance=5)
 
         result = await llm.chat(model=TEE_LLM.CLAUDE_HAIKU_4_5, messages=[...])
         result = await llm.completion(model=TEE_LLM.CLAUDE_HAIKU_4_5, prompt="Hello")
@@ -182,7 +182,7 @@ class LLM:
 
     # ── Public API ──────────────────────────────────────────────────────
 
-    def ensure_opg_allowance(
+    def ensure_opg_approval(
         self,
         min_allowance: float,
         approve_amount: Optional[float] = None,
@@ -196,7 +196,7 @@ class LLM:
 
         Best for backend servers that call this on startup::
 
-            llm.ensure_opg_allowance(min_allowance=5.0, approve_amount=100.0)
+            llm.ensure_opg_approval(min_allowance=5.0, approve_amount=100.0)
 
         Args:
             min_allowance: The minimum acceptable allowance in OPG. Must be
@@ -217,7 +217,7 @@ class LLM:
         """
         if min_allowance < 0.1:
             raise ValueError("min_allowance must be at least 0.1.")
-        return ensure_opg_allowance(self._wallet_account, min_allowance, approve_amount)
+        return ensure_opg_approval(self._wallet_account, min_allowance, approve_amount)
 
     async def completion(
         self,

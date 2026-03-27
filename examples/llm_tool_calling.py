@@ -51,7 +51,7 @@ async def main():
     ]
 
     # Ensure sufficient OPG allowance for Permit2 spending
-    llm.ensure_opg_allowance(min_allowance=0.1)
+    llm.ensure_opg_approval(min_allowance=0.1)
 
     print("Testing Gemini tool calls...")
     print(f"Model: {og.TEE_LLM.GEMINI_2_5_FLASH_LITE}")
