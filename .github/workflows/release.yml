@@ -44,6 +44,11 @@ jobs:
       - name: Run tests
         run: make test
 
+      - name: Run LLM integration tests
+        env:
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+        run: make llm_integrationtest
+
   release:
     needs: [check, test]
     runs-on: ubuntu-latest
