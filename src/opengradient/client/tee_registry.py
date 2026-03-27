@@ -31,7 +31,7 @@ class TEEInfo(NamedTuple):
     last_heartbeat_at: int
 
 
-@dataclass
+@dataclass(frozen=True)
 class TEEEndpoint:
     """A verified TEE with its endpoint URL and TLS certificate from the registry."""
 
