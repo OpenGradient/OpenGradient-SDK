@@ -185,26 +185,24 @@ class LLM:
     # ── Public API ──────────────────────────────────────────────────────
 
     def approve_opg(self, opg_amount: float) -> Permit2ApprovalResult:
-        """Approve Permit2 to spend ``opg_amount`` OPG if the current allowance is insufficient.
+        """Approve Permit2 to spend ``opg_amount`` OPG tokens.
 
-        Idempotent: if the current allowance is already >= ``opg_amount``, no
-        transaction is sent. Best for one-off usage — scripts, notebooks, CLI tools.
+        Always sends an approval transaction regardless of the current allowance.
 
         Args:
             opg_amount: Number of OPG tokens to approve (e.g. ``0.1``
-                for 0.1 OPG). Must be at least 0.1 OPG.
+                for 0.1 OPG). Must be at least 0.01 OPG.
 
         Returns:
             Permit2ApprovalResult: Contains ``allowance_before``,
-                ``allowance_after``, and ``tx_hash`` (None when no approval
-                was needed).
+                ``allowance_after``, and ``tx_hash``.
 
         Raises:
-            ValueError: If the OPG amount is less than 0.1.
+            ValueError: If the OPG amount is less than 0.01.
             RuntimeError: If the approval transaction fails.
         """
-        if opg_amount < 0.1:
-            raise ValueError("OPG amount must be at least 0.1.")
+        if opg_amount < 0.01:
+            raise ValueError("OPG amount must be at least 0.01.")
         return approve_opg(self._wallet_account, opg_amount)
 
     def ensure_opg_allowance(

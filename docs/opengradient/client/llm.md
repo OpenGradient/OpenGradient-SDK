@@ -73,7 +73,7 @@ transaction is sent. Best for one-off usage — scripts, notebooks, CLI tools.
 **Arguments**
 
 * **`opg_amount`**: Number of OPG tokens to approve (e.g. ``0.1``
-        for 0.1 OPG). Must be at least 0.1 OPG.
+        for 0.1 OPG). Must be at least 0.01 OPG.
 
 **Returns**
 
@@ -83,7 +83,7 @@ Permit2ApprovalResult: Contains ``allowance_before``,
 
 **Raises**
 
-* **`ValueError`**: If the OPG amount is less than 0.1.
+* **`ValueError`**: If the OPG amount is less than 0.01.
 * **`RuntimeError`**: If the approval transaction fails.
 
 ---
@@ -256,33 +256,4 @@ Permit2ApprovalResult: Contains ``allowance_before``,
 
 * **`ValueError`**: If ``min_allowance`` is less than 0.1 or
         ``approve_amount`` is less than ``min_allowance``.
-* **`RuntimeError`**: If the approval transaction fails.
-
----
-
-#### `ensure_opg_approval()`
-
-```python
-def ensure_opg_approval(self, opg_amount: float) ‑> [Permit2ApprovalResult](./opg_token)
-```
-Ensure the Permit2 allowance for OPG is at least ``opg_amount``.
-
-.. deprecated::
-    Use ``approve_opg`` for one-off approvals or
-    ``ensure_opg_allowance`` for server-startup usage.
-
-**Arguments**
-
-* **`opg_amount`**: Minimum number of OPG tokens required (e.g. ``0.1``
-        for 0.1 OPG). Must be at least 0.1 OPG.
-
-**Returns**
-
-Permit2ApprovalResult: Contains ``allowance_before``,
-    ``allowance_after``, and ``tx_hash`` (None when no approval
-    was needed).
-
-**Raises**
-
-* **`ValueError`**: If the OPG amount is less than 0.1.
 * **`RuntimeError`**: If the approval transaction fails.

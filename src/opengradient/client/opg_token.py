@@ -138,24 +138,22 @@ def _get_web3_and_contract():
 
 
 def approve_opg(wallet_account: LocalAccount, opg_amount: float) -> Permit2ApprovalResult:
-    """Approve Permit2 to spend ``opg_amount`` OPG if the current allowance is insufficient.
+    """Approve Permit2 to spend ``opg_amount`` OPG tokens.
 
-    Idempotent: if the current allowance is already >= ``opg_amount``, no
-    transaction is sent.
+    Always sends an approval transaction regardless of the current allowance.
 
-    Best for one-off usage — scripts, notebooks, CLI tools::
+    Example::
 
         result = approve_opg(wallet, 5.0)
 
     Args:
-        wallet_account: The wallet account to check and approve from.
+        wallet_account: The wallet account to approve from.
         opg_amount: Number of OPG tokens to approve (e.g. ``5.0`` for 5 OPG).
             Converted to base units (18 decimals) internally.
 
     Returns:
         Permit2ApprovalResult: Contains ``allowance_before``,
-            ``allowance_after``, and ``tx_hash`` (None when no approval
-            was needed).
+            ``allowance_after``, and ``tx_hash``.
 
     Raises:
         RuntimeError: If the approval transaction fails.
@@ -165,15 +163,6 @@ def approve_opg(wallet_account: LocalAccount, opg_amount: float) -> Permit2Appro
     w3, token, spender = _get_web3_and_contract()
     owner = Web3.to_checksum_address(wallet_account.address)
 
-    allowance_before = token.functions.allowance(owner, spender).call()
-
-    if allowance_before >= amount_base:
-        return Permit2ApprovalResult(
-            allowance_before=allowance_before,
-            allowance_after=allowance_before,
-        )
-
-    logger.info("Permit2 allowance insufficient (%s < %s), sending approval tx", allowance_before, amount_base)
     return _send_approve_tx(wallet_account, w3, token, owner, spender, amount_base)
 
 
