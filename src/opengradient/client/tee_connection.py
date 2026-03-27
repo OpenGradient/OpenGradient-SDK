@@ -142,12 +142,10 @@ class RegistryTEEConnection:
         """Resolve TEE from registry and create a secure HTTP client."""
         tee = self._resolve_tee()
 
-        ssl_ctx = build_ssl_context_from_der(tee.tls_cert_der) if tee.tls_cert_der else None
-        tls_verify: Union[ssl.SSLContext, bool] = ssl_ctx if ssl_ctx else True
-
+        ssl_ctx = build_ssl_context_from_der(tee.tls_cert_der) 
         return ActiveTEE(
             endpoint=tee.endpoint,
-            http_client=x402HttpxClient(self._x402_client, verify=tls_verify),
+            http_client=x402HttpxClient(self._x402_client, verify=ssl_ctx),
             tee_id=tee.tee_id,
             payment_address=tee.payment_address,
         )
