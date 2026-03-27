@@ -58,9 +58,7 @@ class LLM:
     All request methods (``chat``, ``completion``) are async.
 
     Before making LLM requests, ensure your wallet has approved sufficient
-    OPG tokens for Permit2 spending by calling ``ensure_opg_allowance``.
-    This only sends an on-chain transaction when the current allowance is
-    below the requested amount.
+    OPG tokens for Permit2 spending by calling ``ensure_opg_allowance`` or ``approve_opg``.
 
     Usage:
         # Via on-chain registry (default)
