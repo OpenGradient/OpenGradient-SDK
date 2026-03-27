@@ -35,10 +35,9 @@ export OG_PRIVATE_KEY="0x..."
 
 ## Step 1: Initialize the Client
 
-Before making any LLM calls, approve OPG token spending for the x402 payment
-protocol. The `approve_opg` method is idempotent -- it checks the current
-Permit2 allowance and only sends a transaction if the allowance is below the
-requested amount.
+Before making any LLM calls, ensure sufficient OPG token allowance for the x402
+payment protocol. The `ensure_opg_allowance` method only sends a transaction when
+the current allowance drops below the threshold.
 
 ```python
 import json
@@ -54,8 +53,8 @@ if not private_key:
 
 llm = og.LLM(private_key=private_key)
 
-# Approve OPG spending for x402 payments (one-time, idempotent).
-llm.approve_opg(opg_amount=5)
+# Ensure sufficient OPG allowance for x402 payments (only sends tx when below threshold).
+llm.ensure_opg_allowance(min_allowance=5)
 ```
 
 ## Step 2: Define Local Tool Implementations
@@ -317,8 +316,8 @@ if not private_key:
 
 llm = og.LLM(private_key=private_key)
 
-# Approve OPG spending for x402 payments (idempotent -- skips if already approved).
-llm.approve_opg(opg_amount=5)
+# Ensure sufficient OPG allowance for x402 payments (only sends tx when below threshold).
+llm.ensure_opg_allowance(min_allowance=5)
 
 # ── Mock data ─────────────────────────────────────────────────────────────
 PORTFOLIO      = {"ETH": {"amount": 5.0, "avg_cost": 1950.00},

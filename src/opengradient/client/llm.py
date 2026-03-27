@@ -58,7 +58,7 @@ class LLM:
     All request methods (``chat``, ``completion``) are async.
 
     Before making LLM requests, ensure your wallet has approved sufficient
-    OPG tokens for Permit2 spending by calling ``ensure_opg_approval``.
+    OPG tokens for Permit2 spending by calling ``ensure_opg_allowance``.
     This only sends an on-chain transaction when the current allowance is
     below the requested amount.
 
@@ -69,8 +69,8 @@ class LLM:
         # Via hardcoded URL (development / self-hosted)
         llm = og.LLM.from_url(private_key="0x...", llm_server_url="https://1.2.3.4")
 
-        # One-time approval (idempotent — skips if allowance is already sufficient)
-        llm.ensure_opg_approval(opg_amount=5)
+        # Ensure sufficient OPG allowance (only sends tx when below threshold)
+        llm.ensure_opg_allowance(min_allowance=5)
 
         result = await llm.chat(model=TEE_LLM.CLAUDE_HAIKU_4_5, messages=[...])
         result = await llm.completion(model=TEE_LLM.CLAUDE_HAIKU_4_5, prompt="Hello")

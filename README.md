@@ -88,10 +88,10 @@ hub = og.ModelHub(email="you@example.com", password="...")
 
 ### OPG Token Approval
 
-Before making LLM requests, your wallet must approve OPG token spending via the [Permit2](https://github.com/Uniswap/permit2) protocol. Call this once (it's idempotent — no transaction is sent if the allowance already covers the requested amount):
+Before making LLM requests, your wallet must approve OPG token spending via the [Permit2](https://github.com/Uniswap/permit2) protocol. This only sends an on-chain transaction when the current allowance drops below the threshold:
 
 ```python
-llm.approve_opg(opg_amount=5)
+llm.ensure_opg_allowance(min_allowance=5)
 ```
 
 See [Payment Settlement](#payment-settlement) for details on settlement modes.

@@ -188,7 +188,7 @@ def ensure_opg_allowance(
 
     Only sends an approval transaction when the current allowance drops
     below ``min_allowance``. When approval is needed, approves
-    ``approve_amount`` (defaults to ``10 * min_allowance``) to create a
+    ``approve_amount`` (defaults to ``2 * min_allowance``) to create a
     buffer that survives multiple service restarts without re-approving.
 
     Best for backend servers that call this on startup::
@@ -203,7 +203,7 @@ def ensure_opg_allowance(
             transaction is only sent when the current allowance is
             strictly below this value.
         approve_amount: The amount of OPG to approve when a transaction
-            is needed. Defaults to ``10 * min_allowance``. Must be
+            is needed. Defaults to ``2 * min_allowance``. Must be
             >= ``min_allowance``.
 
     Returns:
@@ -216,7 +216,7 @@ def ensure_opg_allowance(
         RuntimeError: If the approval transaction fails.
     """
     if approve_amount is None:
-        approve_amount = min_allowance * 10
+        approve_amount = min_allowance * 2
 
     if approve_amount < min_allowance:
         raise ValueError(f"approve_amount ({approve_amount}) must be >= min_allowance ({min_allowance})")

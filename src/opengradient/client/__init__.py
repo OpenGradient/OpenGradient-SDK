@@ -17,7 +17,7 @@ import opengradient as og
 
 # LLM inference (Base Sepolia OPG tokens)
 llm = og.LLM(private_key="0x...")
-llm.approve_opg(opg_amount=5)
+llm.ensure_opg_allowance(min_allowance=5)
 result = await llm.chat(model=og.TEE_LLM.CLAUDE_HAIKU_4_5, messages=[...])
 
 # On-chain model inference (OpenGradient testnet gas tokens)
