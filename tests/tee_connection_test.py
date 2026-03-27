@@ -42,12 +42,15 @@ def _mock_x402_client():
 def _make_registry_connection(*, registry=None, http_factory=None):
     """Build a RegistryTEEConnection with patched externals."""
     factory = http_factory or FakeHTTPClient
-    with patch(
-        "src.opengradient.client.tee_connection.x402HttpxClient",
-        side_effect=factory,
-    ), patch(
-        "src.opengradient.client.tee_connection.build_ssl_context_from_der",
-        return_value=MagicMock(spec=ssl.SSLContext),
+    with (
+        patch(
+            "src.opengradient.client.tee_connection.x402HttpxClient",
+            side_effect=factory,
+        ),
+        patch(
+            "src.opengradient.client.tee_connection.build_ssl_context_from_der",
+            return_value=MagicMock(spec=ssl.SSLContext),
+        ),
     ):
         return RegistryTEEConnection(
             x402_client=_mock_x402_client(),
@@ -182,12 +185,15 @@ class TestRegistryTEEConnection:
 
         mock_reg = _mock_registry_with_tee()
 
-        with patch(
-            "src.opengradient.client.tee_connection.x402HttpxClient",
-            side_effect=make_client,
-        ), patch(
-            "src.opengradient.client.tee_connection.build_ssl_context_from_der",
-            return_value=MagicMock(spec=ssl.SSLContext),
+        with (
+            patch(
+                "src.opengradient.client.tee_connection.x402HttpxClient",
+                side_effect=make_client,
+            ),
+            patch(
+                "src.opengradient.client.tee_connection.build_ssl_context_from_der",
+                return_value=MagicMock(spec=ssl.SSLContext),
+            ),
         ):
             conn = RegistryTEEConnection(
                 x402_client=_mock_x402_client(),
@@ -198,7 +204,6 @@ class TestRegistryTEEConnection:
 
         assert conn.get().http_client is not old_client
         assert len(clients_created) == 2
-
 
     async def test_reconnect_swallows_close_failure(self):
         mock_reg = _mock_registry_with_tee()
@@ -224,7 +229,13 @@ class TestRegistryTEEConnection:
         mock_reg = _mock_registry_with_tee()
         conn = _make_registry_connection(registry=mock_reg)
 
-        with patch.object(RegistryTEEConnection, "_connect", slow_connect):
+        with patch.object(RegistryTEEConnection, "_connect", slow_connect), patch(
+            "src.opengradient.client.tee_connection.build_ssl_context_from_der",
+            return_value=MagicMock(spec=ssl.SSLContext),
+        ), patch(
+            "src.opengradient.client.tee_connection.x402HttpxClient",
+            side_effect=FakeHTTPClient,
+        ):
             await asyncio.gather(conn.reconnect(), conn.reconnect())
 
         assert call_order == ["start", "end", "start", "end"]
