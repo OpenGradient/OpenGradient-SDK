@@ -186,13 +186,12 @@ def ensure_opg_allowance(
     if approve_amount < min_allowance:
         raise ValueError(f"approve_amount ({approve_amount}) must be >= min_allowance ({min_allowance})")
 
-    min_base = int(min_allowance * 10**18)
-    approve_base = int(approve_amount * 10**18)
-
     w3, token, spender = _get_web3_and_contract()
     owner = Web3.to_checksum_address(wallet_account.address)
-
     allowance_before = token.functions.allowance(owner, spender).call()
+
+    min_base = int(min_allowance * 10**18)
+    approve_base = int(approve_amount * 10**18)
 
     if allowance_before >= min_base:
         return Permit2ApprovalResult(
@@ -202,10 +201,13 @@ def ensure_opg_allowance(
 
     balance = token.functions.balanceOf(owner).call()
     if balance == 0:
+        raise ValueError(f"Wallet {owner} has no OPG tokens. Fund the wallet before approving.")
+    elif min_base > balance:
         raise ValueError(
-            f"Wallet {owner} has no OPG tokens. Fund the wallet before approving."
+            f"Wallet {owner} has less OPG tokens than the minimum allowance ({min_base} < {balance}). "
+            f"Fund the wallet with at least {min_base / 10**18} OPG before approving."
         )
-    if approve_base > balance:
+    elif approve_base > balance:
         logger.warning(
             "Requested approve_amount (%.6f OPG) exceeds wallet balance (%.6f OPG), capping approval to wallet balance",
             approve_amount,
