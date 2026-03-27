@@ -63,7 +63,7 @@ resolves TEEs from the on-chain registry.
 #### `approve_opg()`
 
 ```python
-def approve_opg(self, opg_amount: float) ‑> `Permit2ApprovalResult`
+def approve_opg(self, opg_amount: float) ‑> [Permit2ApprovalResult](./opg_token)
 ```
 Approve Permit2 to spend ``opg_amount`` OPG if the current allowance is insufficient.
 
@@ -80,12 +80,6 @@ transaction is sent. Best for one-off usage — scripts, notebooks, CLI tools.
 Permit2ApprovalResult: Contains ``allowance_before``,
     ``allowance_after``, and ``tx_hash`` (None when no approval
     was needed).
-
-**`Permit2ApprovalResult` fields:**
-
-* **`allowance_before`**: The Permit2 allowance before the method ran.
-* **`allowance_after`**: The Permit2 allowance after the method ran.
-* **`tx_hash`**: Transaction hash of the approval, or None if no transaction was needed.
 
 **Raises**
 
@@ -231,7 +225,7 @@ def ensure_opg_allowance(
     self,
     min_allowance: float,
     approve_amount: Optional[float] = None
-) ‑> `Permit2ApprovalResult`
+) ‑> [Permit2ApprovalResult](./opg_token)
 ```
 Ensure the Permit2 allowance stays above a minimum threshold.
 
@@ -258,12 +252,6 @@ Permit2ApprovalResult: Contains ``allowance_before``,
     ``allowance_after``, and ``tx_hash`` (None when no approval
     was needed).
 
-**`Permit2ApprovalResult` fields:**
-
-* **`allowance_before`**: The Permit2 allowance before the method ran.
-* **`allowance_after`**: The Permit2 allowance after the method ran.
-* **`tx_hash`**: Transaction hash of the approval, or None if no transaction was needed.
-
 **Raises**
 
 * **`ValueError`**: If ``min_allowance`` is less than 0.1 or
@@ -275,7 +263,7 @@ Permit2ApprovalResult: Contains ``allowance_before``,
 #### `ensure_opg_approval()`
 
 ```python
-def ensure_opg_approval(self, opg_amount: float) ‑> `Permit2ApprovalResult`
+def ensure_opg_approval(self, opg_amount: float) ‑> [Permit2ApprovalResult](./opg_token)
 ```
 Ensure the Permit2 allowance for OPG is at least ``opg_amount``.
 
@@ -293,12 +281,6 @@ Ensure the Permit2 allowance for OPG is at least ``opg_amount``.
 Permit2ApprovalResult: Contains ``allowance_before``,
     ``allowance_after``, and ``tx_hash`` (None when no approval
     was needed).
-
-**`Permit2ApprovalResult` fields:**
-
-* **`allowance_before`**: The Permit2 allowance before the method ran.
-* **`allowance_after`**: The Permit2 allowance after the method ran.
-* **`tx_hash`**: Transaction hash of the approval, or None if no transaction was needed.
 
 **Raises**
 

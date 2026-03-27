@@ -44,6 +44,6 @@ __pdoc__ = {
     "Twins": False,
     "client": False,
     "exceptions": False,
-    "opg_token": True,
+    "opg_token": False,
     "tee_registry": False,
 }
