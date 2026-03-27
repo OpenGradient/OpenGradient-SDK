@@ -8,6 +8,7 @@ from typing import Optional
 
 from eth_account.account import LocalAccount
 from web3 import Web3
+from web3.types import ChecksumAddress
 from x402.mechanisms.evm.constants import PERMIT2_ADDRESS
 
 logger = logging.getLogger(__name__)
@@ -61,8 +62,8 @@ def _send_approve_tx(
     wallet_account: LocalAccount,
     w3: Web3,
     token,
-    owner: str,
-    spender: str,
+    owner: ChecksumAddress,
+    spender: ChecksumAddress,
     amount_base: int,
 ) -> Permit2ApprovalResult:
     """Send an ERC-20 approve transaction and wait for confirmation.
