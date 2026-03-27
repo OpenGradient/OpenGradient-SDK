@@ -1,6 +1,4 @@
 import json
-import os
-import sys
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -8,16 +6,14 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_core.messages.tool import ToolMessage
 from langchain_core.tools import tool
 
-sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-
-from src.opengradient.agents.og_langchain import OpenGradientChatModel, _extract_content, _parse_tool_call
-from src.opengradient.types import TEE_LLM, TextGenerationOutput, x402SettlementMode
+from opengradient.agents.og_langchain import OpenGradientChatModel, _extract_content, _parse_tool_call
+from opengradient.types import TEE_LLM, TextGenerationOutput, x402SettlementMode
 
 
 @pytest.fixture
 def mock_llm_client():
     """Create a mock LLM instance."""
-    with patch("src.opengradient.agents.og_langchain.LLM") as MockLLM:
+    with patch("opengradient.agents.og_langchain.LLM") as MockLLM:
         mock_instance = MagicMock()
         mock_instance.chat = AsyncMock()
         MockLLM.return_value = mock_instance

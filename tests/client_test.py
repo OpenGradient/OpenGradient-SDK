@@ -1,15 +1,11 @@
 import json
-import os
-import sys
 from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
 
-sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-
-from src.opengradient.client.llm import LLM
-from src.opengradient.client.model_hub import ModelHub
-from src.opengradient.types import (
+from opengradient.client.llm import LLM
+from opengradient.client.model_hub import ModelHub
+from opengradient.types import (
     StreamChunk,
     x402SettlementMode,
 )
@@ -23,9 +19,9 @@ FAKE_PRIVATE_KEY = "0x" + "a" * 64
 def mock_tee_registry():
     """Mock the TEE registry so LLM.__init__ doesn't need a live registry."""
     with (
-        patch("src.opengradient.client.llm.TEERegistry") as mock_tee_registry,
+        patch("opengradient.client.llm.TEERegistry") as mock_tee_registry,
         patch(
-            "src.opengradient.client.tee_connection.build_ssl_context_from_der",
+            "opengradient.client.tee_connection.build_ssl_context_from_der",
             return_value=MagicMock(),
         ),
     ):
@@ -41,7 +37,7 @@ def mock_tee_registry():
 @pytest.fixture
 def mock_web3():
     """Create a mock Web3 instance for Alpha."""
-    with patch("src.opengradient.client.alpha.Web3") as mock:
+    with patch("opengradient.client.alpha.Web3") as mock:
         mock_instance = MagicMock()
         mock.return_value = mock_instance
         mock.HTTPProvider.return_value = MagicMock()
@@ -94,8 +90,8 @@ class TestAuthentication:
     def test_login_to_hub_success(self):
         """Test successful login to hub."""
         with (
-            patch("src.opengradient.client.model_hub._FIREBASE_CONFIG", {"apiKey": "fake"}),
-            patch("src.opengradient.client.model_hub.firebase") as mock_firebase,
+            patch("opengradient.client.model_hub._FIREBASE_CONFIG", {"apiKey": "fake"}),
+            patch("opengradient.client.model_hub.firebase") as mock_firebase,
         ):
             mock_auth = MagicMock()
             mock_auth.sign_in_with_email_and_password.return_value = {
@@ -112,8 +108,8 @@ class TestAuthentication:
     def test_login_to_hub_failure(self):
         """Test login failure raises exception."""
         with (
-            patch("src.opengradient.client.model_hub._FIREBASE_CONFIG", {"apiKey": "fake"}),
-            patch("src.opengradient.client.model_hub.firebase") as mock_firebase,
+            patch("opengradient.client.model_hub._FIREBASE_CONFIG", {"apiKey": "fake"}),
+            patch("opengradient.client.model_hub.firebase") as mock_firebase,
         ):
             mock_auth = MagicMock()
             mock_auth.sign_in_with_email_and_password.side_effect = Exception("Invalid credentials")
