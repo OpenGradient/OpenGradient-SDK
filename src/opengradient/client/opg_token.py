@@ -182,7 +182,6 @@ def ensure_opg_allowance(
     """
     if approve_amount is None:
         approve_amount = min_allowance * 2
-
     if approve_amount < min_allowance:
         raise ValueError(f"approve_amount ({approve_amount}) must be >= min_allowance ({min_allowance})")
 
@@ -201,6 +200,10 @@ def ensure_opg_allowance(
         )
 
     balance = token.functions.balanceOf(owner).call()
+    if balance == 0:
+        raise ValueError(
+            f"Wallet {owner} has no OPG tokens. Fund the wallet before approving."
+        )
     if approve_base > balance:
         logger.warning(
             "Requested approve_amount (%.6f OPG) exceeds wallet balance (%.6f OPG), capping approval to wallet balance",

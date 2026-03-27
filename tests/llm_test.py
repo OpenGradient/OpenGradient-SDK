@@ -13,8 +13,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 
-from src.opengradient.client.llm import LLM
-from src.opengradient.types import TEE_LLM, x402SettlementMode
+from opengradient.client.llm import LLM
+from opengradient.types import TEE_LLM, x402SettlementMode
 
 # ── Fake HTTP transport ──────────────────────────────────────────────
 

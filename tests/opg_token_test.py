@@ -1,3 +1,4 @@
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
@@ -158,6 +159,13 @@ class TestEnsureOpgAllowanceBalanceCheck:
         args = contract.functions.approve.call_args[0]
         assert args[1] == balance
         assert result.tx_hash == "0xabc123"
+
+    def test_zero_balance_raises(self, mock_wallet, mock_web3):
+        """When balance is 0, raises ValueError."""
+        _setup_allowance(mock_web3, 0, balance=0)
+
+        with pytest.raises(ValueError, match="has no OPG tokens"):
+            ensure_opg_allowance(mock_wallet, min_allowance=0.1)
 
     def test_no_cap_when_balance_sufficient(self, mock_wallet, mock_web3):
         """When balance >= approve_amount, no capping occurs."""
