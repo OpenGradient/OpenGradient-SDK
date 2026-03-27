@@ -117,7 +117,8 @@ class ModelHub:
         # Create the initial version for the newly created model.
         # Pass `version` as release notes (e.g. "1.00") since the server assigns
         # its own version string — previously `version` was incorrectly passed as
-        # the positional `notes` argument, producing the same result but confusingly.
+        # the positional `notes` argument, resulting in raw version labels as notes
+        # rather than the clearer "Initial version <label>" format used here.
         version_response = self.create_version(created_name, notes=f"Initial version {version}")
 
         return ModelRepository(created_name, version_response["versionString"])
