@@ -26,6 +26,17 @@ pip install opengradient
 
 **Note**: > **Windows users:** See the [Windows Installation Guide](./WINDOWS_INSTALL.md) for step-by-step setup instructions.
 
+### Claude Code Integration
+
+If you use [Claude Code](https://claude.ai/code), you can enhance your development experience with OpenGradient:
+
+- **CLAUDE.md context file**: Copy [docs/CLAUDE_SDK_USERS.md](docs/CLAUDE_SDK_USERS.md) to your project's `CLAUDE.md` to enable context-aware assistance with OpenGradient SDK development.
+
+- **Claude Code Plugin**: Install the [OpenGradient Claude Plugin](https://github.com/OpenGradient/claude-plugins) for skills, commands, and agents tailored to OpenGradient development. To install, run:
+  ```bash
+  claude plugin marketplace add https://github.com/OpenGradient/claude-plugins
+  ```
+
 ## Network Architecture
 
 OpenGradient operates two networks:
@@ -323,10 +334,6 @@ For comprehensive documentation, API reference, and guides:
 - [OpenGradient Documentation](https://docs.opengradient.ai/)
 - [API Reference](https://docs.opengradient.ai/api_reference/python_sdk/)
 - [Network Deployment](https://docs.opengradient.ai/learn/network/deployment.html)
-
-### Claude Code Integration
-
-If you use [Claude Code](https://claude.ai/code), copy [docs/CLAUDE_SDK_USERS.md](docs/CLAUDE_SDK_USERS.md) to your project's `CLAUDE.md` to enable context-aware assistance with OpenGradient SDK development.
 
 ## Model Hub
 
