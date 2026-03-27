@@ -99,7 +99,7 @@ def llm_client():
     print("Account funded with ETH and OPG")
 
     llm = og.LLM(private_key=account.key.hex())
-    llm.approve_opg(opg_amount=OPG_FUND_AMOUNT)
+    llm.ensure_opg_allowance(min_allowance=OPG_FUND_AMOUNT, approve_amount=OPG_FUND_AMOUNT)
     print("Permit2 approval complete")
 
     # Wait for the approval to propagate on-chain

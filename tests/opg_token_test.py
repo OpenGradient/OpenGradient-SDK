@@ -1,11 +1,8 @@
-import warnings
-from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
 
 from opengradient.client.opg_token import (
-    approve_opg,
     ensure_opg_allowance,
 )
 
@@ -37,10 +34,12 @@ def mock_web3(monkeypatch):
     return mock_w3
 
 
-def _setup_allowance(mock_w3, allowance_value):
-    """Configure the mock contract to return a specific allowance."""
+def _setup_allowance(mock_w3, allowance_value, balance=None):
+    """Configure the mock contract to return a specific allowance and balance."""
     contract = MagicMock()
     contract.functions.allowance.return_value.call.return_value = allowance_value
+    # Default balance to a large value so existing tests aren't affected
+    contract.functions.balanceOf.return_value.call.return_value = balance if balance is not None else int(1_000_000 * 10**18)
     mock_w3.eth.contract.return_value = contract
     return contract
 
@@ -68,162 +67,6 @@ def _setup_approval_mocks(mock_web3, mock_wallet, contract):
     mock_web3.eth.wait_for_transaction_receipt.return_value = receipt
 
     return approve_fn, tx_hash
-
-
-# ── approve_opg tests ───────────────────────────────────────────────
-
-
-class TestApproveOpgSkips:
-    """Cases where the existing allowance is sufficient."""
-
-    def test_exact_allowance_skips_tx(self, mock_wallet, mock_web3):
-        """When allowance == requested amount, no transaction is sent."""
-        amount = 5.0
-        amount_base = int(amount * 10**18)
-        _setup_allowance(mock_web3, amount_base)
-
-        result = approve_opg(mock_wallet, amount)
-
-        assert result.allowance_before == amount_base
-        assert result.allowance_after == amount_base
-        assert result.tx_hash is None
-
-    def test_excess_allowance_skips_tx(self, mock_wallet, mock_web3):
-        """When allowance > requested amount, no transaction is sent."""
-        amount_base = int(5.0 * 10**18)
-        _setup_allowance(mock_web3, amount_base * 2)
-
-        result = approve_opg(mock_wallet, 5.0)
-
-        assert result.allowance_before == amount_base * 2
-        assert result.tx_hash is None
-
-    def test_zero_amount_with_zero_allowance_skips(self, mock_wallet, mock_web3):
-        """Requesting 0 tokens with 0 allowance should skip (0 >= 0)."""
-        _setup_allowance(mock_web3, 0)
-
-        result = approve_opg(mock_wallet, 0.0)
-
-        assert result.tx_hash is None
-
-
-class TestApproveOpgSendsTx:
-    """Cases where allowance is insufficient and a transaction is sent."""
-
-    def test_approval_sent_when_allowance_insufficient(self, mock_wallet, mock_web3):
-        """When allowance < requested, an approve tx is sent."""
-        amount = 5.0
-        amount_base = int(amount * 10**18)
-        contract = _setup_allowance(mock_web3, 0)
-        approve_fn, _ = _setup_approval_mocks(mock_web3, mock_wallet, contract)
-
-        # Side effects: 1st call in approve_opg check, 2nd in _send_approve_tx before,
-        # 3rd in post-tx poll
-        contract.functions.allowance.return_value.call.side_effect = [0, 0, amount_base]
-
-        result = approve_opg(mock_wallet, amount)
-
-        assert result.allowance_before == 0
-        assert result.allowance_after == amount_base
-        assert result.tx_hash == "0xabc123"
-
-        # Verify the approve was called with the right amount
-        contract.functions.approve.assert_called_once()
-        args = contract.functions.approve.call_args[0]
-        assert args[1] == amount_base
-
-    def test_gas_estimate_has_20_percent_buffer(self, mock_wallet, mock_web3):
-        """Gas limit should be estimatedGas * 1.2."""
-        contract = _setup_allowance(mock_web3, 0)
-        approve_fn, _ = _setup_approval_mocks(mock_web3, mock_wallet, contract)
-
-        contract.functions.allowance.return_value.call.side_effect = [0, 0, int(1 * 10**18)]
-
-        approve_opg(mock_wallet, 1.0)
-
-        tx_dict = approve_fn.build_transaction.call_args[0][0]
-        assert tx_dict["gas"] == int(50_000 * 1.2)
-
-    def test_waits_for_allowance_update_after_receipt(self, mock_wallet, mock_web3, monkeypatch):
-        """After a successful receipt, poll allowance until the updated value is visible."""
-        monkeypatch.setattr("opengradient.client.opg_token.ALLOWANCE_POLL_INTERVAL", 0)
-        contract = _setup_allowance(mock_web3, 0)
-        _setup_approval_mocks(mock_web3, mock_wallet, contract)
-
-        amount_base = int(1.0 * 10**18)
-        contract.functions.allowance.return_value.call.side_effect = [0, 0, 0, amount_base]
-
-        result = approve_opg(mock_wallet, 1.0)
-
-        assert result.allowance_before == 0
-        assert result.allowance_after == amount_base
-
-
-class TestApproveOpgErrors:
-    """Error handling paths."""
-
-    def test_reverted_tx_raises(self, mock_wallet, mock_web3):
-        """A reverted transaction raises RuntimeError."""
-        contract = _setup_allowance(mock_web3, 0)
-
-        approve_fn = MagicMock()
-        contract.functions.approve.return_value = approve_fn
-        approve_fn.estimate_gas.return_value = 50_000
-
-        mock_web3.eth.get_transaction_count.return_value = 0
-        mock_web3.eth.gas_price = 1_000_000_000
-        mock_web3.eth.chain_id = 84532
-
-        signed = MagicMock()
-        signed.raw_transaction = b"\x00"
-        mock_wallet.sign_transaction.return_value = signed
-
-        tx_hash = MagicMock()
-        tx_hash.hex.return_value = "0xfailed"
-        mock_web3.eth.send_raw_transaction.return_value = tx_hash
-        mock_web3.eth.wait_for_transaction_receipt.return_value = SimpleNamespace(status=0)
-
-        with pytest.raises(RuntimeError, match="reverted"):
-            approve_opg(mock_wallet, 5.0)
-
-    def test_generic_exception_wrapped(self, mock_wallet, mock_web3):
-        """Non-RuntimeError exceptions are wrapped in RuntimeError."""
-        contract = _setup_allowance(mock_web3, 0)
-
-        approve_fn = MagicMock()
-        contract.functions.approve.return_value = approve_fn
-        approve_fn.estimate_gas.side_effect = ConnectionError("RPC unavailable")
-
-        mock_web3.eth.get_transaction_count.return_value = 0
-
-        with pytest.raises(RuntimeError, match="Failed to approve Permit2 for OPG"):
-            approve_opg(mock_wallet, 5.0)
-
-    def test_runtime_error_not_double_wrapped(self, mock_wallet, mock_web3):
-        """RuntimeError raised inside the try block should propagate as-is."""
-        contract = _setup_allowance(mock_web3, 0)
-
-        approve_fn = MagicMock()
-        contract.functions.approve.return_value = approve_fn
-        approve_fn.estimate_gas.return_value = 50_000
-
-        mock_web3.eth.get_transaction_count.return_value = 0
-        mock_web3.eth.gas_price = 1_000_000_000
-        mock_web3.eth.chain_id = 84532
-
-        signed = MagicMock()
-        signed.raw_transaction = b"\x00"
-        mock_wallet.sign_transaction.return_value = signed
-
-        tx_hash = MagicMock()
-        tx_hash.hex.return_value = "0xfailed"
-        mock_web3.eth.send_raw_transaction.return_value = tx_hash
-        mock_web3.eth.wait_for_transaction_receipt.return_value = SimpleNamespace(status=0)
-
-        with pytest.raises(RuntimeError, match="reverted") as exc_info:
-            approve_opg(mock_wallet, 5.0)
-
-        assert "Failed to approve" not in str(exc_info.value)
 
 
 # ── ensure_opg_allowance tests ──────────────────────────────────────
@@ -297,6 +140,40 @@ class TestEnsureOpgAllowanceSendsTx:
         assert result.allowance_before == remaining
 
 
+class TestEnsureOpgAllowanceBalanceCheck:
+    """Balance-aware approval capping."""
+
+    def test_approve_amount_capped_to_balance(self, mock_wallet, mock_web3):
+        """When approve_amount > balance >= min_allowance, cap to balance."""
+        balance = int(0.1 * 10**18)
+        contract = _setup_allowance(mock_web3, 0, balance=balance)
+        _setup_approval_mocks(mock_web3, mock_wallet, contract)
+
+        # allowance calls: 1st for the check, 2nd in _send_approve_tx before, 3rd in post-tx poll
+        contract.functions.allowance.return_value.call.side_effect = [0, 0, balance]
+
+        result = ensure_opg_allowance(mock_wallet, min_allowance=0.1)
+
+        # Default approve_amount would be 0.2, but balance is only 0.1 — capped
+        args = contract.functions.approve.call_args[0]
+        assert args[1] == balance
+        assert result.tx_hash == "0xabc123"
+
+    def test_no_cap_when_balance_sufficient(self, mock_wallet, mock_web3):
+        """When balance >= approve_amount, no capping occurs."""
+        balance = int(1.0 * 10**18)
+        approve_base = int(0.2 * 10**18)
+        contract = _setup_allowance(mock_web3, 0, balance=balance)
+        _setup_approval_mocks(mock_web3, mock_wallet, contract)
+
+        contract.functions.allowance.return_value.call.side_effect = [0, 0, approve_base]
+
+        result = ensure_opg_allowance(mock_wallet, min_allowance=0.1)
+
+        args = contract.functions.approve.call_args[0]
+        assert args[1] == approve_base
+
+
 class TestEnsureOpgAllowanceValidation:
     """Input validation."""
 
@@ -316,7 +193,7 @@ class TestAmountConversion:
         expected_base = int(0.5 * 10**18)
         _setup_allowance(mock_web3, expected_base)
 
-        result = approve_opg(mock_wallet, 0.5)
+        result = ensure_opg_allowance(mock_wallet, min_allowance=0.5)
 
         assert result.allowance_before == expected_base
         assert result.tx_hash is None
@@ -326,7 +203,7 @@ class TestAmountConversion:
         expected_base = int(1000.0 * 10**18)
         _setup_allowance(mock_web3, expected_base)
 
-        result = approve_opg(mock_wallet, 1000.0)
+        result = ensure_opg_allowance(mock_wallet, min_allowance=1000.0)
 
         assert result.allowance_before == expected_base
         assert result.tx_hash is None

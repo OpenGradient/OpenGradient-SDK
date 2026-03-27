@@ -39,6 +39,13 @@ ERC20_ABI = [
         "stateMutability": "nonpayable",
         "type": "function",
     },
+    {
+        "inputs": [{"name": "account", "type": "address"}],
+        "name": "balanceOf",
+        "outputs": [{"name": "", "type": "uint256"}],
+        "stateMutability": "view",
+        "type": "function",
+    },
 ]
 
 
@@ -137,35 +144,6 @@ def _get_web3_and_contract():
     return w3, token, spender
 
 
-def approve_opg(wallet_account: LocalAccount, opg_amount: float) -> Permit2ApprovalResult:
-    """Approve Permit2 to spend ``opg_amount`` OPG tokens.
-
-    Always sends an approval transaction regardless of the current allowance.
-
-    Example::
-
-        result = approve_opg(wallet, 5.0)
-
-    Args:
-        wallet_account: The wallet account to approve from.
-        opg_amount: Number of OPG tokens to approve (e.g. ``5.0`` for 5 OPG).
-            Converted to base units (18 decimals) internally.
-
-    Returns:
-        Permit2ApprovalResult: Contains ``allowance_before``,
-            ``allowance_after``, and ``tx_hash``.
-
-    Raises:
-        RuntimeError: If the approval transaction fails.
-    """
-    amount_base = int(opg_amount * 10**18)
-
-    w3, token, spender = _get_web3_and_contract()
-    owner = Web3.to_checksum_address(wallet_account.address)
-
-    return _send_approve_tx(wallet_account, w3, token, owner, spender, amount_base)
-
-
 def ensure_opg_allowance(
     wallet_account: LocalAccount,
     min_allowance: float,
@@ -221,6 +199,15 @@ def ensure_opg_allowance(
             allowance_before=allowance_before,
             allowance_after=allowance_before,
         )
+
+    balance = token.functions.balanceOf(owner).call()
+    if approve_base > balance:
+        logger.warning(
+            "Requested approve_amount (%.6f OPG) exceeds wallet balance (%.6f OPG), capping approval to wallet balance",
+            approve_amount,
+            balance / 10**18,
+        )
+        approve_base = balance
 
     logger.info(
         "Permit2 allowance below minimum threshold (%s < %s), approving %s base units",

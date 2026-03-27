@@ -15,7 +15,7 @@ from x402.mechanisms.evm.exact.register import register_exact_evm_client
 from x402.mechanisms.evm.upto.register import register_upto_evm_client
 
 from ..types import TEE_LLM, StreamChoice, StreamChunk, StreamDelta, TextGenerationOutput, x402SettlementMode
-from .opg_token import Permit2ApprovalResult, approve_opg, ensure_opg_allowance
+from .opg_token import Permit2ApprovalResult, ensure_opg_allowance
 from .tee_connection import RegistryTEEConnection, StaticTEEConnection, TEEConnectionInterface
 from .tee_registry import TEERegistry
 
@@ -58,7 +58,7 @@ class LLM:
     All request methods (``chat``, ``completion``) are async.
 
     Before making LLM requests, ensure your wallet has approved sufficient
-    OPG tokens for Permit2 spending by calling ``ensure_opg_allowance`` or ``approve_opg``.
+    OPG tokens for Permit2 spending by calling ``ensure_opg_allowance``.
 
     Usage:
         # Via on-chain registry (default)
@@ -181,27 +181,6 @@ class LLM:
             return await call()
 
     # ── Public API ──────────────────────────────────────────────────────
-
-    def approve_opg(self, opg_amount: float) -> Permit2ApprovalResult:
-        """Approve Permit2 to spend ``opg_amount`` OPG tokens.
-
-        Always sends an approval transaction regardless of the current allowance.
-
-        Args:
-            opg_amount: Number of OPG tokens to approve (e.g. ``0.1``
-                for 0.1 OPG). Must be at least 0.01 OPG.
-
-        Returns:
-            Permit2ApprovalResult: Contains ``allowance_before``,
-                ``allowance_after``, and ``tx_hash``.
-
-        Raises:
-            ValueError: If the OPG amount is less than 0.01.
-            RuntimeError: If the approval transaction fails.
-        """
-        if opg_amount < 0.01:
-            raise ValueError("OPG amount must be at least 0.01.")
-        return approve_opg(self._wallet_account, opg_amount)
 
     def ensure_opg_allowance(
         self,

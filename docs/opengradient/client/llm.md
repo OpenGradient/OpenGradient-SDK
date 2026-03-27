@@ -21,7 +21,7 @@ Supports both streaming and non-streaming responses.
 All request methods (``chat``, ``completion``) are async.
 
 Before making LLM requests, ensure your wallet has approved sufficient
-OPG tokens for Permit2 spending by calling ``ensure_opg_allowance`` or ``approve_opg``.
+OPG tokens for Permit2 spending by calling ``ensure_opg_allowance``.
 
 #### Constructor
 
@@ -55,32 +55,6 @@ resolves TEEs from the on-chain registry.
 * **`llm_server_url`**: The TEE endpoint URL (e.g. ``"https://1.2.3.4"``).
 
 #### Methods
-
----
-
-#### `approve_opg()`
-
-```python
-def approve_opg(self, opg_amount: float) ‑> [Permit2ApprovalResult](./opg_token)
-```
-Approve Permit2 to spend ``opg_amount`` OPG tokens.
-
-Always sends an approval transaction regardless of the current allowance.
-
-**Arguments**
-
-* **`opg_amount`**: Number of OPG tokens to approve (e.g. ``0.1``
-        for 0.1 OPG). Must be at least 0.01 OPG.
-
-**Returns**
-
-Permit2ApprovalResult: Contains ``allowance_before``,
-    ``allowance_after``, and ``tx_hash``.
-
-**Raises**
-
-* **`ValueError`**: If the OPG amount is less than 0.01.
-* **`RuntimeError`**: If the approval transaction fails.
 
 ---
 
