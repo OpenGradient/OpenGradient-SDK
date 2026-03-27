@@ -7,7 +7,6 @@ import pytest
 from opengradient.client.opg_token import (
     approve_opg,
     ensure_opg_allowance,
-    ensure_opg_approval,
 )
 
 OWNER_ADDRESS = "0x1234567890abcdef1234567890ABCDEF12345678"
@@ -256,12 +255,12 @@ class TestEnsureOpgAllowanceSkips:
 class TestEnsureOpgAllowanceSendsTx:
     """Cases where allowance is below the minimum and a tx is needed."""
 
-    def test_approves_default_10x_amount(self, mock_wallet, mock_web3):
-        """When no approve_amount given, approves 10x min_allowance."""
+    def test_approves_default_with_greater_amount(self, mock_wallet, mock_web3):
+        """When no approve_amount given, approves 2x min_allowance."""
         contract = _setup_allowance(mock_web3, 0)
         _setup_approval_mocks(mock_web3, mock_wallet, contract)
 
-        approve_base = int(50.0 * 10**18)  # 10x of 5.0
+        approve_base = int(10.0 * 10**18)  # 2x of 5.0
         contract.functions.allowance.return_value.call.side_effect = [0, 0, approve_base]
 
         result = ensure_opg_allowance(mock_wallet, min_allowance=5.0)
@@ -307,40 +306,6 @@ class TestEnsureOpgAllowanceValidation:
 
         with pytest.raises(ValueError, match="approve_amount.*must be >= min_allowance"):
             ensure_opg_allowance(mock_wallet, min_allowance=10.0, approve_amount=5.0)
-
-
-# ── ensure_opg_approval (deprecated) tests ──────────────────────────
-
-
-class TestEnsureOpgApprovalDeprecated:
-    """The old function still works but emits a deprecation warning."""
-
-    def test_emits_deprecation_warning(self, mock_wallet, mock_web3):
-        """ensure_opg_approval should emit a DeprecationWarning."""
-        _setup_allowance(mock_web3, int(10 * 10**18))
-
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
-            ensure_opg_approval(mock_wallet, 5.0)
-
-        assert len(w) == 1
-        assert issubclass(w[0].category, DeprecationWarning)
-        assert "deprecated" in str(w[0].message).lower()
-
-    def test_delegates_to_approve_opg(self, mock_wallet, mock_web3):
-        """ensure_opg_approval should produce the same result as approve_opg."""
-        amount_base = int(5.0 * 10**18)
-        _setup_allowance(mock_web3, amount_base)
-
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", DeprecationWarning)
-            result = ensure_opg_approval(mock_wallet, 5.0)
-
-        assert result.allowance_before == amount_base
-        assert result.tx_hash is None
-
-
-# ── Amount conversion tests ─────────────────────────────────────────
 
 
 class TestAmountConversion:

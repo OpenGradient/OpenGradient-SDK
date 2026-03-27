@@ -15,7 +15,7 @@ from x402.mechanisms.evm.exact.register import register_exact_evm_client
 from x402.mechanisms.evm.upto.register import register_upto_evm_client
 
 from ..types import TEE_LLM, StreamChoice, StreamChunk, StreamDelta, TextGenerationOutput, x402SettlementMode
-from .opg_token import Permit2ApprovalResult, approve_opg, ensure_opg_allowance, ensure_opg_approval
+from .opg_token import Permit2ApprovalResult, approve_opg, ensure_opg_allowance
 from .tee_connection import RegistryTEEConnection, StaticTEEConnection, TEEConnectionInterface
 from .tee_registry import TEERegistry
 

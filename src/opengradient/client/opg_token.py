@@ -2,7 +2,6 @@
 
 import logging
 import time
-import warnings
 from dataclasses import dataclass
 from typing import Optional
 
@@ -246,3 +245,4 @@ def ensure_opg_allowance(
         min_base,
         approve_base,
     )
+    return _send_approve_tx(wallet_account, w3, token, owner, spender, approve_base)
