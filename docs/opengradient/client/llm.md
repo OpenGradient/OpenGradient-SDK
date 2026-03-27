@@ -60,6 +60,40 @@ resolves TEEs from the on-chain registry.
 
 ---
 
+#### `approve_opg()`
+
+```python
+def approve_opg(self, opg_amount: float) ‑> `Permit2ApprovalResult`
+```
+Approve Permit2 to spend ``opg_amount`` OPG if the current allowance is insufficient.
+
+Idempotent: if the current allowance is already >= ``opg_amount``, no
+transaction is sent. Best for one-off usage — scripts, notebooks, CLI tools.
+
+**Arguments**
+
+* **`opg_amount`**: Number of OPG tokens to approve (e.g. ``0.1``
+        for 0.1 OPG). Must be at least 0.1 OPG.
+
+**Returns**
+
+Permit2ApprovalResult: Contains ``allowance_before``,
+    ``allowance_after``, and ``tx_hash`` (None when no approval
+    was needed).
+
+**`Permit2ApprovalResult` fields:**
+
+* **`allowance_before`**: The Permit2 allowance before the method ran.
+* **`allowance_after`**: The Permit2 allowance after the method ran.
+* **`tx_hash`**: Transaction hash of the approval, or None if no transaction was needed.
+
+**Raises**
+
+* **`ValueError`**: If the OPG amount is less than 0.1.
+* **`RuntimeError`**: If the approval transaction fails.
+
+---
+
 #### `chat()`
 
 ```python
@@ -190,16 +224,64 @@ TextGenerationOutput: Generated text results including:
 
 ---
 
+#### `ensure_opg_allowance()`
+
+```python
+def ensure_opg_allowance(
+    self,
+    min_allowance: float,
+    approve_amount: Optional[float] = None
+) ‑> `Permit2ApprovalResult`
+```
+Ensure the Permit2 allowance stays above a minimum threshold.
+
+Only sends a transaction when the current allowance drops below
+``min_allowance``. When approval is needed, approves ``approve_amount``
+(defaults to ``10 * min_allowance``) to create a buffer that survives
+multiple service restarts without re-approving.
+
+Best for backend servers that call this on startup::
+
+    llm.ensure_opg_allowance(min_allowance=5.0, approve_amount=100.0)
+
+**Arguments**
+
+* **`min_allowance`**: The minimum acceptable allowance in OPG. Must be
+        at least 0.1 OPG.
+* **`approve_amount`**: The amount of OPG to approve when a transaction
+        is needed. Defaults to ``10 * min_allowance``. Must be
+        >= ``min_allowance``.
+
+**Returns**
+
+Permit2ApprovalResult: Contains ``allowance_before``,
+    ``allowance_after``, and ``tx_hash`` (None when no approval
+    was needed).
+
+**`Permit2ApprovalResult` fields:**
+
+* **`allowance_before`**: The Permit2 allowance before the method ran.
+* **`allowance_after`**: The Permit2 allowance after the method ran.
+* **`tx_hash`**: Transaction hash of the approval, or None if no transaction was needed.
+
+**Raises**
+
+* **`ValueError`**: If ``min_allowance`` is less than 0.1 or
+        ``approve_amount`` is less than ``min_allowance``.
+* **`RuntimeError`**: If the approval transaction fails.
+
+---
+
 #### `ensure_opg_approval()`
 
 ```python
-def ensure_opg_approval(self, opg_amount: float) ‑> [Permit2ApprovalResult](./opg_token)
+def ensure_opg_approval(self, opg_amount: float) ‑> `Permit2ApprovalResult`
 ```
 Ensure the Permit2 allowance for OPG is at least ``opg_amount``.
 
-Checks the current Permit2 allowance for the wallet. If the allowance
-is already >= the requested amount, returns immediately without sending
-a transaction. Otherwise, sends an ERC-20 approve transaction.
+.. deprecated::
+    Use ``approve_opg`` for one-off approvals or
+    ``ensure_opg_allowance`` for server-startup usage.
 
 **Arguments**
 
@@ -211,6 +293,12 @@ a transaction. Otherwise, sends an ERC-20 approve transaction.
 Permit2ApprovalResult: Contains ``allowance_before``,
     ``allowance_after``, and ``tx_hash`` (None when no approval
     was needed).
+
+**`Permit2ApprovalResult` fields:**
+
+* **`allowance_before`**: The Permit2 allowance before the method ran.
+* **`allowance_after`**: The Permit2 allowance after the method ran.
+* **`tx_hash`**: Transaction hash of the approval, or None if no transaction was needed.
 
 **Raises**
 

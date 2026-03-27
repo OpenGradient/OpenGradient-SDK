@@ -22,7 +22,7 @@ import os
 llm = og.LLM(private_key=os.environ["OG_PRIVATE_KEY"])
 
 # One-time OPG token approval (idempotent — skips if allowance already sufficient)
-llm.ensure_opg_approval(opg_amount=0.1)
+llm.approve_opg(opg_amount=0.1)
 
 # LLM Chat (TEE-verified with x402 payments, async)
 result = await llm.chat(

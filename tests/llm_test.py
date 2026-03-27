@@ -488,7 +488,7 @@ class TestChatStreaming:
         assert chunks[0].choices[0].finish_reason == "tool_calls"
 
 
-# ── ensure_opg_approval tests ────────────────────────────────────────
+# ── approve_opg tests ────────────────────────────────────────
 
 
 class TestEnsureOpgApproval:
@@ -496,7 +496,7 @@ class TestEnsureOpgApproval:
         llm = _make_llm()
 
         with pytest.raises(ValueError, match="at least"):
-            llm.ensure_opg_approval(opg_amount=0.01)
+            llm.approve_opg(opg_amount=0.01)
 
 
 # ── Lifecycle tests ──────────────────────────────────────────────────

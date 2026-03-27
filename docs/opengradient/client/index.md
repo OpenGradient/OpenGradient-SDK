@@ -14,7 +14,7 @@ OpenGradient Client -- service modules for the SDK.
 - **[model_hub](./model_hub)** -- Model repository management: create, version, and upload ML models
 - **[alpha](./alpha)** -- Alpha Testnet features: on-chain ONNX model inference (VANILLA, TEE, ZKML modes), workflow deployment, and scheduled ML model execution (OpenGradient testnet gas tokens)
 - **[twins](./twins)** -- Digital twins chat via OpenGradient verifiable inference
-- **`opengradient.client.opg_token`** -- OPG token Permit2 approval utilities for x402 payments
+- **[opg_token](./opg_token)** -- OPG token Permit2 approval utilities for x402 payments
 - **`opengradient.client.tee_registry`** -- TEE registry client for verified endpoints and TLS certificates
 
 ## Usage
@@ -24,7 +24,7 @@ import opengradient as og
 
 # LLM inference (Base Sepolia OPG tokens)
 llm = og.LLM(private_key="0x...")
-llm.ensure_opg_approval(opg_amount=5)
+llm.approve_opg(opg_amount=5)
 result = await llm.chat(model=og.TEE_LLM.CLAUDE_HAIKU_4_5, messages=[...])
 
 # On-chain model inference (OpenGradient testnet gas tokens)

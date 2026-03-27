@@ -36,7 +36,7 @@ export OG_PRIVATE_KEY="0x..."
 ## Step 1: Initialize the Client
 
 Before making any LLM calls, approve OPG token spending for the x402 payment
-protocol. The `ensure_opg_approval` method is idempotent -- it checks the current
+protocol. The `approve_opg` method is idempotent -- it checks the current
 Permit2 allowance and only sends a transaction if the allowance is below the
 requested amount.
 
@@ -55,7 +55,7 @@ if not private_key:
 llm = og.LLM(private_key=private_key)
 
 # Approve OPG spending for x402 payments (one-time, idempotent).
-llm.ensure_opg_approval(opg_amount=5)
+llm.approve_opg(opg_amount=5)
 ```
 
 ## Step 2: Define Local Tool Implementations
@@ -318,7 +318,7 @@ if not private_key:
 llm = og.LLM(private_key=private_key)
 
 # Approve OPG spending for x402 payments (idempotent -- skips if already approved).
-llm.ensure_opg_approval(opg_amount=5)
+llm.approve_opg(opg_amount=5)
 
 # ── Mock data ─────────────────────────────────────────────────────────────
 PORTFOLIO      = {"ETH": {"amount": 5.0, "avg_cost": 1950.00},

@@ -36,7 +36,7 @@ export OG_PRIVATE_KEY="0x..."
 
 Start with the simplest possible call -- send a message and get a response. Before
 making any LLM calls, approve OPG token spending for the x402 payment protocol using
-`ensure_opg_approval`. This is idempotent -- it checks the current Permit2 allowance
+`approve_opg`. This is idempotent -- it checks the current Permit2 allowance
 and only sends a transaction if the allowance is below the requested amount.
 
 ```python
@@ -53,7 +53,7 @@ if not private_key:
 llm = og.LLM(private_key=private_key)
 
 # Approve OPG spending for x402 payments (one-time, idempotent).
-llm.ensure_opg_approval(opg_amount=5)
+llm.approve_opg(opg_amount=5)
 
 async def main():
     result = await llm.chat(
@@ -274,7 +274,7 @@ if not private_key:
 llm = og.LLM(private_key=private_key)
 
 # Approve OPG spending for x402 payments (idempotent -- skips if already approved).
-llm.ensure_opg_approval(opg_amount=5)
+llm.approve_opg(opg_amount=5)
 
 PROMPT = "Explain what a Trusted Execution Environment is in two sentences."
 
