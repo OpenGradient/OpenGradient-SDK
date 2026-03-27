@@ -1,10 +1,7 @@
 """LLM chat and completion via TEE-verified execution with x402 payments."""
 
-import asyncio
 import json
 import logging
-import ssl
-import time
 from dataclasses import dataclass
 from typing import AsyncGenerator, Awaitable, Callable, Dict, List, Optional, TypeVar, Union
 import httpx
@@ -12,14 +9,14 @@ import httpx
 from eth_account import Account
 from eth_account.account import LocalAccount
 from x402 import x402Client
-from x402.http.clients import x402HttpxClient
 from x402.mechanisms.evm import EthAccountSigner
 from x402.mechanisms.evm.exact.register import register_exact_evm_client
 from x402.mechanisms.evm.upto.register import register_upto_evm_client
 
 from ..types import TEE_LLM, StreamChoice, StreamChunk, StreamDelta, TextGenerationOutput, x402SettlementMode
 from .opg_token import Permit2ApprovalResult, ensure_opg_approval
-from .tee_registry import TEERegistry, build_ssl_context_from_der
+from .tee_connection import TEEConnection
+from .tee_registry import TEERegistry
 
 logger = logging.getLogger(__name__)
 T = TypeVar("T")
@@ -34,10 +31,9 @@ BASE_TESTNET_NETWORK = "eip155:84532"
 _CHAT_ENDPOINT = "/v1/chat/completions"
 _COMPLETION_ENDPOINT = "/v1/completions"
 _REQUEST_TIMEOUT = 60
-_TEE_REFRESH_INTERVAL = 300  # Re-resolve TEE from registry every 5 minutes
 
 
-@dataclass
+@dataclass(frozen=True)
 class _ChatParams:
     """Bundles the common parameters for chat/completion requests."""
 
@@ -99,96 +95,30 @@ class LLM:
         llm_server_url: Optional[str] = None,
     ):
         self._wallet_account: LocalAccount = Account.from_key(private_key)
-        self._rpc_url = rpc_url
-        self._tee_registry_address = tee_registry_address
-        self._llm_server_url = llm_server_url
 
         # x402 payment stack (created once, reused across TEE refreshes)
         signer = EthAccountSigner(self._wallet_account)
-        self._x402_client = x402Client()
-        register_exact_evm_client(self._x402_client, signer, networks=[BASE_TESTNET_NETWORK])
-        register_upto_evm_client(self._x402_client, signer, networks=[BASE_TESTNET_NETWORK])
+        x402_client = x402Client()
+        register_exact_evm_client(x402_client, signer, networks=[BASE_TESTNET_NETWORK])
+        register_upto_evm_client(x402_client, signer, networks=[BASE_TESTNET_NETWORK])
 
-        self._connect_tee()
-        self._tee_refreshed_at: float = time.monotonic()
-        self._refresh_lock = asyncio.Lock()
-
-    # ── TEE resolution and connection ───────────────────────────────────────────
-
-    def _connect_tee(self) -> None:
-        """Resolve TEE from registry and create a secure HTTP client for it."""
-        endpoint, tls_cert_der, tee_id, tee_payment_address = self._resolve_tee(
-            self._llm_server_url,
-            self._rpc_url,
-            self._tee_registry_address,
+        registry: Optional[TEERegistry] = (
+            TEERegistry(rpc_url=rpc_url, registry_address=tee_registry_address)
+            if llm_server_url is None
+            else None
         )
-        self._tee_id = tee_id
-        self._tee_endpoint = endpoint
-        self._tee_payment_address = tee_payment_address
 
-        ssl_ctx = build_ssl_context_from_der(tls_cert_der) if tls_cert_der else None
-        self._tls_verify: Union[ssl.SSLContext, bool] = ssl_ctx if ssl_ctx else (self._llm_server_url is None)
-        self._http_client = x402HttpxClient(self._x402_client, verify=self._tls_verify)
-
-    async def _refresh_tee(self) -> None:
-        """Re-resolve TEE from the registry and rebuild the HTTP client."""
-        async with self._refresh_lock:
-            old_http_client = self._http_client
-            self._connect_tee()
-            self._tee_refreshed_at = time.monotonic()
-            try:
-                await old_http_client.aclose()
-            except Exception:
-                logger.debug("Failed to close previous HTTP client during TEE refresh.", exc_info=True)
-
-    async def _maybe_refresh_tee(self) -> None:
-        """Re-resolve TEE if the current one is older than ``_TEE_REFRESH_INTERVAL``.
-
-        Skips the refresh for explicit ``llm_server_url`` overrides since they
-        bypass the registry entirely.
-        """
-        if self._llm_server_url is not None:
-            return
-        if time.monotonic() - self._tee_refreshed_at < _TEE_REFRESH_INTERVAL:
-            return
-        logger.debug("TEE endpoint stale (>%ds); refreshing from registry.", _TEE_REFRESH_INTERVAL)
-        await self._refresh_tee()
-
-
-    @staticmethod
-    def _resolve_tee(
-        tee_endpoint_override: Optional[str],
-        og_rpc_url: Optional[str],
-        tee_registry_address: Optional[str],
-    ) -> tuple:
-        """Resolve TEE endpoint and metadata from the on-chain registry or explicit URL.
-
-        Returns:
-            (endpoint, tls_cert_der, tee_id, payment_address)
-        """
-        if tee_endpoint_override is not None:
-            return tee_endpoint_override, None, None, None
-
-        if og_rpc_url is None or tee_registry_address is None:
-            raise ValueError("Either llm_server_url or both rpc_url and tee_registry_address must be provided.")
-
-        try:
-            registry = TEERegistry(rpc_url=og_rpc_url, registry_address=tee_registry_address)
-            tee = registry.get_llm_tee()
-        except Exception as e:
-            raise RuntimeError(f"Failed to fetch LLM TEE endpoint from registry ({tee_registry_address} on {og_rpc_url}): {e}. ") from e
-
-        if tee is None:
-            raise ValueError("No active LLM proxy TEE found in the registry. Pass llm_server_url explicitly to override.")
-
-        logger.info("Using TEE endpoint from registry: %s (teeId=%s)", tee.endpoint, tee.tee_id)
-        return tee.endpoint, tee.tls_cert_der, tee.tee_id, tee.payment_address
+        self._tee = TEEConnection(
+            x402_client=x402_client,
+            registry=registry,
+            llm_server_url=llm_server_url,
+        )
 
     # ── Lifecycle ───────────────────────────────────────────────────────
 
     async def close(self) -> None:
-        """Close the underlying HTTP client."""
-        await self._http_client.aclose()
+        """Cancel the background refresh loop and close the HTTP client."""
+        await self._tee.close()
 
     # ── Request helpers ─────────────────────────────────────────────────
 
@@ -215,13 +145,6 @@ class LLM:
             payload["tool_choice"] = params.tool_choice or "auto"
         return payload
 
-    def _tee_metadata(self) -> Dict:
-        return dict(
-            tee_id=self._tee_id,
-            tee_endpoint=self._tee_endpoint,
-            tee_payment_address=self._tee_payment_address,
-        )
-
     async def _call_with_tee_retry(
         self,
         operation_name: str,
@@ -232,7 +155,7 @@ class LLM:
         Only retries when the request never reached the server (no HTTP response).
         Server-side errors (4xx/5xx) are not retried.
         """
-        await self._maybe_refresh_tee()
+        self._tee.ensure_refresh_loop()
         try:
             return await call()
         except httpx.HTTPStatusError:
@@ -243,7 +166,7 @@ class LLM:
                 operation_name,
                 exc,
             )
-            await self._refresh_tee()
+            await self._tee.reconnect()
             return await call()
 
     # ── Public API ──────────────────────────────────────────────────────
@@ -316,8 +239,9 @@ class LLM:
             payload["stop"] = stop_sequence
 
         async def _request() -> TextGenerationOutput:
-            response = await self._http_client.post(
-                self._tee_endpoint + _COMPLETION_ENDPOINT,
+            tee = self._tee.get()
+            response = await tee.http_client.post(
+                tee.endpoint + _COMPLETION_ENDPOINT,
                 json=payload,
                 headers=self._headers(x402_settlement_mode),
                 timeout=_REQUEST_TIMEOUT,
@@ -330,7 +254,7 @@ class LLM:
                 completion_output=result.get("completion"),
                 tee_signature=result.get("tee_signature"),
                 tee_timestamp=result.get("tee_timestamp"),
-                **self._tee_metadata(),
+                **tee.metadata(),
             )
 
         try:
@@ -405,8 +329,9 @@ class LLM:
         payload = self._chat_payload(params, messages)
 
         async def _request() -> TextGenerationOutput:
-            response = await self._http_client.post(
-                self._tee_endpoint + _CHAT_ENDPOINT,
+            tee = self._tee.get()
+            response = await tee.http_client.post(
+                tee.endpoint + _CHAT_ENDPOINT,
                 json=payload,
                 headers=self._headers(params.x402_settlement_mode),
                 timeout=_REQUEST_TIMEOUT,
@@ -432,7 +357,7 @@ class LLM:
                 chat_output=message,
                 tee_signature=result.get("tee_signature"),
                 tee_timestamp=result.get("tee_timestamp"),
-                **self._tee_metadata(),
+                **tee.metadata(),
             )
 
         try:
@@ -469,15 +394,16 @@ class LLM:
 
     async def _chat_stream(self, params: _ChatParams, messages: List[Dict]) -> AsyncGenerator[StreamChunk, None]:
         """Async SSE streaming implementation."""
-        await self._maybe_refresh_tee()
+        self._tee.ensure_refresh_loop()
         headers = self._headers(params.x402_settlement_mode)
         payload = self._chat_payload(params, messages, stream=True)
 
         chunks_yielded = False
         try:
-            async with self._http_client.stream(
+            tee = self._tee.get()
+            async with tee.http_client.stream(
                 "POST",
-                self._tee_endpoint + _CHAT_ENDPOINT,
+                tee.endpoint + _CHAT_ENDPOINT,
                 json=payload,
                 headers=headers,
                 timeout=_REQUEST_TIMEOUT,
@@ -496,11 +422,12 @@ class LLM:
                 exc,
             )
 
-        await self._refresh_tee()
+        await self._tee.reconnect()
+        tee = self._tee.get()
         headers = self._headers(params.x402_settlement_mode)
-        async with self._http_client.stream(
+        async with tee.http_client.stream(
             "POST",
-            self._tee_endpoint + _CHAT_ENDPOINT,
+            tee.endpoint + _CHAT_ENDPOINT,
             json=payload,
             headers=headers,
             timeout=_REQUEST_TIMEOUT,
@@ -546,7 +473,8 @@ class LLM:
 
                 chunk = StreamChunk.from_sse_data(data)
                 if chunk.is_final:
-                    chunk.tee_id = self._tee_id
-                    chunk.tee_endpoint = self._tee_endpoint
-                    chunk.tee_payment_address = self._tee_payment_address
+                    tee = self._tee.get()
+                    chunk.tee_id = tee.tee_id
+                    chunk.tee_endpoint = tee.endpoint
+                    chunk.tee_payment_address = tee.payment_address
                 yield chunk

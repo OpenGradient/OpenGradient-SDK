@@ -14,6 +14,7 @@ import httpx
 import pytest
 
 from src.opengradient.client.llm import LLM
+from src.opengradient.client.tee_connection import TEEConnection
 from src.opengradient.types import TEE_LLM, x402SettlementMode
 
 # ── Fake HTTP transport ──────────────────────────────────────────────
@@ -107,7 +108,7 @@ class _FakeStreamResponse:
 # so LLM.__init__ runs its real code but gets our FakeHTTPClient.
 
 _PATCHES = {
-    "x402_httpx": "src.opengradient.client.llm.x402HttpxClient",
+    "x402_httpx": "src.opengradient.client.tee_connection.x402HttpxClient",
     "x402_client": "src.opengradient.client.llm.x402Client",
     "signer": "src.opengradient.client.llm.EthAccountSigner",
     "register_exact": "src.opengradient.client.llm.register_exact_evm_client",
@@ -138,9 +139,9 @@ def _make_llm(
 ) -> LLM:
     """Build an LLM with an explicit server URL (skips registry lookup)."""
     llm = LLM(private_key=FAKE_PRIVATE_KEY, llm_server_url=endpoint)
-    # llm_server_url path sets tee_id/payment_address to None; set them for assertions.
-    llm._tee_id = "test-tee-id"
-    llm._tee_payment_address = "0xTestPayment"
+    # llm_server_url path sets tee_id/payment_address to None; replace with test values.
+    from dataclasses import replace
+    llm._tee._active = replace(llm._tee.get(), tee_id="test-tee-id", payment_address="0xTestPayment")
     return llm
 
 
@@ -515,7 +516,7 @@ class TestLifecycle:
 
 class TestResolveTeE:
     def test_explicit_url_skips_registry(self):
-        endpoint, cert, tee_id, pay_addr = LLM._resolve_tee("https://explicit.url", None, None)
+        endpoint, cert, tee_id, pay_addr = TEEConnection._resolve_tee("https://explicit.url", None)
 
         assert endpoint == "https://explicit.url"
         assert cert is None
@@ -524,34 +525,34 @@ class TestResolveTeE:
 
     def test_missing_rpc_and_registry_raises(self):
         with pytest.raises(ValueError):
-            LLM._resolve_tee(None, None, None)
+            TEEConnection._resolve_tee(None, None)
 
     def test_missing_registry_address_raises(self):
         with pytest.raises(ValueError):
-            LLM._resolve_tee(None, "https://rpc", None)
+            TEEConnection._resolve_tee(None, None)
 
     def test_registry_returns_none_raises(self):
-        with patch("src.opengradient.client.llm.TEERegistry") as mock_reg:
-            mock_reg.return_value.get_llm_tee.return_value = None
+        mock_reg = MagicMock()
+        mock_reg.get_llm_tee.return_value = None
 
-            with pytest.raises(ValueError, match="No active LLM proxy TEE"):
-                LLM._resolve_tee(None, "https://rpc", "0xRegistry")
+        with pytest.raises(ValueError, match="No active LLM proxy TEE"):
+            TEEConnection._resolve_tee(None, mock_reg)
 
     def test_registry_success(self):
-        with patch("src.opengradient.client.llm.TEERegistry") as mock_reg:
-            mock_tee = MagicMock()
-            mock_tee.endpoint = "https://registry.tee"
-            mock_tee.tls_cert_der = b"cert-bytes"
-            mock_tee.tee_id = "tee-42"
-            mock_tee.payment_address = "0xPay"
-            mock_reg.return_value.get_llm_tee.return_value = mock_tee
+        mock_reg = MagicMock()
+        mock_tee = MagicMock()
+        mock_tee.endpoint = "https://registry.tee"
+        mock_tee.tls_cert_der = b"cert-bytes"
+        mock_tee.tee_id = "tee-42"
+        mock_tee.payment_address = "0xPay"
+        mock_reg.get_llm_tee.return_value = mock_tee
 
-            endpoint, cert, tee_id, pay_addr = LLM._resolve_tee(None, "https://rpc", "0xRegistry")
+        endpoint, cert, tee_id, pay_addr = TEEConnection._resolve_tee(None, mock_reg)
 
-            assert endpoint == "https://registry.tee"
-            assert cert == b"cert-bytes"
-            assert tee_id == "tee-42"
-            assert pay_addr == "0xPay"
+        assert endpoint == "https://registry.tee"
+        assert cert == b"cert-bytes"
+        assert tee_id == "tee-42"
+        assert pay_addr == "0xPay"
 
 
 # ── TEE retry tests (non-streaming) ──────────────────────────────────
@@ -677,13 +678,13 @@ class TestTeeRetryStreaming:
         assert len(fake_http.post_calls) == 1
 
 
-# ── _refresh_tee tests ─────────────────────────────────────
+# ── TEE reconnect tests ─────────────────────────────────────────────
 
 
 @pytest.mark.asyncio
-class TestRefreshTeeAndReset:
+class TestReconnect:
     async def test_replaces_http_client(self):
-        """After refresh, the http client should be a new instance."""
+        """After reconnect, the http client should be a new instance."""
         clients_created = []
 
         def make_client(*args, **kwargs):
@@ -699,29 +700,29 @@ class TestRefreshTeeAndReset:
             patch(_PATCHES["register_upto"]),
         ):
             llm = _make_llm()
-            old_client = llm._http_client
+            old_client = llm._tee.get().http_client
 
-            await llm._refresh_tee()
+            await llm._tee.reconnect()
 
-            assert llm._http_client is not old_client
+            assert llm._tee.get().http_client is not old_client
             assert len(clients_created) == 2  # init + refresh
 
     async def test_closes_old_client(self, fake_http):
         llm = _make_llm()
-        old_client = llm._http_client
+        old_client = llm._tee.get().http_client
         old_client.aclose = AsyncMock()
 
-        await llm._refresh_tee()
+        await llm._tee.reconnect()
 
         old_client.aclose.assert_awaited_once()
 
     async def test_close_failure_is_swallowed(self, fake_http):
         llm = _make_llm()
-        old_client = llm._http_client
+        old_client = llm._tee.get().http_client
         old_client.aclose = AsyncMock(side_effect=OSError("already closed"))
 
         # Should not raise
-        await llm._refresh_tee()
+        await llm._tee.reconnect()
 
 
 # ── TEE cert rotation (crash + re-register) tests ────────────────────
@@ -740,10 +741,10 @@ class TestTeeCertRotation:
         fake_http.fail_next_post(ssl.SSLCertVerificationError("certificate verify failed"))
         llm = _make_llm()
 
-        with patch.object(llm, "_connect_tee", wraps=llm._connect_tee) as spy:
+        with patch.object(llm._tee, "_connect", wraps=llm._tee._connect) as spy:
             result = await llm.completion(model=TEE_LLM.GPT_5, prompt="Hi")
 
-        # _connect_tee was called once during the retry (refresh)
+        # _connect was called once during the retry (reconnect)
         spy.assert_called_once()
         assert result.completion_output == "ok after refresh"
         assert len(fake_http.post_calls) == 2
@@ -756,7 +757,7 @@ class TestTeeCertRotation:
         fake_http.fail_next_post(ssl.SSLCertVerificationError("certificate verify failed"))
         llm = _make_llm()
 
-        with patch.object(llm, "_connect_tee", wraps=llm._connect_tee) as spy:
+        with patch.object(llm._tee, "_connect", wraps=llm._tee._connect) as spy:
             result = await llm.chat(model=TEE_LLM.GPT_5, messages=[{"role": "user", "content": "Hi"}])
 
         spy.assert_called_once()
@@ -774,7 +775,7 @@ class TestTeeCertRotation:
         fake_http.fail_next_stream(ssl.SSLCertVerificationError("certificate verify failed"))
         llm = _make_llm()
 
-        with patch.object(llm, "_connect_tee", wraps=llm._connect_tee) as spy:
+        with patch.object(llm._tee, "_connect", wraps=llm._tee._connect) as spy:
             gen = await llm.chat(
                 model=TEE_LLM.GPT_5,
                 messages=[{"role": "user", "content": "Hi"}],
