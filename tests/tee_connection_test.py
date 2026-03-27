@@ -53,9 +53,6 @@ def _mock_registry_with_tee(endpoint="https://tee.endpoint", tls_cert_der=None, 
     return mock_reg
 
 
-# ── Tests ────────────────────────────────────────────────────────────
-
-
 class TestActiveTEE:
     def test_metadata_returns_dict(self):
         tee = ActiveTEE(
@@ -126,25 +123,13 @@ class TestRegistryTEEConnection:
             with pytest.raises(RuntimeError, match="Failed to fetch LLM TEE"):
                 RegistryTEEConnection(x402_client=_mock_x402_client(), registry=mock_reg)
 
-    async def test_resolve_success_with_cert(self):
+    async def test_resolve_success(self):
         mock_reg = _mock_registry_with_tee(
             endpoint="https://registry.tee",
-            tls_cert_der=b"cert-bytes",
             tee_id="tee-42",
             payment_address="0xPay",
         )
-
-        with (
-            patch(
-                "src.opengradient.client.tee_connection.x402HttpxClient",
-                side_effect=FakeHTTPClient,
-            ),
-            patch(
-                "src.opengradient.client.tee_connection.build_ssl_context_from_der",
-                return_value=MagicMock(spec=ssl.SSLContext),
-            ),
-        ):
-            conn = RegistryTEEConnection(x402_client=_mock_x402_client(), registry=mock_reg)
+        conn = _make_registry_connection(registry=mock_reg)
 
         assert conn.get().endpoint == "https://registry.tee"
         assert conn.get().tee_id == "tee-42"
