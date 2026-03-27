@@ -168,7 +168,6 @@ def approve_opg(wallet_account: LocalAccount, opg_amount: float) -> Permit2Appro
     allowance_before = token.functions.allowance(owner, spender).call()
 
     if allowance_before >= amount_base:
-        logger.debug("Permit2 allowance already sufficient (%s >= %s), skipping approval", allowance_before, amount_base)
         return Permit2ApprovalResult(
             allowance_before=allowance_before,
             allowance_after=allowance_before,
@@ -229,11 +228,6 @@ def ensure_opg_allowance(
     allowance_before = token.functions.allowance(owner, spender).call()
 
     if allowance_before >= min_base:
-        logger.debug(
-            "Permit2 allowance above minimum threshold (%s >= %s), skipping approval",
-            allowance_before,
-            min_base,
-        )
         return Permit2ApprovalResult(
             allowance_before=allowance_before,
             allowance_after=allowance_before,
