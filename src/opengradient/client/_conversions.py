@@ -36,11 +36,32 @@ def convert_to_fixed_point(number: float) -> Tuple[int, int]:
     return value, decimals
 
 
+def convert_fixed_point_to_python(value: int, decimals: int) -> np.float32:
+    """
+    Converts a fixed-point representation back to a NumPy float32.
+
+    This function is intentionally type-stable and always returns np.float32,
+    regardless of the value of `decimals`. Callers that require integer
+    semantics should perform an explicit cast (e.g., int(...)) based on
+    their own dtype metadata or application logic.
+
+    Args:
+        value:    The integer significand stored on-chain.
+        decimals: The scale factor exponent (value / 10**decimals).
+
+    Returns:
+        np.float32 corresponding to `value / 10**decimals`.
+    """
+    return np.float32(Decimal(value) / (10 ** Decimal(decimals)))
+
+
 def convert_to_float32(value: int, decimals: int) -> np.float32:
     """
-    Converts fixed point back into floating point
+    Deprecated: use convert_fixed_point_to_python() instead.
 
-    Returns an np.float32 type
+    Kept for backwards compatibility. New callers should use
+    convert_fixed_point_to_python which is type-stable and always
+    returns np.float32.
     """
     return np.float32(Decimal(value) / (10 ** Decimal(decimals)))
 
@@ -131,10 +152,11 @@ def convert_to_model_output(event_data: AttributeDict) -> Dict[str, np.ndarray]:
                 name = tensor.get("name")
                 shape = tensor.get("shape")
                 values = []
-                # Convert from fixed point back into np.float32
+                # Use convert_fixed_point_to_python so integer tensors (decimals==0)
+                # come back as int instead of np.float32 (fixes issue #103).
                 for v in tensor.get("values", []):
                     if isinstance(v, (AttributeDict, dict)):
-                        values.append(convert_to_float32(value=int(v.get("value")), decimals=int(v.get("decimals"))))
+                        values.append(convert_fixed_point_to_python(value=int(v.get("value")), decimals=int(v.get("decimals"))))
                     else:
                         logging.warning(f"Unexpected number type: {type(v)}")
                 output_dict[name] = np.array(values).reshape(shape)
@@ -183,10 +205,11 @@ def convert_array_to_model_output(array_data: List) -> ModelOutput:
         values = tensor[1]
         shape = tensor[2]
 
-        # Convert from fixed point into np.float32
+        # Use convert_fixed_point_to_python so integer tensors (decimals==0)
+        # come back as int instead of np.float32 (fixes issue #103).
         converted_values = []
         for value in values:
-            converted_values.append(convert_to_float32(value=value[0], decimals=value[1]))
+            converted_values.append(convert_fixed_point_to_python(value=value[0], decimals=value[1]))
 
         number_data[name] = np.array(converted_values).reshape(shape)
 

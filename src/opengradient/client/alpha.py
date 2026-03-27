@@ -119,9 +119,19 @@ class Alpha:
             model_output = convert_to_model_output(parsed_logs[0]["args"])
             if len(model_output) == 0:
                 # check inference directly from node
-                parsed_logs = precompile_contract.events.ModelInferenceEvent().process_receipt(tx_receipt, errors=DISCARD)
-                inference_id = parsed_logs[0]["args"]["inferenceID"]
+                precompile_logs = precompile_contract.events.ModelInferenceEvent().process_receipt(tx_receipt, errors=DISCARD)
+                if not precompile_logs:
+                    raise RuntimeError(
+                        "ModelInferenceEvent not found in transaction logs. "
+                        "Cannot fall back to node-side inference result."
+                    )
+                inference_id = precompile_logs[0]["args"]["inferenceID"]
                 inference_result = self._get_inference_result_from_node(inference_id, inference_mode)
+                if inference_result is None:
+                    raise RuntimeError(
+                        f"Inference node returned no result for inference ID {inference_id!r}. "
+                        "The result may not be available yet — retry after a short delay."
+                    )
                 model_output = convert_to_model_output(inference_result)
 
             return InferenceResult(tx_hash.hex(), model_output)
@@ -315,7 +325,7 @@ class Alpha:
             signed_txn = self._wallet_account.sign_transaction(transaction)
             tx_hash = self._blockchain.eth.send_raw_transaction(signed_txn.raw_transaction)
 
-            tx_receipt = self._blockchain.eth.wait_for_transaction_receipt(tx_hash, timeout=60)
+            tx_receipt = self._blockchain.eth.wait_for_transaction_receipt(tx_hash, timeout=INFERENCE_TX_TIMEOUT)
 
             if tx_receipt["status"] == 0:
                 raise Exception(f"Contract deployment failed, transaction hash: {tx_hash.hex()}")
@@ -419,11 +429,30 @@ class Alpha:
         nonce = self._blockchain.eth.get_transaction_count(self._wallet_account.address, "pending")
 
         run_function = contract.functions.run()
+
+        # Estimate gas instead of using a hardcoded 30M limit, which is wasteful
+        # and may exceed the block gas limit on some networks.
+        try:
+            estimated_gas = run_function.estimate_gas({"from": self._wallet_account.address})
+            gas_limit = int(estimated_gas * 3)
+        except ContractLogicError as exc:
+            # Estimation failed due to a contract revert — simulate the call to
+            # surface the revert reason and avoid sending a transaction that will fail.
+            try:
+                run_function.call({"from": self._wallet_account.address})
+            except ContractLogicError as call_exc:
+                # Re-raise the detailed revert reason from the simulated call.
+                raise call_exc
+            # If the simulated call somehow doesn't raise, re-raise the original error.
+            raise exc
+        except Exception:
+            gas_limit = 30000000  # Conservative fallback for transient/RPC estimation errors
+
         transaction = run_function.build_transaction(
             {
                 "from": self._wallet_account.address,
                 "nonce": nonce,
-                "gas": 30000000,
+                "gas": gas_limit,
                 "gasPrice": self._blockchain.eth.gas_price,
                 "chainId": self._blockchain.eth.chain_id,
             }
