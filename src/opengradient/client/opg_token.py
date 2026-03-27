@@ -177,7 +177,8 @@ def ensure_opg_allowance(
             was needed).
 
     Raises:
-        ValueError: If ``approve_amount`` is less than ``min_allowance``.
+        ValueError: If ``approve_amount`` is less than ``min_allowance``,
+            or if the wallet has zero OPG balance.
         RuntimeError: If the approval transaction fails.
     """
     if approve_amount is None:
