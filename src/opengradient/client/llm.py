@@ -244,30 +244,6 @@ class LLM:
             raise ValueError("min_allowance must be at least 0.1.")
         return ensure_opg_allowance(self._wallet_account, min_allowance, approve_amount)
 
-    def ensure_opg_approval(self, opg_amount: float) -> Permit2ApprovalResult:
-        """Ensure the Permit2 allowance for OPG is at least ``opg_amount``.
-
-        .. deprecated::
-            Use ``approve_opg`` for one-off approvals or
-            ``ensure_opg_allowance`` for server-startup usage.
-
-        Args:
-            opg_amount: Minimum number of OPG tokens required (e.g. ``0.1``
-                for 0.1 OPG). Must be at least 0.1 OPG.
-
-        Returns:
-            Permit2ApprovalResult: Contains ``allowance_before``,
-                ``allowance_after``, and ``tx_hash`` (None when no approval
-                was needed).
-
-        Raises:
-            ValueError: If the OPG amount is less than 0.1.
-            RuntimeError: If the approval transaction fails.
-        """
-        if opg_amount < 0.1:
-            raise ValueError("OPG amount must be at least 0.1.")
-        return ensure_opg_approval(self._wallet_account, opg_amount)
-
     async def completion(
         self,
         model: TEE_LLM,

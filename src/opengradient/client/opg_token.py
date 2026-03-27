@@ -246,32 +246,3 @@ def ensure_opg_allowance(
         min_base,
         approve_base,
     )
-    return _send_approve_tx(wallet_account, w3, token, owner, spender, approve_base)
-
-
-def ensure_opg_approval(wallet_account: LocalAccount, opg_amount: float) -> Permit2ApprovalResult:
-    """Ensure the Permit2 allowance for OPG is at least ``opg_amount``.
-
-    .. deprecated::
-        Use ``approve_opg`` for one-off approvals or
-        ``ensure_opg_allowance`` for server-startup usage.
-
-    Args:
-        wallet_account: The wallet account to check and approve from.
-        opg_amount: Minimum number of OPG tokens required (e.g. ``5.0``
-            for 5 OPG). Converted to base units (18 decimals) internally.
-
-    Returns:
-        Permit2ApprovalResult: Contains ``allowance_before``,
-            ``allowance_after``, and ``tx_hash`` (None when no approval
-            was needed).
-
-    Raises:
-        RuntimeError: If the approval transaction fails.
-    """
-    warnings.warn(
-        "ensure_opg_approval is deprecated. Use approve_opg for one-off approvals or ensure_opg_allowance for server-startup usage.",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    return approve_opg(wallet_account, opg_amount)
