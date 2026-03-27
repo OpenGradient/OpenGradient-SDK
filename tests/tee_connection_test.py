@@ -45,6 +45,9 @@ def _make_registry_connection(*, registry=None, http_factory=None):
     with patch(
         "src.opengradient.client.tee_connection.x402HttpxClient",
         side_effect=factory,
+    ), patch(
+        "src.opengradient.client.tee_connection.build_ssl_context_from_der",
+        return_value=MagicMock(spec=ssl.SSLContext),
     ):
         return RegistryTEEConnection(
             x402_client=_mock_x402_client(),
@@ -52,7 +55,7 @@ def _make_registry_connection(*, registry=None, http_factory=None):
         )
 
 
-def _mock_registry_with_tee(endpoint="https://tee.endpoint", tls_cert_der=None, tee_id="tee-1", payment_address="0xPay"):
+def _mock_registry_with_tee(endpoint="https://tee.endpoint", tls_cert_der=b"fake-der", tee_id="tee-1", payment_address="0xPay"):
     mock_reg = MagicMock()
     mock_tee = MagicMock()
     mock_tee.endpoint = endpoint
@@ -182,6 +185,9 @@ class TestRegistryTEEConnection:
         with patch(
             "src.opengradient.client.tee_connection.x402HttpxClient",
             side_effect=make_client,
+        ), patch(
+            "src.opengradient.client.tee_connection.build_ssl_context_from_der",
+            return_value=MagicMock(spec=ssl.SSLContext),
         ):
             conn = RegistryTEEConnection(
                 x402_client=_mock_x402_client(),
@@ -440,17 +446,14 @@ class TestTlsCertVerification:
         await conn.close()
 
     async def test_connect_fails_with_no_cert_pinning(self, tls_server):
-        """Without a pinned cert (tls_cert_der=None), system CAs are used
-        which won't trust our self-signed server cert."""
+        """Without a pinned cert (tls_cert_der=None), build_ssl_context_from_der
+        rejects the None value and connection construction fails."""
         mock_reg = _mock_registry_with_tee(
             endpoint=f"https://127.0.0.1:{tls_server['port']}",
             tls_cert_der=None,
         )
-        conn = RegistryTEEConnection(x402_client=x402Client(), registry=mock_reg)
-
-        with pytest.raises(httpx.ConnectError):
-            await conn.get().http_client.get(f"https://127.0.0.1:{tls_server['port']}/")
-        await conn.close()
+        with pytest.raises(TypeError):
+            RegistryTEEConnection(x402_client=x402Client(), registry=mock_reg)
 
     async def test_reconnect_picks_up_new_cert(self, tls_server):
         """After reconnect, the connection uses the freshly-resolved cert."""
