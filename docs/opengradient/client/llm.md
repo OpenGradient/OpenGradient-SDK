@@ -65,10 +65,9 @@ resolves TEEs from the on-chain registry.
 ```python
 def approve_opg(self, opg_amount: float) ‑> [Permit2ApprovalResult](./opg_token)
 ```
-Approve Permit2 to spend ``opg_amount`` OPG if the current allowance is insufficient.
+Approve Permit2 to spend ``opg_amount`` OPG tokens.
 
-Idempotent: if the current allowance is already >= ``opg_amount``, no
-transaction is sent. Best for one-off usage — scripts, notebooks, CLI tools.
+Always sends an approval transaction regardless of the current allowance.
 
 **Arguments**
 
@@ -78,8 +77,7 @@ transaction is sent. Best for one-off usage — scripts, notebooks, CLI tools.
 **Returns**
 
 Permit2ApprovalResult: Contains ``allowance_before``,
-    ``allowance_after``, and ``tx_hash`` (None when no approval
-    was needed).
+    ``allowance_after``, and ``tx_hash``.
 
 **Raises**
 
