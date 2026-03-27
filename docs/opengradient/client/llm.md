@@ -31,27 +31,30 @@ below the requested amount.
 def __init__(
     private_key: str,
     rpc_url: str = 'https://ogevmdevnet.opengradient.ai',
-    tee_registry_address: str = '0x4e72238852f3c918f4E4e57AeC9280dDB0c80248',
-    llm_server_url: Optional[str] = None
+    tee_registry_address: str = '0x4e72238852f3c918f4E4e57AeC9280dDB0c80248'
 )
 ```
 
+#### Static methods
+
+---
+
+#### `from_url()`
+
+```python
+static def from_url(private_key: str, llm_server_url: str) ‑> `LLM`
+```
+**[Dev]** Create an LLM client with a hardcoded TEE endpoint URL.
+
+Intended for development and self-hosted TEE servers. TLS certificate
+verification is disabled because these servers typically use self-signed
+certificates. For production use, prefer the default constructor which
+resolves TEEs from the on-chain registry.
+
 **Arguments**
 
-* **`private_key (str)`**: Ethereum private key for signing x402 payments.
-* **`rpc_url (str)`**: RPC URL for the OpenGradient network. Used to fetch the
-        active TEE endpoint from the on-chain registry when ``llm_server_url``
-        is not provided.
-* **`tee_registry_address (str)`**: Address of the on-chain TEE registry contract.
-* **`llm_server_url (str, optional)`**: Bypass the registry and connect directly
-        to this TEE endpoint URL (e.g. ``"https://1.2.3.4"``). When set,
-        TLS certificate verification is disabled automatically because
-        self-hosted TEE servers typically use self-signed certificates.
-
-        .. warning::
-            Using ``llm_server_url`` disables TLS certificate verification,
-            which removes protection against man-in-the-middle attacks.
-            Only connect to servers you trust and over secure network paths.
+* **`private_key`**: Ethereum private key for signing x402 payments.
+* **`llm_server_url`**: The TEE endpoint URL (e.g. ``"https://1.2.3.4"``).
 
 #### Methods
 
@@ -125,7 +128,7 @@ Union[TextGenerationOutput, AsyncGenerator[StreamChunk, None]]:
 ```python
 async def close(self) ‑> None
 ```
-Close the underlying HTTP client.
+Cancel the background refresh loop and close the HTTP client.
 
 ---
 
