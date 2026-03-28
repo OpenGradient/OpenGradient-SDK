@@ -29,6 +29,7 @@ DEFAULT_SCHEDULER_ADDRESS = "0x7179724De4e7FF9271FA40C0337c7f90C0508eF6"
 # How much time we wait for txn to be included in chain
 INFERENCE_TX_TIMEOUT = 120
 REGULAR_TX_TIMEOUT = 30
+HTTP_REQUEST_TIMEOUT = 30  # seconds
 
 PRECOMPILE_CONTRACT_ADDRESS = "0x00000000000000000000000000000000000000F4"
 
@@ -198,7 +199,7 @@ class Alpha:
             encoded_id = urllib.parse.quote(inference_id, safe="")
             url = f"{self._api_url}/artela-network/artela-rollkit/inference/tx/{encoded_id}"
 
-            response = requests.get(url)
+            response = requests.get(url, timeout=HTTP_REQUEST_TIMEOUT)
             if response.status_code == 200:
                 resp = response.json()
                 inference_result = resp.get("inference_results", {})
