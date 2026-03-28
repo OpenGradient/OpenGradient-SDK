@@ -11,6 +11,7 @@ from requests_toolbelt import MultipartEncoder  # type: ignore[import-untyped]
 from ..types import FileUploadResult, ModelRepository
 
 # Security Update: Credentials moved to environment variables
+_DEFAULT_HTTP_TIMEOUT = 30  # seconds
 _FIREBASE_CONFIG = {
     "apiKey": os.getenv("FIREBASE_API_KEY"),
     "authDomain": os.getenv("FIREBASE_AUTH_DOMAIN"),
@@ -103,7 +104,7 @@ class ModelHub:
         payload = {"name": model_name, "description": model_desc}
 
         try:
-            response = requests.post(url, json=payload, headers=headers)
+            response = requests.post(url, json=payload, headers=headers, timeout=_DEFAULT_HTTP_TIMEOUT)
             response.raise_for_status()
         except requests.HTTPError as e:
             error_details = f"HTTP {e.response.status_code}: {e.response.text}"
@@ -143,7 +144,13 @@ class ModelHub:
         payload = {"notes": notes, "is_major": is_major}
 
         try:
-            response = requests.post(url, json=payload, headers=headers, allow_redirects=False)
+            response = requests.post(
+                url,
+                json=payload,
+                headers=headers,
+                allow_redirects=False,
+                timeout=_DEFAULT_HTTP_TIMEOUT,
+            )
             response.raise_for_status()
 
             json_response = response.json()
@@ -228,7 +235,7 @@ class ModelHub:
         headers = {"Authorization": f"Bearer {self._get_auth_token()}"}
 
         try:
-            response = requests.get(url, headers=headers)
+            response = requests.get(url, headers=headers, timeout=_DEFAULT_HTTP_TIMEOUT)
             response.raise_for_status()
             result: list[dict] = response.json()
             return result
