@@ -365,8 +365,8 @@ class LLM:
             result = json.loads(raw_body.decode())
 
             choices = result.get("choices")
-            if not choices:
-                raise RuntimeError(f"Invalid response: 'choices' missing or empty in {result}")
+            if not isinstance(choices, list) or not choices or not isinstance(choices[0], dict):
+                raise RuntimeError(f"Invalid response: 'choices' missing or empty or malformed in {result}")
 
             message = choices[0].get("message", {})
             content = message.get("content")
@@ -498,6 +498,7 @@ class LLM:
                 try:
                     data = json.loads(data_str)
                 except json.JSONDecodeError:
+                    logger.warning("Skipping malformed SSE JSON: %r", data_str)
                     continue
 
                 chunk = StreamChunk.from_sse_data(data)
