@@ -122,6 +122,9 @@ def convert_to_model_output(event_data: AttributeDict) -> Dict[str, np.ndarray]:
     We need to reshape each output array using the shape parameter in order to get the array
     back into its original shape.
     """
+    if not isinstance(event_data, (AttributeDict, dict)):
+        raise TypeError(f"event_data must be a dict-like object, got {type(event_data).__name__}")
+
     output_dict = {}
     output = event_data.get("output", {})
 
