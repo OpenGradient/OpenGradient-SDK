@@ -200,7 +200,7 @@ class LLM:
 
         Args:
             min_allowance: The minimum acceptable allowance in OPG. Must be
-                at least 0.1 OPG.
+                a positive number.
             approve_amount: The amount of OPG to approve when a transaction
                 is needed. Defaults to ``2 * min_allowance``. Must be
                 >= ``min_allowance``.
@@ -211,12 +211,12 @@ class LLM:
                 was needed).
 
         Raises:
-            ValueError: If ``min_allowance`` is less than 0.1 or
+            ValueError: If ``min_allowance`` is not positive or
                 ``approve_amount`` is less than ``min_allowance``.
             RuntimeError: If the approval transaction fails.
         """
-        if min_allowance < 0.1:
-            raise ValueError("min_allowance must be at least 0.1.")
+        if min_allowance <= 0:
+            raise ValueError("min_allowance must be a positive number.")
         return ensure_opg_approval(self._wallet_account, min_allowance, approve_amount)
 
     async def completion(
@@ -506,3 +506,4 @@ class LLM:
                     chunk.tee_endpoint = tee.endpoint
                     chunk.tee_payment_address = tee.payment_address
                 yield chunk
+
