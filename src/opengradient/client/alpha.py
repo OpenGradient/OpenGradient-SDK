@@ -315,7 +315,7 @@ class Alpha:
             signed_txn = self._wallet_account.sign_transaction(transaction)
             tx_hash = self._blockchain.eth.send_raw_transaction(signed_txn.raw_transaction)
 
-            tx_receipt = self._blockchain.eth.wait_for_transaction_receipt(tx_hash, timeout=60)
+            tx_receipt = self._blockchain.eth.wait_for_transaction_receipt(tx_hash, timeout=INFERENCE_TX_TIMEOUT)
 
             if tx_receipt["status"] == 0:
                 raise Exception(f"Contract deployment failed, transaction hash: {tx_hash.hex()}")
@@ -462,3 +462,4 @@ class Alpha:
 
         results = contract.functions.getLastInferenceResults(num_results).call()
         return [convert_array_to_model_output(result) for result in results]
+
