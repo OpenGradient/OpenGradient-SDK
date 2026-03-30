@@ -163,6 +163,7 @@ class Alpha:
                 "nonce": nonce,
                 "gas": gas_limit,
                 "gasPrice": self._blockchain.eth.gas_price,
+                "chainId": self._blockchain.eth.chain_id,
             }
         )
 
