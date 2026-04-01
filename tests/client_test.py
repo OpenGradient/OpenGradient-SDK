@@ -5,7 +5,9 @@ import pytest
 
 from opengradient.client.llm import LLM
 from opengradient.client.model_hub import ModelHub
+from opengradient.client.twins import Twins
 from opengradient.types import (
+    TEE_LLM,
     StreamChunk,
     x402SettlementMode,
 )
@@ -190,3 +192,68 @@ class TestX402SettlementMode:
         assert x402SettlementMode.PRIVATE == "private"
         assert x402SettlementMode.BATCH_HASHED == "batch"
         assert x402SettlementMode.INDIVIDUAL_FULL == "individual"
+
+
+# --- Twins Tests ---
+
+
+class TestTwinsChat:
+    """Tests for Twins.chat() resource management and response consistency."""
+
+    @patch("opengradient.client.twins.httpx.Client")
+    def test_chat_uses_context_manager(self, mock_client_cls):
+        """Verify httpx.Client is used as a context manager so connections are closed."""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "choices": [{"message": {"role": "assistant", "content": "hi"}, "finish_reason": "stop"}]
+        }
+        mock_response.raise_for_status = MagicMock()
+        mock_client_cls.return_value.__enter__ = MagicMock(return_value=MagicMock(post=MagicMock(return_value=mock_response)))
+        mock_client_cls.return_value.__exit__ = MagicMock(return_value=False)
+
+        twins = Twins(api_key="test-key")
+        result = twins.chat(
+            twin_id="0xabc",
+            model=TEE_LLM.GROK_4,
+            messages=[{"role": "user", "content": "hello"}],
+        )
+
+        mock_client_cls.return_value.__enter__.assert_called_once()
+        mock_client_cls.return_value.__exit__.assert_called_once()
+
+    @patch("opengradient.client.twins.httpx.Client")
+    def test_chat_returns_external_transaction_hash(self, mock_client_cls):
+        """Verify transaction_hash is 'external' for consistency with LLM class."""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "choices": [{"message": {"role": "assistant", "content": "hi"}, "finish_reason": "stop"}]
+        }
+        mock_response.raise_for_status = MagicMock()
+        mock_client_cls.return_value.__enter__ = MagicMock(return_value=MagicMock(post=MagicMock(return_value=mock_response)))
+        mock_client_cls.return_value.__exit__ = MagicMock(return_value=False)
+
+        twins = Twins(api_key="test-key")
+        result = twins.chat(
+            twin_id="0xabc",
+            model=TEE_LLM.GROK_4,
+            messages=[{"role": "user", "content": "hello"}],
+        )
+
+        assert result.transaction_hash == "external"
+
+    @patch("opengradient.client.twins.httpx.Client")
+    def test_chat_empty_choices_raises(self, mock_client_cls):
+        """Verify RuntimeError when choices is empty."""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"choices": []}
+        mock_response.raise_for_status = MagicMock()
+        mock_client_cls.return_value.__enter__ = MagicMock(return_value=MagicMock(post=MagicMock(return_value=mock_response)))
+        mock_client_cls.return_value.__exit__ = MagicMock(return_value=False)
+
+        twins = Twins(api_key="test-key")
+        with pytest.raises(RuntimeError, match="'choices' missing or empty"):
+            twins.chat(
+                twin_id="0xabc",
+                model=TEE_LLM.GROK_4,
+                messages=[{"role": "user", "content": "hello"}],
+            )
