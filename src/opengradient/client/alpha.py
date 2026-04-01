@@ -56,6 +56,8 @@ class Alpha:
     ):
         self._blockchain = Web3(Web3.HTTPProvider(rpc_url))
         self._wallet_account: LocalAccount = self._blockchain.eth.account.from_key(private_key)
+        if not Web3.is_address(inference_contract_address):
+            raise ValueError(f"Invalid Ethereum address for inference_contract_address: {inference_contract_address!r}")
         self._inference_hub_contract_address = inference_contract_address
         self._api_url = api_url
         self._inference_abi: Optional[dict] = None
