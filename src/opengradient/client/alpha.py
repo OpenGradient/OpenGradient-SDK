@@ -462,4 +462,3 @@ class Alpha:
 
         results = contract.functions.getLastInferenceResults(num_results).call()
         return [convert_array_to_model_output(result) for result in results]
-

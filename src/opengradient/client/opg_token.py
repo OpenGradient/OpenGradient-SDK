@@ -222,4 +222,3 @@ def ensure_opg_approval(
         approve_base,
     )
     return _send_approve_tx(wallet_account, w3, token, owner, spender, approve_base)
-

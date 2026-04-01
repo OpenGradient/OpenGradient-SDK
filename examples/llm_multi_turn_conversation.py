@@ -52,8 +52,10 @@ async def chat_turn(
         max_tokens=500,
         temperature=0.7,
     )
+    assert isinstance(result, og.TextGenerationOutput)
 
-    reply = result.chat_output["content"]
+    assert result.chat_output is not None
+    reply = str(result.chat_output["content"])
     history = add_assistant_message(history, reply)
 
     return reply, history, result.transaction_hash
@@ -76,10 +78,7 @@ async def main():
     history = [
         {
             "role": "system",
-            "content": (
-                "You are a concise Python tutor. "
-                "Give short, clear answers with code examples when helpful."
-            ),
+            "content": ("You are a concise Python tutor. Give short, clear answers with code examples when helpful."),
         }
     ]
 

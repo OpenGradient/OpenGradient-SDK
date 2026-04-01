@@ -125,10 +125,7 @@ def _validate_model_string(model: Union[TEE_LLM, str]) -> Union[TEE_LLM, str]:
     else:
         model_str = str(model)
     if "/" not in model_str:
-        raise ValueError(
-            f"Unsupported model value '{model_str}'. "
-            "Expected provider/model format (for example: 'openai/gpt-5')."
-        )
+        raise ValueError(f"Unsupported model value '{model_str}'. Expected provider/model format (for example: 'openai/gpt-5').")
     return model
 
 
@@ -372,10 +369,7 @@ class OpenGradientChatModel(BaseChatModel):
         except RuntimeError:
             pass
         else:
-            raise RuntimeError(
-                "Synchronous stream cannot run inside an active event loop for this adapter. "
-                "Use `astream` instead."
-            )
+            raise RuntimeError("Synchronous stream cannot run inside an active event loop for this adapter. Use `astream` instead.")
 
         loop = asyncio.new_event_loop()
         try:
