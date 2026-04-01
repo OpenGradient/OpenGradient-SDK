@@ -65,7 +65,7 @@ select = ["E", "F", "I", "N"]
 ignore = []
 
 [tool.uv]
-exclude-newer = "2026-03-25T00:00:00Z"
+exclude-newer = "7d"
 
 [tool.ruff.mccabe]
 max-complexity = 10
