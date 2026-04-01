@@ -1,13 +1,9 @@
-import os
 import ssl
-import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-
-from src.opengradient.client.tee_registry import (
+from opengradient.client.tee_registry import (
     TEE_TYPE_LLM_PROXY,
     TEE_TYPE_VALIDATOR,
     TEERegistry,
@@ -69,8 +65,8 @@ def _make_self_signed_der() -> bytes:
 def mock_contract():
     """Create a TEERegistry with a mocked Web3 contract."""
     with (
-        patch("src.opengradient.client.tee_registry.Web3") as mock_web3_cls,
-        patch("src.opengradient.client.tee_registry.get_abi") as mock_get_abi,
+        patch("opengradient.client.tee_registry.Web3") as mock_web3_cls,
+        patch("opengradient.client.tee_registry.get_abi") as mock_get_abi,
     ):
         mock_get_abi.return_value = []
         mock_web3 = MagicMock()

@@ -13,7 +13,7 @@ MODEL = og.TEE_LLM.GEMINI_2_5_FLASH
 
 async def main(private_key: str):
     llm = og.LLM(private_key=private_key)
-    llm.ensure_opg_approval(opg_amount=0.1)
+    llm.ensure_opg_approval(min_allowance=0.1)
 
     async def run_prompt(prompt: str):
         messages = [{"role": "user", "content": prompt}]

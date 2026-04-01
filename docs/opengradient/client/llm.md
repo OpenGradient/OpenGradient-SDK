@@ -22,8 +22,6 @@ All request methods (``chat``, ``completion``) are async.
 
 Before making LLM requests, ensure your wallet has approved sufficient
 OPG tokens for Permit2 spending by calling ``ensure_opg_approval``.
-This only sends an on-chain transaction when the current allowance is
-below the requested amount.
 
 #### Constructor
 
@@ -31,27 +29,30 @@ below the requested amount.
 def __init__(
     private_key: str,
     rpc_url: str = 'https://ogevmdevnet.opengradient.ai',
-    tee_registry_address: str = '0x4e72238852f3c918f4E4e57AeC9280dDB0c80248',
-    llm_server_url: Optional[str] = None
+    tee_registry_address: str = '0x4e72238852f3c918f4E4e57AeC9280dDB0c80248'
 )
 ```
 
+#### Static methods
+
+---
+
+#### `from_url()`
+
+```python
+static def from_url(private_key: str, llm_server_url: str) ‑> `LLM`
+```
+**[Dev]** Create an LLM client with a hardcoded TEE endpoint URL.
+
+Intended for development and self-hosted TEE servers. TLS certificate
+verification is disabled because these servers typically use self-signed
+certificates. For production use, prefer the default constructor which
+resolves TEEs from the on-chain registry.
+
 **Arguments**
 
-* **`private_key (str)`**: Ethereum private key for signing x402 payments.
-* **`rpc_url (str)`**: RPC URL for the OpenGradient network. Used to fetch the
-        active TEE endpoint from the on-chain registry when ``llm_server_url``
-        is not provided.
-* **`tee_registry_address (str)`**: Address of the on-chain TEE registry contract.
-* **`llm_server_url (str, optional)`**: Bypass the registry and connect directly
-        to this TEE endpoint URL (e.g. ``"https://1.2.3.4"``). When set,
-        TLS certificate verification is disabled automatically because
-        self-hosted TEE servers typically use self-signed certificates.
-
-        .. warning::
-            Using ``llm_server_url`` disables TLS certificate verification,
-            which removes protection against man-in-the-middle attacks.
-            Only connect to servers you trust and over secure network paths.
+* **`private_key`**: Ethereum private key for signing x402 payments.
+* **`llm_server_url`**: The TEE endpoint URL (e.g. ``"https://1.2.3.4"``).
 
 #### Methods
 
@@ -125,7 +126,7 @@ Union[TextGenerationOutput, AsyncGenerator[StreamChunk, None]]:
 ```python
 async def close(self) ‑> None
 ```
-Close the underlying HTTP client.
+Cancel the background refresh loop and close the HTTP client.
 
 ---
 
@@ -190,18 +191,30 @@ TextGenerationOutput: Generated text results including:
 #### `ensure_opg_approval()`
 
 ```python
-def ensure_opg_approval(self, opg_amount: float) ‑> [Permit2ApprovalResult](./opg_token)
+def ensure_opg_approval(
+    self,
+    min_allowance: float,
+    approve_amount: Optional[float] = None
+) ‑> [Permit2ApprovalResult](./opg_token)
 ```
-Ensure the Permit2 allowance for OPG is at least ``opg_amount``.
+Ensure the Permit2 allowance stays above a minimum threshold.
 
-Checks the current Permit2 allowance for the wallet. If the allowance
-is already >= the requested amount, returns immediately without sending
-a transaction. Otherwise, sends an ERC-20 approve transaction.
+Only sends a transaction when the current allowance drops below
+``min_allowance``. When approval is needed, approves ``approve_amount``
+(defaults to ``2 * min_allowance``) to create a buffer that survives
+multiple service restarts without re-approving.
+
+Best for backend servers that call this on startup::
+
+    llm.ensure_opg_approval(min_allowance=5.0, approve_amount=100.0)
 
 **Arguments**
 
-* **`opg_amount`**: Minimum number of OPG tokens required (e.g. ``0.1``
-        for 0.1 OPG). Must be at least 0.1 OPG.
+* **`min_allowance`**: The minimum acceptable allowance in OPG. Must be
+        at least 0.1 OPG.
+* **`approve_amount`**: The amount of OPG to approve when a transaction
+        is needed. Defaults to ``2 * min_allowance``. Must be
+        >= ``min_allowance``.
 
 **Returns**
 
@@ -211,5 +224,6 @@ Permit2ApprovalResult: Contains ``allowance_before``,
 
 **Raises**
 
-* **`ValueError`**: If the OPG amount is less than 0.1.
+* **`ValueError`**: If ``min_allowance`` is less than 0.1 or
+        ``approve_amount`` is less than ``min_allowance``.
 * **`RuntimeError`**: If the approval transaction fails.

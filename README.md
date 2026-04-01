@@ -26,6 +26,17 @@ pip install opengradient
 
 **Note**: > **Windows users:** See the [Windows Installation Guide](./WINDOWS_INSTALL.md) for step-by-step setup instructions.
 
+### Claude Code Integration
+
+If you use [Claude Code](https://claude.ai/code), you can enhance your development experience with OpenGradient:
+
+- **CLAUDE.md context file**: Copy [docs/CLAUDE_SDK_USERS.md](docs/CLAUDE_SDK_USERS.md) to your project's `CLAUDE.md` to enable context-aware assistance with OpenGradient SDK development.
+
+- **Claude Code Plugin**: Install the [OpenGradient Claude Plugin](https://github.com/OpenGradient/claude-plugins) for skills, commands, and agents tailored to OpenGradient development. To install, run:
+  ```bash
+  claude plugin marketplace add https://github.com/OpenGradient/claude-plugins
+  ```
+
 ## Network Architecture
 
 OpenGradient operates two networks:
@@ -88,10 +99,10 @@ hub = og.ModelHub(email="you@example.com", password="...")
 
 ### OPG Token Approval
 
-Before making LLM requests, your wallet must approve OPG token spending via the [Permit2](https://github.com/Uniswap/permit2) protocol. Call this once (it's idempotent — no transaction is sent if the allowance already covers the requested amount):
+Before making LLM requests, your wallet must approve OPG token spending via the [Permit2](https://github.com/Uniswap/permit2) protocol. This only sends an on-chain transaction when the current allowance drops below the threshold:
 
 ```python
-llm.ensure_opg_approval(opg_amount=5)
+llm.ensure_opg_approval(min_allowance=5)
 ```
 
 See [Payment Settlement](#payment-settlement) for details on settlement modes.
@@ -323,10 +334,6 @@ For comprehensive documentation, API reference, and guides:
 - [OpenGradient Documentation](https://docs.opengradient.ai/)
 - [API Reference](https://docs.opengradient.ai/api_reference/python_sdk/)
 - [Network Deployment](https://docs.opengradient.ai/learn/network/deployment.html)
-
-### Claude Code Integration
-
-If you use [Claude Code](https://claude.ai/code), copy [docs/CLAUDE_SDK_USERS.md](docs/CLAUDE_SDK_USERS.md) to your project's `CLAUDE.md` to enable context-aware assistance with OpenGradient SDK development.
 
 ## Model Hub
 

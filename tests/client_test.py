@@ -1,15 +1,11 @@
 import json
-import os
-import sys
 from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
 
-sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-
-from src.opengradient.client.llm import LLM
-from src.opengradient.client.model_hub import ModelHub
-from src.opengradient.types import (
+from opengradient.client.llm import LLM
+from opengradient.client.model_hub import ModelHub
+from opengradient.types import (
     StreamChunk,
     x402SettlementMode,
 )
@@ -22,10 +18,16 @@ FAKE_PRIVATE_KEY = "0x" + "a" * 64
 @pytest.fixture
 def mock_tee_registry():
     """Mock the TEE registry so LLM.__init__ doesn't need a live registry."""
-    with patch("src.opengradient.client.llm.TEERegistry") as mock_tee_registry:
+    with (
+        patch("opengradient.client.llm.TEERegistry") as mock_tee_registry,
+        patch(
+            "opengradient.client.tee_connection.build_ssl_context_from_der",
+            return_value=MagicMock(),
+        ),
+    ):
         mock_tee = MagicMock()
         mock_tee.endpoint = "https://test.tee.server"
-        mock_tee.tls_cert_der = None
+        mock_tee.tls_cert_der = b"fake-der"
         mock_tee.tee_id = "test-tee-id"
         mock_tee.payment_address = "0xTestPaymentAddress"
         mock_tee_registry.return_value.get_llm_tee.return_value = mock_tee
@@ -35,7 +37,7 @@ def mock_tee_registry():
 @pytest.fixture
 def mock_web3():
     """Create a mock Web3 instance for Alpha."""
-    with patch("src.opengradient.client.alpha.Web3") as mock:
+    with patch("opengradient.client.alpha.Web3") as mock:
         mock_instance = MagicMock()
         mock.return_value = mock_instance
         mock.HTTPProvider.return_value = MagicMock()
@@ -72,13 +74,13 @@ class TestLLMInitialization:
     def test_llm_initialization(self, mock_tee_registry):
         """Test basic LLM initialization."""
         llm = LLM(private_key=FAKE_PRIVATE_KEY)
-        assert llm._tee_endpoint == "https://test.tee.server"
+        assert llm._tee.get().endpoint == "https://test.tee.server"
 
     def test_llm_initialization_custom_url(self, mock_tee_registry):
         """Test LLM initialization with custom server URL."""
         custom_llm_url = "https://custom.llm.server"
-        llm = LLM(private_key=FAKE_PRIVATE_KEY, llm_server_url=custom_llm_url)
-        assert llm._tee_endpoint == custom_llm_url
+        llm = LLM.from_url(private_key=FAKE_PRIVATE_KEY, llm_server_url=custom_llm_url)
+        assert llm._tee.get().endpoint == custom_llm_url
 
 
 # --- ModelHub Authentication Tests ---
@@ -88,8 +90,8 @@ class TestAuthentication:
     def test_login_to_hub_success(self):
         """Test successful login to hub."""
         with (
-            patch("src.opengradient.client.model_hub._FIREBASE_CONFIG", {"apiKey": "fake"}),
-            patch("src.opengradient.client.model_hub.firebase") as mock_firebase,
+            patch("opengradient.client.model_hub._FIREBASE_CONFIG", {"apiKey": "fake"}),
+            patch("opengradient.client.model_hub.firebase") as mock_firebase,
         ):
             mock_auth = MagicMock()
             mock_auth.sign_in_with_email_and_password.return_value = {
@@ -106,8 +108,8 @@ class TestAuthentication:
     def test_login_to_hub_failure(self):
         """Test login failure raises exception."""
         with (
-            patch("src.opengradient.client.model_hub._FIREBASE_CONFIG", {"apiKey": "fake"}),
-            patch("src.opengradient.client.model_hub.firebase") as mock_firebase,
+            patch("opengradient.client.model_hub._FIREBASE_CONFIG", {"apiKey": "fake"}),
+            patch("opengradient.client.model_hub.firebase") as mock_firebase,
         ):
             mock_auth = MagicMock()
             mock_auth.sign_in_with_email_and_password.side_effect = Exception("Invalid credentials")

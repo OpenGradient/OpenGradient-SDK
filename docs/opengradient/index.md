@@ -6,7 +6,7 @@ opengradient
 
 # Package opengradient
 
-**Version: 0.9.2**
+**Version: 0.9.3**
 
 OpenGradient Python SDK for decentralized AI inference with end-to-end verification.
 
@@ -35,7 +35,7 @@ import opengradient as og
 llm = og.LLM(private_key="0x...")
 
 # One-time OPG token approval (idempotent -- skips if allowance is sufficient)
-llm.ensure_opg_approval(opg_amount=5)
+llm.ensure_opg_approval(min_allowance=5)
 
 # Chat with an LLM (TEE-verified)
 response = asyncio.run(llm.chat(
