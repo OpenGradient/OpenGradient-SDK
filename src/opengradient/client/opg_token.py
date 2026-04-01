@@ -204,8 +204,8 @@ def ensure_opg_approval(
         raise ValueError(f"Wallet {owner} has no OPG tokens. Fund the wallet before approving.")
     elif min_base > balance:
         raise ValueError(
-            f"Wallet {owner} has less OPG tokens than the minimum allowance ({min_base} < {balance}). "
-            f"Fund the wallet with at least {min_base / 10**18} OPG before approving."
+            f"Wallet {owner} has insufficient OPG balance: has {balance / 10**18:.6f} OPG, "
+            f"but the minimum required is {min_base / 10**18:.6f} OPG. Fund the wallet before approving."
         )
     elif approve_base > balance:
         logger.warning(
@@ -222,3 +222,4 @@ def ensure_opg_approval(
         approve_base,
     )
     return _send_approve_tx(wallet_account, w3, token, owner, spender, approve_base)
+
