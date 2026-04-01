@@ -2,11 +2,17 @@ import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, ChatMessage, HumanMessage, SystemMessage
 from langchain_core.messages.tool import ToolMessage
 from langchain_core.tools import tool
 
-from opengradient.agents.og_langchain import OpenGradientChatModel, _extract_content, _parse_tool_call
+from opengradient.agents.og_langchain import (
+    OpenGradientChatModel,
+    _extract_content,
+    _parse_tool_args,
+    _parse_tool_call,
+)
+from opengradient.types import StreamChoice, StreamChunk, StreamDelta, StreamUsage, TEE_LLM, TextGenerationOutput, x402SettlementMode
 from opengradient.types import TEE_LLM, TextGenerationOutput, x402SettlementMode
 
 
@@ -16,6 +22,7 @@ def mock_llm_client():
     with patch("opengradient.agents.og_langchain.LLM") as MockLLM:
         mock_instance = MagicMock()
         mock_instance.chat = AsyncMock()
+        mock_instance.close = AsyncMock()
         MockLLM.return_value = mock_instance
         yield mock_instance
 
@@ -28,34 +35,48 @@ def model(mock_llm_client):
 
 class TestOpenGradientChatModel:
     def test_initialization(self, model):
-        """Test model initializes with correct fields."""
         assert model.model_cid == TEE_LLM.GPT_5
         assert model.max_tokens == 300
+        assert model.temperature == 0.0
         assert model.x402_settlement_mode == x402SettlementMode.BATCH_HASHED
         assert model._llm_type == "opengradient"
 
-    def test_initialization_custom_max_tokens(self, mock_llm_client):
-        """Test model initializes with custom max_tokens."""
-        model = OpenGradientChatModel(private_key="0x" + "a" * 64, model_cid=TEE_LLM.CLAUDE_HAIKU_4_5, max_tokens=1000)
-        assert model.max_tokens == 1000
-
-    def test_initialization_custom_settlement_mode(self, mock_llm_client):
-        """Test model initializes with custom settlement mode."""
+    def test_initialization_custom_fields(self, mock_llm_client):
         model = OpenGradientChatModel(
             private_key="0x" + "a" * 64,
-            model_cid=TEE_LLM.GPT_5,
+            model_cid=TEE_LLM.CLAUDE_HAIKU_4_5,
+            max_tokens=1000,
+            temperature=0.2,
             x402_settlement_mode=x402SettlementMode.PRIVATE,
         )
+        assert model.max_tokens == 1000
+        assert model.temperature == 0.2
         assert model.x402_settlement_mode == x402SettlementMode.PRIVATE
 
+    def test_initialization_with_client(self):
+        client = MagicMock()
+        model = OpenGradientChatModel(client=client, model=TEE_LLM.GPT_5)
+        assert model._llm is client
+        assert model._owns_client is False
+
+    def test_requires_model(self):
+        with pytest.raises(ValueError, match="model_cid \\(or model\\) is required"):
+            OpenGradientChatModel(private_key="0x" + "a" * 64)
+
+    def test_validates_model_format(self):
+        with pytest.raises(ValueError, match="Expected provider/model format"):
+            OpenGradientChatModel(private_key="0x" + "a" * 64, model="gpt-5")
+
     def test_identifying_params(self, model):
-        """Test _identifying_params returns model name."""
-        assert model._identifying_params == {"model_name": TEE_LLM.GPT_5}
+        assert model._identifying_params == {
+            "model_name": TEE_LLM.GPT_5,
+            "temperature": 0.0,
+            "max_tokens": 300,
+        }
 
 
 class TestGenerate:
     def test_text_response(self, model, mock_llm_client):
-        """Test _generate with a simple text response."""
         mock_llm_client.chat.return_value = TextGenerationOutput(
             transaction_hash="external",
             finish_reason="stop",
@@ -68,8 +89,19 @@ class TestGenerate:
         assert result.generations[0].message.content == "Hello there!"
         assert result.generations[0].generation_info == {"finish_reason": "stop"}
 
+    async def test_async_text_response(self, model, mock_llm_client):
+        mock_llm_client.chat.return_value = TextGenerationOutput(
+            transaction_hash="external",
+            finish_reason="stop",
+            chat_output={"role": "assistant", "content": "Hello async!"},
+        )
+
+        result = await model._agenerate([HumanMessage(content="Hi")])
+
+        assert result.generations[0].message.content == "Hello async!"
+        assert result.generations[0].generation_info == {"finish_reason": "stop"}
+
     def test_tool_call_response_flat_format(self, model, mock_llm_client):
-        """Test _generate with tool calls in flat format {name, arguments}."""
         mock_llm_client.chat.return_value = TextGenerationOutput(
             transaction_hash="external",
             finish_reason="tool_call",
@@ -96,7 +128,6 @@ class TestGenerate:
         assert ai_msg.tool_calls[0]["args"] == {"account": "main"}
 
     def test_tool_call_response_nested_format(self, model, mock_llm_client):
-        """Test _generate with tool calls in OpenAI nested format {function: {name, arguments}}."""
         mock_llm_client.chat.return_value = TextGenerationOutput(
             transaction_hash="external",
             finish_reason="tool_call",
@@ -126,7 +157,6 @@ class TestGenerate:
         assert ai_msg.tool_calls[0]["args"] == {"account": "savings"}
 
     def test_content_as_list_of_blocks(self, model, mock_llm_client):
-        """Test _generate when API returns content as a list of content blocks."""
         mock_llm_client.chat.return_value = TextGenerationOutput(
             transaction_hash="external",
             finish_reason="stop",
@@ -141,7 +171,6 @@ class TestGenerate:
         assert result.generations[0].message.content == "Hello there!"
 
     def test_empty_chat_output(self, model, mock_llm_client):
-        """Test _generate handles None chat_output gracefully."""
         mock_llm_client.chat.return_value = TextGenerationOutput(
             transaction_hash="external",
             finish_reason="stop",
@@ -155,7 +184,6 @@ class TestGenerate:
 
 class TestMessageConversion:
     def test_converts_all_message_types(self, model, mock_llm_client):
-        """Test that all LangChain message types are correctly converted to SDK format."""
         mock_llm_client.chat.return_value = TextGenerationOutput(
             transaction_hash="external",
             finish_reason="stop",
@@ -171,6 +199,7 @@ class TestMessageConversion:
                 tool_calls=[{"id": "call_1", "name": "search", "args": {"q": "test"}}],
             ),
             ToolMessage(content="result", tool_call_id="call_1"),
+            ChatMessage(role="developer", content="Prefer concise answers."),
         ]
 
         model._generate(messages)
@@ -179,25 +208,21 @@ class TestMessageConversion:
 
         assert sdk_messages[0] == {"role": "system", "content": "You are helpful."}
         assert sdk_messages[1] == {"role": "user", "content": "Hi"}
-        # AIMessage with no tool_calls should not include tool_calls key
         assert sdk_messages[2] == {"role": "assistant", "content": "Hello!"}
         assert "tool_calls" not in sdk_messages[2]
-        # AIMessage with tool_calls should include them in OpenAI nested format
         assert sdk_messages[3]["role"] == "assistant"
         assert len(sdk_messages[3]["tool_calls"]) == 1
         assert sdk_messages[3]["tool_calls"][0]["type"] == "function"
         assert sdk_messages[3]["tool_calls"][0]["function"]["name"] == "search"
         assert sdk_messages[3]["tool_calls"][0]["function"]["arguments"] == json.dumps({"q": "test"})
-        # ToolMessage
         assert sdk_messages[4] == {"role": "tool", "content": "result", "tool_call_id": "call_1"}
+        assert sdk_messages[5] == {"role": "developer", "content": "Prefer concise answers."}
 
-    def test_unsupported_message_type_raises(self, model, mock_llm_client):
-        """Test that unsupported message types raise ValueError."""
+    def test_unsupported_message_type_raises(self, model):
         with pytest.raises(ValueError, match="Unexpected message type"):
-            model._generate([MagicMock(spec=[])])
+            model._convert_messages_to_sdk([MagicMock(spec=[])])
 
     def test_passes_correct_params_to_client(self, model, mock_llm_client):
-        """Test that _generate passes model params correctly to the SDK client."""
         mock_llm_client.chat.return_value = TextGenerationOutput(
             transaction_hash="external",
             finish_reason="stop",
@@ -211,15 +236,25 @@ class TestMessageConversion:
             messages=[{"role": "user", "content": "Hi"}],
             stop_sequence=["END"],
             max_tokens=300,
+            temperature=0.0,
             tools=[],
+            tool_choice=None,
             x402_settlement_mode=x402SettlementMode.BATCH_HASHED,
+            stream=False,
         )
+
+    def test_build_chat_kwargs_accepts_string_settlement_mode(self, model):
+        chat_kwargs = model._build_chat_kwargs(
+            sdk_messages=[{"role": "user", "content": "Hi"}],
+            stop=None,
+            stream=False,
+            x402_settlement_mode="private",
+        )
+        assert chat_kwargs["x402_settlement_mode"] == x402SettlementMode.PRIVATE
 
 
 class TestBindTools:
     def test_bind_base_tool(self, model):
-        """Test binding a LangChain BaseTool."""
-
         @tool
         def get_weather(city: str) -> str:
             """Gets the weather for a city."""
@@ -235,7 +270,6 @@ class TestBindTools:
         assert "properties" in model._tools[0]["function"]["parameters"]
 
     def test_bind_dict_tool(self, model):
-        """Test binding a raw dict tool definition."""
         tool_dict = {
             "type": "function",
             "function": {
@@ -249,19 +283,76 @@ class TestBindTools:
 
         assert model._tools == [tool_dict]
 
+    def test_bind_tool_choice(self, model):
+        tool_dict = {
+            "type": "function",
+            "function": {
+                "name": "my_tool",
+                "description": "A custom tool",
+                "parameters": {"type": "object", "properties": {}},
+            },
+        }
+
+        model.bind_tools([tool_dict], tool_choice="required")
+
+        assert model._tool_choice == "required"
+
     def test_tools_used_in_generate(self, model, mock_llm_client):
-        """Test that bound tools are passed to the client chat call."""
         mock_llm_client.chat.return_value = TextGenerationOutput(
             transaction_hash="external",
             finish_reason="stop",
             chat_output={"role": "assistant", "content": "ok"},
         )
 
-        tool_dict = {"type": "function", "function": {"name": "my_tool"}}
+        tool_dict = {
+            "type": "function",
+            "function": {
+                "name": "my_tool",
+                "description": "A custom tool",
+                "parameters": {"type": "object", "properties": {}},
+            },
+        }
         model.bind_tools([tool_dict])
         model._generate([HumanMessage(content="Hi")])
 
         assert mock_llm_client.chat.call_args.kwargs["tools"] == [tool_dict]
+
+
+class TestStreaming:
+    def test_stream_chunk_to_generation(self):
+        chunk = StreamChunk(
+            choices=[
+                StreamChoice(
+                    delta=StreamDelta(
+                        content="partial",
+                        tool_calls=[
+                            {
+                                "id": "call_1",
+                                "index": 0,
+                                "function": {"name": "search", "arguments": '{"q":"weather"}'},
+                            }
+                        ],
+                    ),
+                    finish_reason="tool_calls",
+                )
+            ],
+            model="gpt-5",
+            usage=StreamUsage(prompt_tokens=10, completion_tokens=4, total_tokens=14),
+            tee_signature="sig",
+            tee_timestamp="ts",
+            tee_id="tee_1",
+            tee_endpoint="https://tee.example",
+            tee_payment_address="0xabc",
+        )
+
+        generation = OpenGradientChatModel._stream_chunk_to_generation(chunk)
+
+        assert generation.message.content == "partial"
+        assert generation.message.tool_call_chunks[0]["name"] == "search"
+        assert generation.message.tool_call_chunks[0]["args"] == '{"q":"weather"}'
+        assert generation.message.usage_metadata == {"input_tokens": 10, "output_tokens": 4, "total_tokens": 14}
+        assert generation.generation_info["finish_reason"] == "tool_calls"
+        assert generation.generation_info["tee_signature"] == "sig"
 
 
 class TestExtractContent:
@@ -286,6 +377,9 @@ class TestExtractContent:
 
 
 class TestParseToolCall:
+    def test_parse_tool_args_invalid_json(self):
+        assert _parse_tool_args("not json") == {}
+
     def test_flat_format(self):
         tc = _parse_tool_call({"id": "1", "name": "foo", "arguments": '{"x": 1}'})
         assert tc["name"] == "foo"
