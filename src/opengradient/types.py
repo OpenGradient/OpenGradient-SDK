@@ -2,12 +2,15 @@
 OpenGradient Specific Types
 """
 
+import logging
 import time
 from dataclasses import dataclass
 from enum import Enum, IntEnum
 from typing import AsyncIterator, Dict, Iterator, List, Optional, Tuple, Union
 
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 
 class x402SettlementMode(str, Enum):
@@ -349,7 +352,7 @@ class TextGenerationStream:
                 data = json.loads(data_str)
                 return StreamChunk.from_sse_data(data)
             except json.JSONDecodeError:
-                # Skip malformed chunks
+                logger.warning("Skipping malformed SSE JSON: %r", data_str)
                 continue
 
     async def __anext__(self) -> StreamChunk:
@@ -380,6 +383,7 @@ class TextGenerationStream:
                 data = json.loads(data_str)
                 return StreamChunk.from_sse_data(data)
             except json.JSONDecodeError:
+                logger.warning("Skipping malformed SSE JSON: %r", data_str)
                 continue
 
 
