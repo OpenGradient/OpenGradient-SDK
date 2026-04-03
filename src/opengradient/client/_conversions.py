@@ -156,7 +156,15 @@ def convert_to_model_output(event_data: AttributeDict) -> Dict[str, np.ndarray]:
             if isinstance(tensor, (AttributeDict, dict)):
                 name = tensor.get("name")
                 value = tensor.get("value")
-                output_dict[name] = np.array(json.loads(value))
+                if name is None:
+                    logging.warning("JSON tensor is missing 'name' field; skipping.")
+                    continue
+                try:
+                    output_dict[name] = np.array(json.loads(value))
+                except (json.JSONDecodeError, TypeError) as e:
+                    logging.warning(
+                        f"Failed to parse JSON tensor '{name}' — value={value!r}: {e}. Skipping."
+                    )
             else:
                 logging.warning(f"Unexpected tensor type: {type(tensor)}")
 
@@ -203,7 +211,15 @@ def convert_array_to_model_output(array_data: List) -> ModelOutput:
     for tensor in array_data[2]:
         name = tensor[0]
         value = tensor[1]
-        json_data[name] = np.array(json.loads(value))
+        if name is None:
+            logging.warning("JSON tensor entry is missing a name; skipping.")
+            continue
+        try:
+            json_data[name] = np.array(json.loads(value))
+        except (json.JSONDecodeError, TypeError) as e:
+            logging.warning(
+                f"Failed to parse JSON tensor '{name}' — value={value!r}: {e}. Skipping."
+            )
 
     return ModelOutput(
         numbers=number_data,
