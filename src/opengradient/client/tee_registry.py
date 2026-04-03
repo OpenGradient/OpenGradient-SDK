@@ -1,6 +1,7 @@
 """TEE Registry client for fetching verified TEE endpoints and TLS certificates."""
 
 import logging
+import random
 import ssl
 from dataclasses import dataclass
 from typing import List, NamedTuple, Optional
@@ -109,7 +110,7 @@ class TEERegistry:
 
     def get_llm_tee(self) -> Optional[TEEEndpoint]:
         """
-        Return the first active LLM proxy TEE from the registry.
+        Return a random active LLM proxy TEE from the registry.
 
         Returns:
             TEEEndpoint for an active LLM proxy TEE, or None if none are available.
@@ -119,7 +120,7 @@ class TEERegistry:
             logger.warning("No active LLM proxy TEEs found in registry")
             return None
 
-        return tees[0]
+        return random.choice(tees)
 
 
 def build_ssl_context_from_der(der_cert: bytes) -> ssl.SSLContext:

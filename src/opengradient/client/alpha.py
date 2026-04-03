@@ -29,6 +29,7 @@ DEFAULT_SCHEDULER_ADDRESS = "0x7179724De4e7FF9271FA40C0337c7f90C0508eF6"
 # How much time we wait for txn to be included in chain
 INFERENCE_TX_TIMEOUT = 120
 REGULAR_TX_TIMEOUT = 30
+HTTP_REQUEST_TIMEOUT = 30  # seconds
 
 PRECOMPILE_CONTRACT_ADDRESS = "0x00000000000000000000000000000000000000F4"
 
@@ -198,7 +199,7 @@ class Alpha:
             encoded_id = urllib.parse.quote(inference_id, safe="")
             url = f"{self._api_url}/artela-network/artela-rollkit/inference/tx/{encoded_id}"
 
-            response = requests.get(url)
+            response = requests.get(url, timeout=HTTP_REQUEST_TIMEOUT)
             if response.status_code == 200:
                 resp = response.json()
                 inference_result = resp.get("inference_results", {})
@@ -315,7 +316,7 @@ class Alpha:
             signed_txn = self._wallet_account.sign_transaction(transaction)
             tx_hash = self._blockchain.eth.send_raw_transaction(signed_txn.raw_transaction)
 
-            tx_receipt = self._blockchain.eth.wait_for_transaction_receipt(tx_hash, timeout=60)
+            tx_receipt = self._blockchain.eth.wait_for_transaction_receipt(tx_hash, timeout=INFERENCE_TX_TIMEOUT)
 
             if tx_receipt["status"] == 0:
                 raise Exception(f"Contract deployment failed, transaction hash: {tx_hash.hex()}")

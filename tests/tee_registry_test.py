@@ -144,7 +144,7 @@ class TestGetActiveTeesByType:
 
 
 class TestGetLlmTee:
-    def test_returns_first_active_tee(self, mock_contract):
+    def test_returns_random_active_tee(self, mock_contract):
         registry, contract = mock_contract
 
         contract.functions.getActiveTEEs.return_value.call.return_value = [
@@ -155,7 +155,7 @@ class TestGetLlmTee:
         result = registry.get_llm_tee()
 
         assert result is not None
-        assert result.endpoint == "https://tee-1.example.com"
+        assert result.endpoint in ("https://tee-1.example.com", "https://tee-2.example.com")
 
     def test_returns_none_when_no_tees(self, mock_contract):
         registry, contract = mock_contract
