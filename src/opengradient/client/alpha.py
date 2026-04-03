@@ -6,6 +6,7 @@ including on-chain ONNX model inference, workflow management, and ML model execu
 """
 
 import base64
+import logging
 import json
 import urllib.parse
 from typing import Dict, List, Optional, Union
@@ -20,6 +21,8 @@ from web3.logs import DISCARD
 from ..types import HistoricalInputQuery, InferenceMode, InferenceResult, ModelOutput, SchedulerParams
 from ._conversions import convert_array_to_model_output, convert_to_model_input, convert_to_model_output  # type: ignore[attr-defined]
 from ._utils import get_abi, get_bin, run_with_retry
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_RPC_URL = "https://ogevmdevnet.opengradient.ai"
 DEFAULT_API_URL = "https://sdk-devnet.opengradient.ai"
@@ -299,9 +302,8 @@ class Alpha:
                 estimated_gas = contract.constructor(*constructor_args).estimate_gas({"from": self._wallet_account.address})
                 gas_limit = int(estimated_gas * 1.2)
             except Exception as e:
-                print(f"Gas estimation failed: {str(e)}")
+                logger.warning("Gas estimation failed: %s. Using conservative fallback gas limit of 5,000,000.", e)
                 gas_limit = 5000000  # Conservative fallback
-                print(f"Using fallback gas limit: {gas_limit}")
 
             transaction = contract.constructor(*constructor_args).build_transaction(
                 {
@@ -369,8 +371,12 @@ class Alpha:
             scheduler_tx_hash = self._blockchain.eth.send_raw_transaction(signed_scheduler_tx.raw_transaction)
             self._blockchain.eth.wait_for_transaction_receipt(scheduler_tx_hash, timeout=REGULAR_TX_TIMEOUT)
         except Exception as e:
-            print(f"Error registering contract with scheduler: {str(e)}")
-            print("  The workflow contract is still deployed and can be executed manually.")
+            logger.warning(
+                "Failed to register workflow contract %s with scheduler: %s. "
+                "The contract is still deployed and can be executed manually.",
+                contract_address,
+                e,
+            )
 
     def read_workflow_result(self, contract_address: str) -> ModelOutput:
         """
