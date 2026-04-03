@@ -347,3 +347,35 @@ Browse and discover AI models on the [OpenGradient Model Hub](https://hub.opengr
 
 - Visit our [documentation](https://docs.opengradient.ai/) for detailed guides
 - Join our [community](https://discord.gg/axammqTRDz) for support and discussions
+
+## Contributing
+
+Contributions to the OpenGradient SDK are welcome and appreciated! We follow standard GitHub flow — fork, branch, commit, and open a pull request.
+
+### Community Contributors
+
+The following community members have contributed bug fixes, documentation improvements, and reliability enhancements to this SDK:
+
+| Contributor | Contributions |
+|-------------|--------------|
+| [@amathxbt](https://github.com/amathxbt) | 13 PRs — SDK bug fixes (TEE, inference, auth, error handling), docs, and reliability improvements |
+
+### Notable Bug Fixes (Community)
+
+The following critical bugs were identified and fixed by community contributors:
+
+- **[#222](https://github.com/OpenGradient/OpenGradient-SDK/pull/222)** — Removed arbitrary 0.1 OPG floor from `LLM.ensure_opg_approval()`; now validates positive amounts only
+- **[#221](https://github.com/OpenGradient/OpenGradient-SDK/pull/221)** — Fixed `JSONDecodeError` crash when parsing JSON tensors in model output conversion
+- **[#219](https://github.com/OpenGradient/OpenGradient-SDK/pull/219)** ✅ — Corrected inverted `balance`/`min_base` values in OPG insufficient-balance error messages
+- **[#218](https://github.com/OpenGradient/OpenGradient-SDK/pull/218)** — Fixed silent failure in `RegistryTEEConnection.reconnect()` swallowing `_connect()` errors
+- **[#217](https://github.com/OpenGradient/OpenGradient-SDK/pull/217)** — Added missing `chainId` to inference transactions in `_send_tx_with_revert_handling`
+- **[#220](https://github.com/OpenGradient/OpenGradient-SDK/pull/220)** ✅ — Replaced hardcoded 60 s timeout in `deploy_model()` with `INFERENCE_TX_TIMEOUT` constant
+- **[#202](https://github.com/OpenGradient/OpenGradient-SDK/pull/202)** ✅ — Fixed Firebase token refresh loop and `create_model` notes field mismatch
+- **[#201](https://github.com/OpenGradient/OpenGradient-SDK/pull/201)** — Fixed 5 critical bugs: TEE endpoint randomization, HTTP 402 user hint, `int` dtype mapping, `None` crash in inference result, gas estimation regression
+- **[#199](https://github.com/OpenGradient/OpenGradient-SDK/pull/199)** — Added missing `InferenceResult`, `ModelOutput`, `ModelRepository`, `FileUploadResult` exports to `__all__`
+- **[#198](https://github.com/OpenGradient/OpenGradient-SDK/pull/198)** ✅ — Prevented silent `None` return in `run_with_retry` when `max_retries < 1`
+- **[#197](https://github.com/OpenGradient/OpenGradient-SDK/pull/197)** — Populated missing `tee_id`, `tee_endpoint`, `tee_payment_address` fields in `StreamChunk.from_sse_data`
+- **[#196](https://github.com/OpenGradient/OpenGradient-SDK/pull/196)** ✅ — Added missing `__aiter__` to `TextGenerationStream` enabling `async for` iteration
+- **[#166](https://github.com/OpenGradient/OpenGradient-SDK/pull/166)** ✅ — Fixed broken community Discord URL in README Support section
+
+Want to contribute? Check out open issues and feel free to submit a pull request!
