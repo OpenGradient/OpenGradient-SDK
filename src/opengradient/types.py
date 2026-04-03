@@ -428,6 +428,9 @@ class TextGenerationOutput:
     completion_output: Optional[str] = None
     """Raw text returned by a completion request."""
 
+    usage: Optional[Dict] = None
+    """Token usage for the request. Contains ``prompt_tokens``, ``completion_tokens``, and ``total_tokens`` when reported by the server."""
+
     payment_hash: Optional[str] = None
     """Payment hash for the x402 transaction."""
 
@@ -524,6 +527,71 @@ class TEE_LLM(str, Enum):
     GROK_4_FAST = "x-ai/grok-4-fast"
     GROK_4_1_FAST = "x-ai/grok-4-1-fast"
     GROK_4_1_FAST_NON_REASONING = "x-ai/grok-4-1-fast-non-reasoning"
+
+
+@dataclass
+class ResponseFormat:
+    """Controls the output format enforced by the TEE gateway.
+
+    Use ``type="json_object"`` to receive any valid JSON object (supported by
+    OpenAI, Gemini, and Grok). Use ``type="json_schema"`` with a ``json_schema``
+    definition to enforce a specific schema (supported by all providers,
+    including Anthropic).
+
+    Attributes:
+        type: One of ``"text"``, ``"json_object"``, or ``"json_schema"``.
+        json_schema: Schema definition (required when ``type="json_schema"``).
+            Must contain ``name`` (str) and ``schema`` (dict).
+            ``strict`` (bool) is optional.
+
+    Raises:
+        ValueError: If ``type`` is not a recognised value, or if
+            ``type="json_schema"`` is used without providing ``json_schema``.
+
+    Examples::
+
+        # Any valid JSON object — OpenAI, Gemini, Grok only
+        ResponseFormat(type="json_object")
+
+        # Strict schema — all providers including Anthropic
+        ResponseFormat(
+            type="json_schema",
+            json_schema={
+                "name": "person",
+                "strict": True,
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string"},
+                        "age": {"type": "integer"},
+                    },
+                    "required": ["name", "age"],
+                    "additionalProperties": False,
+                },
+            },
+        )
+    """
+
+    type: str
+    json_schema: Optional[Dict] = None
+
+    def __post_init__(self) -> None:
+        valid_types = ("text", "json_object", "json_schema")
+        if self.type not in valid_types:
+            raise ValueError(
+                f"ResponseFormat.type must be one of {valid_types}, got '{self.type}'"
+            )
+        if self.type == "json_schema" and not self.json_schema:
+            raise ValueError(
+                "ResponseFormat.json_schema is required when type='json_schema'"
+            )
+
+    def to_dict(self) -> Dict:
+        """Serialise to a JSON-compatible dict for the TEE gateway request payload."""
+        d: Dict = {"type": self.type}
+        if self.json_schema is not None:
+            d["json_schema"] = self.json_schema
+        return d
 
 
 @dataclass
