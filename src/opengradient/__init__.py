@@ -23,6 +23,7 @@ See **`opengradient.types`** for shared data types (``TEE_LLM``, ``InferenceMode
 import asyncio
 import opengradient as og
 
+# Auto-discovers active TEE endpoints from the on-chain registry.
 llm = og.LLM(private_key="0x...")
 
 # One-time OPG token approval (idempotent -- skips if allowance is sufficient)
@@ -35,6 +36,12 @@ response = asyncio.run(llm.chat(
     max_tokens=200,
 ))
 print(response.chat_output)
+```
+
+For development or self-hosted TEE servers, you can pin an endpoint:
+
+```python
+llm = og.LLM.from_url(private_key="0x...", llm_server_url="https://localhost:8080")
 ```
 
 ## Streaming

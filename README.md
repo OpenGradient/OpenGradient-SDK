@@ -97,6 +97,26 @@ alpha = og.Alpha(private_key=os.environ.get("OG_PRIVATE_KEY"))
 hub = og.ModelHub(email="you@example.com", password="...")
 ```
 
+### x402 Endpoint Discovery
+
+By default, `og.LLM(...)` automatically discovers active TEE endpoints from the on-chain TEE registry.
+You do not need to hardcode an LLM endpoint URL:
+
+```python
+llm = og.LLM(private_key=os.environ.get("OG_PRIVATE_KEY"))
+```
+
+For development or self-hosted TEE servers, you can provide a specific endpoint:
+
+```python
+llm = og.LLM.from_url(
+    private_key=os.environ.get("OG_PRIVATE_KEY"),
+    llm_server_url="https://your-tee-endpoint.example.com",
+)
+```
+
+**Note:** x402 payment settlement always happens on **Base Sepolia**, regardless of which TEE endpoint serves the request.
+
 ### OPG Token Approval
 
 Before making LLM requests, your wallet must approve OPG token spending via the [Permit2](https://github.com/Uniswap/permit2) protocol. This only sends an on-chain transaction when the current allowance drops below the threshold:
