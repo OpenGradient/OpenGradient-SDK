@@ -5,10 +5,10 @@ OpenGradient Specific Types
 import time
 from dataclasses import dataclass
 from enum import Enum, IntEnum
-from typing import AsyncIterator, Dict, Iterator, List, Optional, Tuple, Union
+from typing import AsyncIterator, Dict, Iterator, List, Optional, Tuple, Union, Any
 
 import numpy as np
-
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 
 class x402SettlementMode(str, Enum):
     """
@@ -552,3 +552,18 @@ class ModelRepository:
 class FileUploadResult:
     modelCid: str
     size: int
+
+
+class InferenceRequest(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+    model_cid: str = Field(..., pattern=r"^(Qm|ba)[1-9A-HJ-NP-Za-km-z]+$")
+    inference_mode: Any  # We let Pydantic handle the Enum conversion
+    model_input: Dict[str, Any]
+    
+    # Enable arbitrary types so Pydantic doesn't complain about numpy arrays
+    @field_validator('model_input')
+    @classmethod
+    def validate_inputs(cls, v: Dict[str, Any]):
+        if not v:
+            raise ValueError("model_input cannot be empty.")
+        return v

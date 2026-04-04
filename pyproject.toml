@@ -28,6 +28,7 @@ dependencies = [
     "openai>=1.58.1",
     "pydantic>=2.9.2",
     "og-x402==0.0.1.dev4"
+    
 ]
 
 [project.optional-dependencies]
