@@ -20,6 +20,7 @@ from web3.logs import DISCARD
 from ..types import HistoricalInputQuery, InferenceMode, InferenceResult, ModelOutput, SchedulerParams
 from ._conversions import convert_array_to_model_output, convert_to_model_input, convert_to_model_output  # type: ignore[attr-defined]
 from ._utils import get_abi, get_bin, run_with_retry
+from ..types import InferenceRequest
 
 DEFAULT_RPC_URL = "https://ogevmdevnet.opengradient.ai"
 DEFAULT_API_URL = "https://sdk-devnet.opengradient.ai"
@@ -80,6 +81,18 @@ class Alpha:
         model_input: Dict[str, Union[str, int, float, List, np.ndarray]],
         max_retries: Optional[int] = None,
     ) -> InferenceResult:
+        # Validate the data using the Pydantic model
+        validated = InferenceRequest(
+            model_cid=model_cid,
+            inference_mode=inference_mode,
+            model_input=model_input
+        )
+        
+        # From here on, we use the validated data
+        # (Optional: Re-assigning ensures we use the cleaned types)
+        model_cid = validated.model_cid
+        inference_mode = validated.inference_mode
+        model_input = validated.model_input
         """
         Perform inference on a model.
 
