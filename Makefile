@@ -32,7 +32,7 @@ docs:
 # ============================================================================
 
 test:
-	uv run pytest tests/ -v
+	uv run python -m pytest tests/ -v
 
 integrationtest:
 	uv run python integrationtest/agent/test_agent.py

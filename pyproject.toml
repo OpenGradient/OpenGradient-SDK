@@ -24,7 +24,9 @@ dependencies = [
     "firebase-rest-api>=1.11.0",
     "numpy>=1.26.4",
     "requests>=2.32.3",
+    "requests-toolbelt>=1.0.0",
     "langchain>=0.3.7",
+    "langchain-core>=0.3.15",
     "openai>=1.58.1",
     "pydantic>=2.9.2",
     "og-x402==0.0.1.dev4"
