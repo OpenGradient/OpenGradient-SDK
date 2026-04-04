@@ -171,7 +171,7 @@ print(f"Tx hash: {result.transaction_hash}")
 
 ### LLM Chat
 
-LLM chat methods are async:
+LLM chat methods are async. The default client auto-discovers active TEE endpoints from the on-chain registry:
 
 ```python
 llm = og.LLM(private_key=os.environ.get("OG_PRIVATE_KEY"))
@@ -181,6 +181,15 @@ completion = await llm.chat(
     messages=[{"role": "user", "content": "Your message"}],
 )
 print(f"Response: {completion.chat_output['content']}")
+```
+
+For development or self-hosted TEE servers, use a custom endpoint:
+
+```python
+llm = og.LLM.from_url(
+    private_key=os.environ.get("OG_PRIVATE_KEY"),
+    llm_server_url="https://your-tee-server.local",
+)
 ```
 
 ## Finding Model CIDs
