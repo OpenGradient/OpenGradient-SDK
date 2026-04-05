@@ -2,7 +2,7 @@
 outline: [2,4]
 ---
 
-[opengradient](../index) / [client](./index) / alpha
+B[opengradient](../index) / [client](./index) / alpha
 
 # Package opengradient.client.alpha
 
@@ -178,3 +178,75 @@ ModelOutput: The inference result from the contract
 
 * `inference_abi` : dict
 * `precompile_abi` : dict
+
+
+
+
+
+---
+
+## Error Handling
+
+When calling `infer()`, several errors can occur. Here's how to handle them properly:
+
+### Basic Error Handling
+
+```python
+from opengradient import Alpha
+
+alpha = Alpha(private_key='your_private_key')
+
+try:
+    result = alpha.infer(
+        model_cid='QmbUqS93...',
+        model_input={"data": "input_value"},
+        inference_mode=InferenceMode.VANILLA
+    )
+    print(f"Inference succeeded: {result.model_output}")
+    
+except ValueError as e:
+    # Invalid model CID or model input
+    print(f"Invalid input: {e}")
+    
+except RuntimeError as e:
+    # Inference execution failed
+    print(f"Inference failed: {e}")
+    
+except Exception as e:
+    # Network error, timeout, insufficient balance, etc.
+    print(f"Unexpected error: {e}")
+
+
+try:
+    result = alpha.infer(
+        model_cid='QmbUqS93...',
+        model_input={...},
+        inference_mode=InferenceMode.VANILLA,
+        max_retries=3
+    )
+    
+except ValueError as e:
+    print("Invalid model CID or input format")
+    # Check that model_cid is a valid IPFS CID
+    
+except RuntimeError as e:
+    if "Insufficient balance" in str(e):
+        print("Insufficient wallet balance for inference")
+        # Fund your wallet with OPG tokens
+    elif "Timeout" in str(e):
+        print("Inference timed out - trying again with max_retries")
+        # Function will auto-retry up to max_retries times
+    else:
+        print(f"Inference failed: {e}")
+        
+except Exception as e:
+    print(f"Unexpected error: {e}")
+
+
+Common Errors and Solutions
+Error	Cause	Solution
+ValueError: Invalid model CID	Model CID format incorrect	Verify CID is valid IPFS format
+RuntimeError: Insufficient balance	Not enough OPG tokens	Fund wallet at opengradient.ai
+RuntimeError: Timeout	Model taking too long	Increase max_retries or check TEE status
+RuntimeError: Network error	Connection issue	Check internet, retry with backoff
+RuntimeError: Inference failed	Generic inference error	Check model_input matches model requirements
