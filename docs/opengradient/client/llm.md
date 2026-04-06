@@ -227,3 +227,42 @@ Permit2ApprovalResult: Contains ``allowance_before``,
 * **`ValueError`**: If ``min_allowance`` is less than 0.1 or
         ``approve_amount`` is less than ``min_allowance``.
 * **`RuntimeError`**: If the approval transaction fails.
+## TEE Endpoint Discovery & x402 Payment Settlement
+
+### Automatic Endpoint Discovery (Production)
+
+By default, `LLM()` constructor automatically discovers active TEE endpoints from the on-chain TEE registry using the `rpc_url` parameter (defaults to the Base Sepolia testnet).
+
+**Key Points:**
+- The TEE endpoint is **dynamically discovered** from the registry
+- x402 payments are always settled on **Base Sepolia**, regardless of which TEE endpoint serves your request
+- This is the recommended approach for production use
+
+**Example:**
+```python
+# Automatically discovers TEE endpoint from registry
+llm = og.LLM(private_key=os.environ.get("OG_PRIVATE_KEY"))
+```
+
+### Manual Endpoint Configuration (Development/Self-Hosted)
+
+For development, testing, or self-hosted TEE servers, use `LLM.from_url()` with a hardcoded endpoint:
+
+**Key Points:**
+- TLS certificate verification is disabled (suitable for self-signed certs)
+- x402 payment settlement still occurs on Base Sepolia
+- Intended for non-production environments only
+
+**Example:**
+```python
+# Connect to a specific TEE endpoint directly
+llm = og.LLM.from_url(
+    private_key=os.environ.get("OG_PRIVATE_KEY"),
+    llm_server_url="https://your-tee-endpoint.example.com"
+)
+```
+
+### Important: x402 Payment Settlement
+
+Regardless of which TEE endpoint serves your inference request, **x402 payment settlement always occurs on Base Sepolia blockchain**. This ensures all payments are recorded on-chain for auditability and ensures consistent settlement across all TEE providers.
+
