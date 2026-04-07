@@ -50,11 +50,25 @@ def _setup_approval_mocks(mock_web3, mock_wallet, contract):
     approve_fn = MagicMock()
     contract.functions.approve.return_value = approve_fn
     approve_fn.estimate_gas.return_value = 50_000
-    approve_fn.build_transaction.return_value = {"mock": "tx"}
+    
+    # 1. Update build_transaction to include required fields for the signer
+    approve_fn.build_transaction.return_value = {
+        "gas": 50_000,
+        "gasPrice": 1_000_000_000,
+        "nonce": 7,
+        "chainId": 84532,
+        "to": SPENDER_ADDRESS,
+        "data": "0x",
+        "from": OWNER_ADDRESS
+    }
 
     mock_web3.eth.get_transaction_count.return_value = 7
     mock_web3.eth.gas_price = 1_000_000_000
     mock_web3.eth.chain_id = 84532
+
+    # 2. Add the ETH balance mock so your new pre-flight check passes
+    # We give it 10 ETH by default so existing tests don't "starve" for gas
+    mock_web3.eth.get_balance.return_value = 10 * 10**18 
 
     signed = MagicMock()
     signed.raw_transaction = b"\x00"
@@ -215,3 +229,4 @@ class TestAmountConversion:
 
         assert result.allowance_before == expected_base
         assert result.tx_hash is None
+# --- Add this at the very end of opg_token_test.py ---
