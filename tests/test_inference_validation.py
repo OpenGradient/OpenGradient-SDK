@@ -25,7 +25,7 @@ def test_alpha_infer_validation():
         )
     except ValidationError:
         pytest.fail("Pydantic rejected a valid CID!")
-    except Exception:
+    except Exception as e:
         # We ignore other errors (like RPC/Key errors) because 
         # we are only testing the VALIDATION layer here.
-        pass
+        print(f"Skipping non-validation error: {type(e).__name__}")
