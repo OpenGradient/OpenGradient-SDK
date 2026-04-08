@@ -825,14 +825,6 @@ def generate_image(ctx, model: str, prompt: str, output_path: Path, width: int, 
         click.echo(f'Generating image with model "{model}"')
         raise NotImplementedError("Image generation is not yet supported.")
 
-        # Save the image
-        with open(output_path, "wb") as f:
-            f.write(image_data)
-
-        click.echo()  # Add a newline for better spacing
-        click.secho("✅ Image generation successful", fg="green", bold=True)
-        click.echo(f"Image saved to: {output_path}")
-
     except Exception as e:
         click.echo(f"Error generating image: {str(e)}")
 
