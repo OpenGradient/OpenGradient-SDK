@@ -64,12 +64,15 @@ make chat-tool
 ### Core Components
 
 1. **Client (`src/opengradient/client/`)**: Client package with submodules
-   - `client.py` — Main Client class, authentication, initialization
    - `llm.py` — LLM chat/completion with TEE and x402 payment support
    - `model_hub.py` — Model repository management (CRUD, upload)
    - `twins.py` — Digital twins chat integration (twin.fun)
    - `alpha.py` — Alpha Testnet on-chain inference and workflows
    - `opg_token.py` — OPG token Permit2 approval
+   - `tee_connection.py` — TEE connection management (static and registry-based)
+   - `tee_registry.py` — TEE endpoint discovery via on-chain registry
+   - `_conversions.py` — Model input/output type conversions
+   - `_utils.py` — Shared utilities (ABI loading, retry logic)
 
 2. **CLI (`src/opengradient/cli.py`)**: Command-line interface using Click
    - Commands: `config`, `infer`, `completion`, `chat`
@@ -83,13 +86,11 @@ make chat-tool
    - Web3 integration for decentralized inference
    - Support for TEE (Trusted Execution Environment) mode
 
-5. **Protocol Buffers (`src/opengradient/proto/`)**: gRPC service definitions for inference
-
-6. **AlphaSense (`src/opengradient/alphasense/`)**: LangChain-compatible tools for AI agents
+5. **AlphaSense (`src/opengradient/alphasense/`)**: LangChain-compatible tools for AI agents
    - `run_model_tool.py` — Tool for running on-chain model inference
    - `read_workflow_tool.py` — Tool for reading workflow results
 
-7. **Workflow Models (`src/opengradient/workflow_models/`)**: Hardcoded price/volatility forecast models for on-chain execution
+6. **Workflow Models (`src/opengradient/workflow_models/`)**: Hardcoded price/volatility forecast models for on-chain execution
 
 ### Key Concepts
 
