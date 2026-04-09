@@ -4,6 +4,7 @@ import ast
 import asyncio
 import json
 import logging
+import os
 import sys
 import webbrowser
 from pathlib import Path
@@ -32,8 +33,13 @@ def load_og_config():
 
 
 def save_og_config(ctx):
+    # FIX BUG 2: Write config file first, then restrict permissions to owner-only.
+    # Previously the file was written with default permissions (0644 on Linux/Mac),
+    # meaning any other user on the same machine could read the private key.
+    # Setting 0o600 ensures only the file owner can read or write it.
     with OG_CONFIG_FILE.open("w") as f:
         json.dump(ctx.obj, f)
+    os.chmod(OG_CONFIG_FILE, 0o600)
 
 
 # Convert string to dictionary click parameter typing
@@ -486,7 +492,11 @@ def print_llm_completion_result(model_cid, tx_hash, llm_output, is_vanilla=True,
 @click.option(
     "--tools-file", type=click.Path(exists=True, path_type=Path), required=False, help="Path to JSON file containing tool configurations"
 )
-@click.option("--tool-choice", type=str, default="", help="Specific tool choice for the LLM")
+# FIX BUG 5: Changed default from "" to None so tool_choice is not sent to
+# the API as an empty string when the user does not specify it.
+# An empty string is different from None throughout the codebase and causes
+# inconsistent behavior between CLI and Python API usage.
+@click.option("--tool-choice", type=str, default=None, help="Specific tool choice for the LLM")
 @click.option(
     "--x402-settlement-mode",
     type=click.Choice(x402SettlementModes.keys()),
@@ -584,30 +594,84 @@ def chat(
         if not tools and not tools_file:
             parsed_tools = None
 
-        result = asyncio.run(
-            llm.chat(
-                model=model_cid,
-                messages=messages,
-                max_tokens=max_tokens,
-                stop_sequence=list(stop_sequence),
-                temperature=temperature,
-                tools=parsed_tools,
-                tool_choice=tool_choice,
-                x402_settlement_mode=x402SettlementModes[x402_settlement_mode],
-                stream=stream,
-            )
-        )
-
-        # Handle response based on streaming flag
+        # FIX BUG 1: The streaming path previously called asyncio.run() twice.
+        # The first call created the async generator inside event loop #1 then
+        # closed that loop. The second call inside print_streaming_chat_result
+        # created a new event loop #2 and tried to iterate the generator from
+        # the closed loop #1, causing RuntimeError: Task attached to a different
+        # loop. The fix runs the entire flow including printing inside a single
+        # asyncio.run() call so the generator and its consumer share one loop.
         if stream:
-            print_streaming_chat_result(model_cid, result, is_tee=True)
+            asyncio.run(
+                _stream_chat_and_print(
+                    llm=llm,
+                    model_cid=model_cid,
+                    messages=messages,
+                    max_tokens=max_tokens,
+                    stop_sequence=stop_sequence,
+                    temperature=temperature,
+                    parsed_tools=parsed_tools,
+                    tool_choice=tool_choice,
+                    x402_settlement_mode=x402_settlement_mode,
+                )
+            )
         else:
+            result = asyncio.run(
+                llm.chat(
+                    model=model_cid,
+                    messages=messages,
+                    max_tokens=max_tokens,
+                    stop_sequence=list(stop_sequence),
+                    temperature=temperature,
+                    tools=parsed_tools,
+                    tool_choice=tool_choice,
+                    x402_settlement_mode=x402SettlementModes[x402_settlement_mode],
+                    stream=False,
+                )
+            )
             print_llm_chat_result(
                 model_cid, result.transaction_hash, result.finish_reason, result.chat_output, is_vanilla=False, result=result
             )
 
     except Exception as e:
         click.echo(f"Error running LLM chat inference: {str(e)}")
+
+
+async def _stream_chat_and_print(
+    llm,
+    model_cid,
+    messages,
+    max_tokens,
+    stop_sequence,
+    temperature,
+    parsed_tools,
+    tool_choice,
+    x402_settlement_mode,
+):
+    """Run streaming chat and print results inside a single event loop.
+
+    This function exists to fix the double asyncio.run() bug. Previously the
+    code called asyncio.run(llm.chat(..., stream=True)) to get the generator
+    and then called asyncio.run(print_streaming_chat_result(...)) to consume it.
+    Because asyncio.run() creates and closes a new event loop each time, the
+    generator was bound to a closed loop when the consumer tried to iterate it,
+    causing RuntimeError: Task attached to a different loop.
+
+    By putting both the creation and consumption of the generator in a single
+    async function, they share the same event loop for their entire lifetime.
+    """
+    stream = await llm.chat(
+        model=model_cid,
+        messages=messages,
+        max_tokens=max_tokens,
+        stop_sequence=list(stop_sequence),
+        temperature=temperature,
+        tools=parsed_tools,
+        tool_choice=tool_choice,
+        x402_settlement_mode=x402SettlementModes[x402_settlement_mode],
+        stream=True,
+    )
+    await _print_streaming_chat_result_async(model_cid, stream, is_tee=True)
 
 
 def print_llm_chat_result(model_cid, tx_hash, finish_reason, chat_output, is_vanilla=True, result=None):
@@ -658,13 +722,8 @@ def print_llm_chat_result(model_cid, tx_hash, finish_reason, chat_output, is_van
     click.echo()
 
 
-def print_streaming_chat_result(model_cid, stream, is_tee=True):
-    """Handle streaming chat response with typed chunks - prints in real-time"""
-    asyncio.run(_print_streaming_chat_result_async(model_cid, stream, is_tee))
-
-
 async def _print_streaming_chat_result_async(model_cid, stream, is_tee=True):
-    click.secho("🌊 Streaming LLM Chat", fg="green", bold=True)
+    click.secho("Streaming LLM Chat", fg="green", bold=True)
     click.echo("──────────────────────────────────────")
     click.echo("Model: ", nl=False)
     click.secho(model_cid, fg="cyan", bold=True)
@@ -821,19 +880,14 @@ def generate_image(ctx, model: str, prompt: str, output_path: Path, width: int, 
     opengradient generate-image --model stabilityai/stable-diffusion-xl-base-1.0
         --prompt "A beautiful sunset over mountains" --output-path sunset.png
     """
+    # FIX BUG 3: Removed dead unreachable code that referenced the undefined
+    # variable image_data after the NotImplementedError raise. The lines after
+    # the raise could never execute and image_data was never defined anywhere
+    # in the function, so removing the raise would cause NameError immediately.
     try:
         click.echo(f'Generating image with model "{model}"')
         raise NotImplementedError("Image generation is not yet supported.")
-
-        # Save the image
-        with open(output_path, "wb") as f:
-            f.write(image_data)
-
-        click.echo()  # Add a newline for better spacing
-        click.secho("✅ Image generation successful", fg="green", bold=True)
-        click.echo(f"Image saved to: {output_path}")
-
-    except Exception as e:
+    except NotImplementedError as e:
         click.echo(f"Error generating image: {str(e)}")
 
 
