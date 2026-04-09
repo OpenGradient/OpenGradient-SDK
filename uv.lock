@@ -1871,16 +1871,16 @@ wheels = [
 
 [[package]]
 name = "og-x402"
-version = "0.0.1.dev7"
+version = "0.0.1.dev8"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "nest-asyncio" },
     { name = "pydantic" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/e2/45/5fa555d9c8ba319780b6f12d8f7222e31019e90b032b85ce9a7f9a08a9f4/og_x402-0.0.1.dev7.tar.gz", hash = "sha256:a4bce840c07b783d14debad0c11941c8660ea8d80c423164e0e18da012bf92d6", size = 1306033, upload-time = "2026-04-09T11:42:59.898Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/94/9e/1d718f3e0f7a6f6fd53c8a183c1794bc4aa15d986b0faa76139d5b04096b/og_x402-0.0.1.dev8.tar.gz", hash = "sha256:9d02c2c81112b7a612cd1aea03c09af75fc75d70766d042b5ddcc82ee7d8f98a", size = 1306960, upload-time = "2026-04-09T19:44:24.966Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/36/a0/30f882406ba5e52913127f1e85c6fd2ec977291273be0fdc89980dcb7c4c/og_x402-0.0.1.dev7-py3-none-any.whl", hash = "sha256:947f91a13134350997fcac2a78c435587111d6ea7d69d8a4a96fbf63d21306c7", size = 1386876, upload-time = "2026-04-09T11:42:57.667Z" },
+    { url = "https://files.pythonhosted.org/packages/c8/0e/48facce5d73330d1cb79bbd67eda9c94b9786ea86f433338ee4423a6b1d0/og_x402-0.0.1.dev8-py3-none-any.whl", hash = "sha256:2b5b9601a6d312f9b1cf68967eaf98229eb203c54ca403e46994d6eed2488ccc", size = 1387989, upload-time = "2026-04-09T19:44:23.174Z" },
 ]
 
 [package.optional-dependencies]
@@ -1949,8 +1949,8 @@ requires-dist = [
     { name = "langgraph", marker = "extra == 'dev'" },
     { name = "mypy", marker = "extra == 'dev'" },
     { name = "numpy", specifier = ">=1.26.4" },
-    { name = "og-x402", specifier = ">=0.0.1.dev7" },
-    { name = "og-x402", extras = ["extensions"], specifier = ">=0.0.1.dev7" },
+    { name = "og-x402", specifier = ">=0.0.1.dev8" },
+    { name = "og-x402", extras = ["extensions"], specifier = ">=0.0.1.dev8" },
     { name = "openai", specifier = ">=1.58.1" },
     { name = "pdoc3", marker = "extra == 'dev'", specifier = "==0.10.0" },
     { name = "pydantic", specifier = ">=2.9.2" },
