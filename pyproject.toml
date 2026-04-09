@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "opengradient"
-version = "0.9.5"
+version = "0.9.6"
 description = "Python SDK for OpenGradient decentralized model management & inference services"
 authors = [{name = "OpenGradient", email = "adam@vannalabs.ai"}]
 readme = "README.md"
@@ -75,6 +75,9 @@ line-length = 140
 target-version = "py310"
 select = ["E", "F", "I", "N"]
 ignore = []
+
+[tool.uv]
+exclude-newer = "7d"
 
 [tool.ruff.mccabe]
 max-complexity = 10
