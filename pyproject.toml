@@ -27,7 +27,9 @@ dependencies = [
     "langchain>=0.3.7",
     "openai>=1.58.1",
     "pydantic>=2.9.2",
-    "og-x402==0.0.1.dev4"
+    "og-x402==0.0.1.dev4",
+    "requests-toolbelt>=1.0.0",
+    "httpx>=0.27.0"
 ]
 
 [project.optional-dependencies]
@@ -72,7 +74,7 @@ asyncio_mode = "auto"
 
 [tool.ruff]
 line-length = 140
-target-version = "py310"
+target-version = "py311"
 select = ["E", "F", "I", "N"]
 ignore = []
 

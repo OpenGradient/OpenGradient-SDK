@@ -1,11 +1,15 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.11"
 resolution-markers = [
     "python_full_version >= '3.14'",
     "python_full_version == '3.13.*'",
     "python_full_version < '3.13'",
 ]
+
+[options]
+exclude-newer = "2026-04-02T11:21:55.980577Z"
+exclude-newer-span = "P7D"
 
 [[package]]
 name = "aiohappyeyeballs"
@@ -1867,18 +1871,20 @@ wheels = [
 
 [[package]]
 name = "opengradient"
-version = "0.9.5"
+version = "0.9.6"
 source = { editable = "." }
 dependencies = [
     { name = "click" },
     { name = "eth-account" },
     { name = "firebase-rest-api" },
+    { name = "httpx" },
     { name = "langchain" },
     { name = "numpy" },
     { name = "og-x402" },
     { name = "openai" },
     { name = "pydantic" },
     { name = "requests" },
+    { name = "requests-toolbelt" },
     { name = "web3" },
 ]
 
@@ -1903,6 +1909,7 @@ requires-dist = [
     { name = "click", specifier = ">=8.1.7" },
     { name = "eth-account", specifier = ">=0.13.4" },
     { name = "firebase-rest-api", specifier = ">=1.11.0" },
+    { name = "httpx", specifier = ">=0.27.0" },
     { name = "langchain", specifier = ">=0.3.7" },
     { name = "langgraph", marker = "extra == 'dev'" },
     { name = "mypy", marker = "extra == 'dev'" },
@@ -1914,6 +1921,7 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'dev'" },
     { name = "pytest-asyncio", marker = "extra == 'dev'" },
     { name = "requests", specifier = ">=2.32.3" },
+    { name = "requests-toolbelt", specifier = ">=1.0.0" },
     { name = "ruff", marker = "extra == 'dev'" },
     { name = "types-protobuf", marker = "extra == 'dev'" },
     { name = "web3", specifier = ">=7.3.0" },
