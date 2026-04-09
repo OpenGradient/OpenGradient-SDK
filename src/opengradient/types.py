@@ -516,10 +516,12 @@ class TEE_LLM(str, Enum):
     CLAUDE_OPUS_4_6 = "anthropic/claude-opus-4-6"
 
     # Google models via TEE
+    # Note: gemini-2.5-flash, gemini-2.5-pro, and gemini-2.5-flash-lite are scheduled
+    # for deprecation on June 17, 2026 (flash-lite: July 22, 2026). Replacements will be
+    # gemini-3-flash-preview, gemini-3.1-pro-preview, and gemini-3.1-flash-lite-preview.
     GEMINI_2_5_FLASH = "google/gemini-2.5-flash"
     GEMINI_2_5_PRO = "google/gemini-2.5-pro"
     GEMINI_2_5_FLASH_LITE = "google/gemini-2.5-flash-lite"
-    GEMINI_3_PRO = "google/gemini-3-pro-preview"
     GEMINI_3_FLASH = "google/gemini-3-flash-preview"
 
     # xAI Grok models via TEE
