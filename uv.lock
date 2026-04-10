@@ -1867,7 +1867,7 @@ wheels = [
 
 [[package]]
 name = "opengradient"
-version = "0.9.5"
+version = "0.9.7"
 source = { editable = "." }
 dependencies = [
     { name = "click" },
