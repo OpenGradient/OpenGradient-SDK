@@ -190,3 +190,48 @@ class TestX402SettlementMode:
         assert x402SettlementMode.PRIVATE == "private"
         assert x402SettlementMode.BATCH_HASHED == "batch"
         assert x402SettlementMode.INDIVIDUAL_FULL == "individual"
+
+
+class TestAlphaInferenceChainId:
+    """Verify that _send_tx_with_revert_handling includes chainId in build_transaction.
+
+    Without chainId, web3.py signs transactions without EIP-155 replay protection,
+    causing them to be rejected on OpenGradient's network (chain_id != 0 networks).
+    """
+
+    def test_send_tx_includes_chain_id(self, mock_web3):
+        """chainId must be present in the transaction built by _send_tx_with_revert_handling."""
+        from opengradient.client.alpha import Alpha
+
+        mock_web3.eth.chain_id = 12345
+
+        alpha = Alpha(private_key="0x" + "a" * 64)
+
+        # Track build_transaction calls
+        built_transactions = []
+
+        mock_run_function = MagicMock()
+        mock_run_function.estimate_gas.return_value = 100000
+
+        def capture_build_transaction(tx_params):
+            built_transactions.append(tx_params)
+            return {"from": tx_params["from"], "nonce": 0, "gas": tx_params["gas"]}
+
+        mock_run_function.build_transaction.side_effect = capture_build_transaction
+        mock_web3.eth.account.sign_transaction.return_value = MagicMock(raw_transaction=b"raw")
+        mock_web3.eth.send_raw_transaction.return_value = b"txhash"
+        mock_web3.eth.wait_for_transaction_receipt.return_value = {"status": 1}
+
+        alpha._send_tx_with_revert_handling(mock_run_function)
+
+        assert len(built_transactions) == 1, "Expected exactly one build_transaction call"
+        tx_params = built_transactions[0]
+        assert "chainId" in tx_params, (
+            "_send_tx_with_revert_handling is missing chainId in build_transaction. "
+            "Without chainId, transactions are signed without EIP-155 replay protection "
+            "and will be rejected on OpenGradient's network."
+        )
+        assert tx_params["chainId"] == 12345, (
+            f"Expected chainId=12345, got chainId={tx_params.get('chainId')}"
+        )
+
