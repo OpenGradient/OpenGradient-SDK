@@ -251,8 +251,12 @@ class LLM:
 
         Raises:
             RuntimeError: If the inference fails.
+            ValueError: If the model string is not in "provider/model" format.
         """
-        model_id = model.split("/")[1]
+        parts = model.split("/")
+        if len(parts) < 2 or not parts[1]:
+            raise ValueError(f"Invalid model format {model!r}: expected 'provider/model' (e.g. 'openai/gpt-5')")
+        model_id = parts[1]
         payload: Dict = {
             "model": model_id,
             "prompt": prompt,
@@ -325,9 +329,13 @@ class LLM:
 
         Raises:
             RuntimeError: If the inference fails.
+            ValueError: If the model string is not in "provider/model" format.
         """
+        parts = model.split("/")
+        if len(parts) < 2 or not parts[1]:
+            raise ValueError(f"Invalid model format {model!r}: expected 'provider/model' (e.g. 'openai/gpt-5')")
         params = _ChatParams(
-            model=model.split("/")[1],
+            model=parts[1],
             max_tokens=max_tokens,
             temperature=temperature,
             stop_sequence=stop_sequence,

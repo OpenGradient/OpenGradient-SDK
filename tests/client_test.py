@@ -190,3 +190,34 @@ class TestX402SettlementMode:
         assert x402SettlementMode.PRIVATE == "private"
         assert x402SettlementMode.BATCH_HASHED == "batch"
         assert x402SettlementMode.INDIVIDUAL_FULL == "individual"
+
+
+# --- Model Format Validation Tests ---
+
+
+class TestModelFormatValidation:
+    """Tests for model string validation in LLM.completion() and LLM.chat()."""
+
+    def test_completion_rejects_model_without_slash(self, mock_tee_registry):
+        llm = LLM(private_key=FAKE_PRIVATE_KEY)
+        with pytest.raises(ValueError, match="Invalid model format"):
+            import asyncio
+            asyncio.get_event_loop().run_until_complete(
+                llm.completion(model="no-slash-model", prompt="hi")
+            )
+
+    def test_completion_rejects_model_with_trailing_slash(self, mock_tee_registry):
+        llm = LLM(private_key=FAKE_PRIVATE_KEY)
+        with pytest.raises(ValueError, match="Invalid model format"):
+            import asyncio
+            asyncio.get_event_loop().run_until_complete(
+                llm.completion(model="openai/", prompt="hi")
+            )
+
+    def test_chat_rejects_model_without_slash(self, mock_tee_registry):
+        llm = LLM(private_key=FAKE_PRIVATE_KEY)
+        with pytest.raises(ValueError, match="Invalid model format"):
+            import asyncio
+            asyncio.get_event_loop().run_until_complete(
+                llm.chat(model="no-slash-model", messages=[{"role": "user", "content": "hi"}])
+            )
