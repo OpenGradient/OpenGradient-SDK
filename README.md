@@ -18,6 +18,24 @@ A Python SDK for decentralized model management and inference services on the Op
 | **What is Model Hub?** | A decentralized registry to upload, discover, and run custom ONNX models on-chain |
 | **What is MemSync?** | A long-term memory layer for AI agents with persistent context across sessions |
 
+### 30-Second Quickstart
+
+Install, grab a private key from the [faucet](https://faucet.opengradient.ai), and run:
+
+    import asyncio, os, opengradient as og
+
+    async def main():
+        llm = og.LLM(private_key=os.environ["OG_PRIVATE_KEY"])
+        llm.ensure_opg_approval(min_allowance=0.1)
+        result = await llm.chat(
+            model=og.TEE_LLM.GEMINI_2_5_FLASH,
+            messages=[{"role": "user", "content": "Hello!"}],
+        )
+        print(result.chat_output["content"])  # AI response
+        print(result.transaction_hash)         # on-chain proof
+
+    asyncio.run(main())
+
 ---
 
 ## Overview
