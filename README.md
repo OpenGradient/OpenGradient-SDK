@@ -212,6 +212,45 @@ result = alpha.infer(
 print(f"Output: {result.model_output}")
 ```
 
+#### Error Handling for Inference
+
+Inference requests can fail due to invalid inputs, contract reverts, network/API issues, or wallet funding problems.
+Wrap calls in `try/except` so failures are easier to debug:
+
+```python
+import os
+
+import opengradient as og
+from web3.exceptions import ContractLogicError
+
+alpha = og.Alpha(private_key=os.environ["OG_PRIVATE_KEY"])
+
+try:
+    result = alpha.infer(
+        model_cid="your-model-cid",
+        model_input={"input": [1.0, 2.0, 3.0]},
+        inference_mode=og.InferenceMode.VANILLA,
+    )
+    print(f"Output: {result.model_output}")
+    print(f"Tx hash: {result.transaction_hash}")
+except ValueError as e:
+    print(f"Invalid request: {e}")
+except ContractLogicError as e:
+    print(f"Contract reverted: {e}")
+except RuntimeError as e:
+    message = str(e).lower()
+    if "timeout" in message:
+        print(f"Inference timed out: {e}")
+    elif "insufficient" in message or "balance" in message:
+        print(f"Insufficient wallet funds: {e}")
+    elif "network" in message or "connection" in message:
+        print(f"Network/API failure: {e}")
+    elif "cid" in message or "model" in message:
+        print(f"Invalid model CID or model output format: {e}")
+    else:
+        print(f"Inference failed: {e}")
+```
+
 ### Workflow Deployment
 
 Deploy on-chain AI workflows with optional scheduling:
