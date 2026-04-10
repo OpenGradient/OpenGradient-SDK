@@ -70,16 +70,17 @@ class Twins:
             payload["max_tokens"] = max_tokens
 
         try:
-            response = httpx.post(url, json=payload, headers=headers, timeout=60)
-            response.raise_for_status()
-            result = response.json()
+            with httpx.Client() as client:
+                response = client.post(url, json=payload, headers=headers, timeout=60)
+                response.raise_for_status()
+                result = response.json()
 
             choices = result.get("choices")
             if not choices:
                 raise RuntimeError(f"Invalid response: 'choices' missing or empty in {result}")
 
             return TextGenerationOutput(
-                transaction_hash="",
+                transaction_hash="external",
                 finish_reason=choices[0].get("finish_reason"),
                 chat_output=choices[0].get("message"),
                 payment_hash=None,
