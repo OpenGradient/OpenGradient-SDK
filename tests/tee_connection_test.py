@@ -210,11 +210,17 @@ class TestRegistryTEEConnection:
         conn = _make_registry_connection(registry=mock_reg)
         conn.get().http_client.aclose = AsyncMock(side_effect=OSError("already closed"))
 
-        with patch(
-            "opengradient.client.tee_connection.x402HttpxClient",
-            side_effect=FakeHTTPClient,
+        with (
+            patch(
+                "opengradient.client.tee_connection.x402HttpxClient",
+                side_effect=FakeHTTPClient,
+            ),
+            patch(
+                "opengradient.client.tee_connection.build_ssl_context_from_der",
+                return_value=MagicMock(spec=ssl.SSLContext),
+            ),
         ):
-            await conn.reconnect()  # should not raise
+            await conn.reconnect()  # should not raise even when old client aclose errors
 
     async def test_reconnect_is_serialized(self):
         call_order = []
