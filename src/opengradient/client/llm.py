@@ -15,7 +15,7 @@ from x402.mechanisms.evm import EthAccountSigner
 from x402.mechanisms.evm.exact.register import register_exact_evm_client
 from x402.mechanisms.evm.upto.register import register_upto_evm_client
 
-from ..types import TEE_LLM, StreamChoice, StreamChunk, StreamDelta, TextGenerationOutput, x402SettlementMode
+from ..types import TEE_LLM, ResponseFormat, StreamChoice, StreamChunk, StreamDelta, TextGenerationOutput, x402SettlementMode
 from .opg_token import Permit2ApprovalResult, ensure_opg_approval
 from .tee_connection import RegistryTEEConnection, StaticTEEConnection, TEEConnectionInterface
 from .tee_registry import TEERegistry
@@ -46,6 +46,7 @@ class _ChatParams:
     stop_sequence: Optional[List[str]]
     tools: Optional[List[Dict]]
     tool_choice: Optional[str]
+    response_format: Optional[ResponseFormat]
     x402_settlement_mode: x402SettlementMode
 
 
@@ -159,6 +160,8 @@ class LLM:
         if params.tools:
             payload["tools"] = params.tools
             payload["tool_choice"] = params.tool_choice or "auto"
+        if params.response_format:
+            payload["response_format"] = params.response_format.to_dict()
         return payload
 
     async def _call_with_tee_retry(
@@ -304,6 +307,7 @@ class LLM:
         temperature: float = 0.0,
         tools: Optional[List[Dict]] = None,
         tool_choice: Optional[str] = None,
+        response_format: Optional[ResponseFormat] = None,
         x402_settlement_mode: x402SettlementMode = x402SettlementMode.BATCH_HASHED,
         stream: bool = False,
     ) -> Union[TextGenerationOutput, AsyncGenerator[StreamChunk, None]]:
@@ -318,6 +322,11 @@ class LLM:
             temperature (float): Temperature for LLM inference, between 0 and 1.
             tools (List[dict], optional): Set of tools for function calling.
             tool_choice (str, optional): Sets a specific tool to choose.
+            response_format (ResponseFormat, optional): Enforce a specific output format.
+                Use ``ResponseFormat(type="json_object")`` for any valid JSON (not supported
+                by Anthropic models). Use ``ResponseFormat(type="json_schema", json_schema={...})``
+                to enforce a strict schema (supported by all providers including Anthropic).
+                Defaults to None (plain text).
             x402_settlement_mode (x402SettlementMode, optional): Settlement mode for x402 payments.
                 - PRIVATE: Payment only, no input/output data on-chain (most privacy-preserving).
                 - BATCH_HASHED: Aggregates inferences into a Merkle tree with input/output hashes and signatures (default, most cost-efficient).
@@ -331,8 +340,17 @@ class LLM:
                 - If stream=True: Async generator yielding StreamChunk objects
 
         Raises:
+            ValueError: If ``response_format="json_object"`` is used with an Anthropic model.
             RuntimeError: If the inference fails.
         """
+        if response_format is not None and response_format.type == "json_object":
+            provider = model.split("/")[0]
+            if provider == "anthropic":
+                raise ValueError(
+                    "Anthropic models do not support response_format type 'json_object'. "
+                    "Use ResponseFormat(type='json_schema', json_schema={...}) with an explicit schema instead."
+                )
+
         params = _ChatParams(
             model=model.split("/")[1],
             max_tokens=max_tokens,
@@ -340,6 +358,7 @@ class LLM:
             stop_sequence=stop_sequence,
             tools=tools,
             tool_choice=tool_choice,
+            response_format=response_format,
             x402_settlement_mode=x402_settlement_mode,
         )
 
@@ -386,6 +405,7 @@ class LLM:
                 transaction_hash="external",
                 finish_reason=choices[0].get("finish_reason"),
                 chat_output=message,
+                usage=result.get("usage"),
                 tee_signature=result.get("tee_signature"),
                 tee_timestamp=result.get("tee_timestamp"),
                 **tee.metadata(),
