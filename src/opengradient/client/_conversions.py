@@ -57,7 +57,6 @@ def convert_to_model_input(inputs: Dict[str, np.ndarray]) -> Tuple[List[Tuple[st
     logging.debug("Converting the following input dictionary to ModelInput: %s", inputs)
     number_tensors = []
     string_tensors = []
-    json_tensors = []
     for tensor_name, tensor_data in inputs.items():
         # Convert to NP array if list or single object
         if isinstance(tensor_data, list):
