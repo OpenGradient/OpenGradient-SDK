@@ -95,12 +95,26 @@ def _send_approve_tx(
         nonce = w3.eth.get_transaction_count(owner, "pending")
         estimated_gas = approve_fn.estimate_gas({"from": owner})
 
+        # Check native (ETH) balance to cover gas before building/sending tx.
+        gas_price = w3.eth.gas_price
+        gas_limit = int(estimated_gas * 1.2)
+        total_cost = gas_limit * gas_price
+        native_balance = w3.eth.get_balance(owner)
+        if native_balance < int (total_cost * 1.1):  # Add a 10% buffer to avoid underestimating
+            needed_eth = Web3.from_wei(total_cost, "ether")
+            have_eth = Web3.from_wei(native_balance, "ether")
+            raise RuntimeError(
+                f"Insufficient native balance for gas on {w3.eth.chain_id}. "
+                f"Required: {needed_eth:.6f} ETH, Available: {have_eth:.6f} ETH. "
+                f"Please fund your wallet at the Base Sepolia faucet."
+            )
+
         tx = approve_fn.build_transaction(
             {
                 "from": owner,
                 "nonce": nonce,
-                "gas": int(estimated_gas * 1.2),
-                "gasPrice": w3.eth.gas_price,
+                "gas": gas_limit,
+                "gasPrice": gas_price,
                 "chainId": w3.eth.chain_id,
             }
         )
