@@ -10,7 +10,7 @@ logging.getLogger("opengradient").setLevel(logging.DEBUG)
 
 async def main():
     llm = og.LLM(private_key=os.environ.get("OG_PRIVATE_KEY"))
-    # llm.ensure_opg_approval(min_allowance=0.1)
+    llm.ensure_opg_approval(min_allowance=0.1)
 
     messages = [
         {"role": "user", "content": "What is the capital of France?"},
