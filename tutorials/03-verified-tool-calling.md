@@ -28,10 +28,7 @@ You need an OpenGradient private key funded with test tokens:
 export OG_PRIVATE_KEY="0x..."
 ```
 
-> **Faucet:** Get free OPG tokens on Base Sepolia at https://faucet.opengradient.ai/
->
-> All x402 LLM payments currently settle on Base Sepolia using OPG tokens. If you see
-> x402 payment errors, make sure your wallet has sufficient OPG on Base Sepolia.
+> All x402 LLM payments currently settle on Base using OPG tokens.
 
 ## Step 1: Initialize the Client
 

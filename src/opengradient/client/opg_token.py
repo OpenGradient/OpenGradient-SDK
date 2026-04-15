@@ -1,5 +1,6 @@
 """OPG token Permit2 approval utilities for x402 payments."""
 
+import os
 import logging
 import time
 from dataclasses import dataclass
@@ -12,8 +13,8 @@ from x402.mechanisms.evm.constants import PERMIT2_ADDRESS
 
 logger = logging.getLogger(__name__)
 
-BASE_OPG_ADDRESS = "0x240b09731D96979f50B2C649C9CE10FcF9C7987F"
-BASE_SEPOLIA_RPC = "https://sepolia.base.org"
+BASE_OPG_ADDRESS = "0xFbC2051AE2265686a469421b2C5A2D5462FbF5eB"
+BASE_MAINNET_RPC = os.getenv("BASE_MAINNET_RPC", "https://base-rpc.publicnode.com")
 APPROVAL_TX_TIMEOUT = 120
 ALLOWANCE_CONFIRMATION_TIMEOUT = 120
 ALLOWANCE_POLL_INTERVAL = 1.0
@@ -138,7 +139,7 @@ def _send_approve_tx(
 
 def _get_web3_and_contract():
     """Create a Web3 instance and OPG token contract."""
-    w3 = Web3(Web3.HTTPProvider(BASE_SEPOLIA_RPC))
+    w3 = Web3(Web3.HTTPProvider(BASE_MAINNET_RPC))
     token = w3.eth.contract(address=Web3.to_checksum_address(BASE_OPG_ADDRESS), abi=ERC20_ABI)
     spender = Web3.to_checksum_address(PERMIT2_ADDRESS)
     return w3, token, spender

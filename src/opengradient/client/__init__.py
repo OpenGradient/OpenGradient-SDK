@@ -3,7 +3,7 @@ OpenGradient Client -- service modules for the SDK.
 
 ## Modules
 
-- **`opengradient.client.llm`** -- LLM chat and text completion with TEE-verified execution and x402 payment settlement (Base Sepolia OPG tokens)
+- **`opengradient.client.llm`** -- LLM chat and text completion with TEE-verified execution and x402 payment settlement (Base OPG tokens)
 - **`opengradient.client.model_hub`** -- Model repository management: create, version, and upload ML models
 - **`opengradient.client.alpha`** -- Alpha Testnet features: on-chain ONNX model inference (VANILLA, TEE, ZKML modes), workflow deployment, and scheduled ML model execution (OpenGradient testnet gas tokens)
 - **`opengradient.client.twins`** -- Digital twins chat via OpenGradient verifiable inference
@@ -15,7 +15,7 @@ OpenGradient Client -- service modules for the SDK.
 ```python
 import opengradient as og
 
-# LLM inference (Base Sepolia OPG tokens)
+# LLM inference (Base OPG tokens)
 llm = og.LLM(private_key="0x...")
 llm.ensure_opg_approval(min_allowance=5)
 result = await llm.chat(model=og.TEE_LLM.CLAUDE_HAIKU_4_5, messages=[...])

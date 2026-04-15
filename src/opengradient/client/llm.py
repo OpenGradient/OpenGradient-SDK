@@ -28,13 +28,12 @@ DEFAULT_TEE_REGISTRY_ADDRESS = "0x4e72238852f3c918f4E4e57AeC9280dDB0c80248"
 
 X402_PROCESSING_HASH_HEADER = "x-processing-hash"
 X402_PLACEHOLDER_API_KEY = "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
-BASE_TESTNET_NETWORK = "eip155:84532"
-BASE_TESTNET_RPC = os.getenv("BASE_TESTNET_RPC", "https://sepolia.base.org")
+BASE_MAINNET_NETWORK = "eip155:8453"
+BASE_MAINNET_RPC = os.getenv("BASE_MAINNET_RPC", "https://base-rpc.publicnode.com")
 
 _CHAT_ENDPOINT = "/v1/chat/completions"
 _COMPLETION_ENDPOINT = "/v1/completions"
 _REQUEST_TIMEOUT = 60
-
 
 @dataclass(frozen=True)
 class _ChatParams:
@@ -87,7 +86,7 @@ class LLM:
             raise ValueError("A private key is required to use the LLM client. Pass a valid private_key to the constructor.")
         self._wallet_account: LocalAccount = Account.from_key(private_key)
 
-        x402_client = LLM._build_x402_client(private_key, rpc_url=BASE_TESTNET_RPC)
+        x402_client = LLM._build_x402_client(private_key, rpc_url=BASE_MAINNET_RPC)
         onchain_registry = TEERegistry(rpc_url=rpc_url, registry_address=tee_registry_address)
         self._tee: TEEConnectionInterface = RegistryTEEConnection(x402_client=x402_client, registry=onchain_registry)
 
@@ -117,16 +116,16 @@ class LLM:
         return instance
 
     @staticmethod
-    def _build_x402_client(private_key: str, rpc_url: str = BASE_TESTNET_RPC) -> x402Client:
+    def _build_x402_client(private_key: str, rpc_url: str = BASE_MAINNET_RPC) -> x402Client:
         """Build the x402 payment stack from a private key."""
         account = Account.from_key(private_key)
         signer = EthAccountSigner(account)
         client = x402Client()
-        register_exact_evm_client(client, signer, networks=[BASE_TESTNET_NETWORK])
+        register_exact_evm_client(client, signer, networks=[BASE_MAINNET_NETWORK])
         register_upto_evm_client(
             client,
             signer,
-            networks=[BASE_TESTNET_NETWORK],
+            networks=[BASE_MAINNET_NETWORK],
             rpc_url=rpc_url,
         )
         return client

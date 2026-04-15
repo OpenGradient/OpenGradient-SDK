@@ -40,7 +40,7 @@ print(result.chat_output["content"])
 Each service has its own client class:
 
 ```python
-# LLM inference (Base Sepolia OPG tokens for x402 payments)
+# LLM inference (Base OPG tokens for x402 payments)
 llm = og.LLM(private_key="0x...")
 
 # Connect directly to a known TEE IP instead of using the on-chain registry.

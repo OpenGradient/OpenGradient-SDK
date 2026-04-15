@@ -54,7 +54,7 @@ def _setup_approval_mocks(mock_web3, mock_wallet, contract):
 
     mock_web3.eth.get_transaction_count.return_value = 7
     mock_web3.eth.gas_price = 1_000_000_000
-    mock_web3.eth.chain_id = 84532
+    mock_web3.eth.chain_id = 8453
 
     signed = MagicMock()
     signed.raw_transaction = b"\x00"

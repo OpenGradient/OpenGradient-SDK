@@ -10,7 +10,7 @@ inference was performed correctly.
 
 The SDK operates across two chains with separate private keys:
 
-- **`opengradient.client.llm`** (``og.LLM``) -- LLM chat and completion with TEE-verified execution. Pays via x402 on **Base Sepolia** (requires OPG tokens).
+- **`opengradient.client.llm`** (``og.LLM``) -- LLM chat and completion with TEE-verified execution. Pays via x402 on **Base** (requires OPG tokens).
 - **`opengradient.client.alpha`** (``og.Alpha``) -- On-chain ONNX model inference with VANILLA, TEE, or ZKML verification. Pays gas on the **OpenGradient alpha testnet**.
 - **`opengradient.client.model_hub`** (``og.ModelHub``) -- Model repository management: create, version, and upload ML models. Requires email/password auth.
 - **`opengradient.client.twins`** (``og.Twins``) -- Digital twins chat via verifiable inference. Requires a twins API key.
