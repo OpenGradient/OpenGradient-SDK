@@ -19,7 +19,7 @@ inference was performed correctly.
 
 The SDK operates across two chains with separate private keys:
 
-- **[llm](./client/llm)** (``og.LLM``) -- LLM chat and completion with TEE-verified execution. Pays via x402 on **Base Sepolia** (requires OPG tokens).
+- **[llm](./client/llm)** (``og.LLM``) -- LLM chat and completion with TEE-verified execution. Pays via x402 on **Base** (requires OPG tokens).
 - **[alpha](./client/alpha)** (``og.Alpha``) -- On-chain ONNX model inference with VANILLA, TEE, or ZKML verification. Pays gas on the **OpenGradient alpha testnet**.
 - **[model_hub](./client/model_hub)** (``og.ModelHub``) -- Model repository management: create, version, and upload ML models. Requires email/password auth.
 - **[twins](./client/twins)** (``og.Twins``) -- Digital twins chat via verifiable inference. Requires a twins API key.

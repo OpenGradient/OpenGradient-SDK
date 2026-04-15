@@ -8,7 +8,7 @@ Before running any examples, ensure you have:
 
 1. **Installed the SDK**: `pip install opengradient`
 2. **Set up your credentials**: Configure your OpenGradient account using environment variables:
-   - `OG_PRIVATE_KEY`: Private key funded with **Base Sepolia OPG tokens** for x402 LLM payments (can be obtained from our [faucet](https://faucet.opengradient.ai)). Also used for Alpha Testnet on-chain inference (requires **OpenGradient testnet gas tokens**).
+   - `OG_PRIVATE_KEY`: Private key funded with **Base OPG tokens** for x402 LLM payments.
    - `OG_MODEL_HUB_EMAIL`: (Optional) Your Model Hub email for model uploads
    - `OG_MODEL_HUB_PASSWORD`: (Optional) Your Model Hub password for model uploads
 
@@ -140,7 +140,7 @@ Each sub-client is created independently with the credentials it needs:
 import os
 import opengradient as og
 
-# LLM inference (Base Sepolia OPG tokens for x402 payments)
+# LLM inference (Base OPG tokens for x402 payments)
 llm = og.LLM(private_key=os.environ.get("OG_PRIVATE_KEY"))
 
 # On-chain model inference (OpenGradient testnet gas tokens)

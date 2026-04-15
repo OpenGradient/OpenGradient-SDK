@@ -231,11 +231,11 @@ Permit2ApprovalResult: Contains ``allowance_before``,
 
 ### Automatic Endpoint Discovery (Production)
 
-By default, `LLM()` constructor automatically discovers active TEE endpoints from the on-chain TEE registry using the `rpc_url` parameter (defaults to the Base Sepolia testnet).
+By default, `LLM()` constructor automatically discovers active TEE endpoints from the on-chain TEE registry using the `rpc_url` parameter (defaults to the OpenGradient devnet).
 
 **Key Points:**
 - The TEE endpoint is **dynamically discovered** from the registry
-- x402 payments are always settled on **Base Sepolia**, regardless of which TEE endpoint serves your request
+- x402 payments are always settled on **Base**, regardless of which TEE endpoint serves your request
 - This is the recommended approach for production use
 
 **Example:**
@@ -250,7 +250,7 @@ For development, testing, or self-hosted TEE servers, use `LLM.from_url()` with 
 
 **Key Points:**
 - TLS certificate verification is disabled (suitable for self-signed certs)
-- x402 payment settlement still occurs on Base Sepolia
+- x402 payment settlement still occurs on Base
 - Intended for non-production environments only
 
 **Example:**
@@ -264,5 +264,5 @@ llm = og.LLM.from_url(
 
 ### Important: x402 Payment Settlement
 
-Regardless of which TEE endpoint serves your inference request, **x402 payment settlement always occurs on Base Sepolia blockchain**. This ensures all payments are recorded on-chain for auditability and ensures consistent settlement across all TEE providers.
+Regardless of which TEE endpoint serves your inference request, **x402 payment settlement always occurs on Base blockchain**. This ensures all payments are recorded on-chain for auditability and ensures consistent settlement across all TEE providers.
 

@@ -52,10 +52,9 @@ For current network RPC endpoints, contract addresses, and deployment informatio
 
 Before using the SDK, you will need:
 
-1. **Private Key**: An Ethereum-compatible wallet private key funded with **Base Sepolia OPG tokens** for x402 LLM payments
-2. **Test Tokens**: Obtain free test tokens from the [OpenGradient Faucet](https://faucet.opengradient.ai) for testnet LLM inference
-3. **Alpha Testnet Key** (Optional): A private key funded with **OpenGradient testnet gas tokens** for Alpha Testnet on-chain inference (can be the same or a different key)
-4. **Model Hub Account** (Optional): Required only for model uploads. Register at [hub.opengradient.ai/signup](https://hub.opengradient.ai/signup)
+1. **Private Key**: An Ethereum-compatible wallet private key funded with **Base OPG tokens** for x402 LLM payments
+2. **Alpha Testnet Key** (Optional): A private key funded with **OpenGradient testnet gas tokens** for Alpha Testnet on-chain inference (can be the same or a different key)
+3. **Model Hub Account** (Optional): Required only for model uploads. Register at [hub.opengradient.ai/signup](https://hub.opengradient.ai/signup)
 
 ### Configuration
 
@@ -87,7 +86,7 @@ The SDK provides separate clients for each service. Create only the ones you nee
 import os
 import opengradient as og
 
-# LLM inference — settles via x402 on Base Sepolia using OPG tokens
+# LLM inference — settles via x402 on Base using OPG tokens
 llm = og.LLM(private_key=os.environ.get("OG_PRIVATE_KEY"))
 
 # Alpha Testnet — on-chain inference on the OpenGradient network using testnet gas tokens

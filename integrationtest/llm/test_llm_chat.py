@@ -6,7 +6,7 @@ from eth_account import Account
 from web3 import Web3
 
 import opengradient as og
-from opengradient.client.opg_token import BASE_OPG_ADDRESS, BASE_SEPOLIA_RPC
+from opengradient.client.opg_token import BASE_OPG_ADDRESS, BASE_MAINNET_RPC
 
 # Minimal ERC20 ABI for transfer
 ERC20_TRANSFER_ABI = [
@@ -37,7 +37,7 @@ ETH_FUND_AMOUNT = 0.0001
 
 def _fund_account(funder_key: str, recipient_address: str):
     """Transfer ETH (for gas) and OPG tokens from the funder to the recipient."""
-    w3 = Web3(Web3.HTTPProvider(BASE_SEPOLIA_RPC))
+    w3 = Web3(Web3.HTTPProvider(BASE_MAINNET_RPC))
     funder = Account.from_key(funder_key)
     funder_addr = Web3.to_checksum_address(funder.address)
     recipient = Web3.to_checksum_address(recipient_address)

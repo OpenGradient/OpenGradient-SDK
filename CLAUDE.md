@@ -99,7 +99,7 @@ make chat-tool
 - **Dual Authentication**: Model Hub (email/password) + blockchain (private key)
 - **x402 Payments**: Streamed micropayment protocol for LLM inference
 - **Digital Twins**: Chat integration with twin.fun personas
-- **Dual Chain**: Base Sepolia (LLM) + OpenGradient testnet (Alpha on-chain inference)
+- **Dual Chain**: Base mainnet (LLM) + OpenGradient testnet (Alpha on-chain inference)
 
 ## Configuration
 
