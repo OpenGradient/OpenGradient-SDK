@@ -34,6 +34,7 @@ def load_og_config():
 def save_og_config(ctx):
     with OG_CONFIG_FILE.open("w") as f:
         json.dump(ctx.obj, f)
+    OG_CONFIG_FILE.chmod(0o600)
 
 
 # Convert string to dictionary click parameter typing
