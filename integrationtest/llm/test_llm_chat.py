@@ -106,8 +106,11 @@ def llm_client():
     if not funder_key:
         pytest.skip("PRIVATE_KEY environment variable is not set")
 
+    funder = Account.from_key(funder_key)
+    print(f"\nFunder account: {funder.address}")
+
     account = Account.create()
-    print(f"\nTest account: {account.address}")
+    print(f"Test account: {account.address}")
 
     _fund_account(funder_key, account.address)
     print("Account funded with ETH and OPG")
