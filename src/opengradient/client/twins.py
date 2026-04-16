@@ -18,7 +18,7 @@ class Twins:
 
     Usage:
         twins = og.Twins(api_key="your-api-key")
-        response = twins.chat(
+        response = await twins.chat(
             twin_id="0x1abd463fd6244be4a1dc0f69e0b70cd5",
             model=og.TEE_LLM.GROK_4_1_FAST_NON_REASONING,
             messages=[{"role": "user", "content": "What do you think about AI?"}],
@@ -30,7 +30,7 @@ class Twins:
     def __init__(self, api_key: str):
         self._api_key = api_key
 
-    def chat(
+    async def chat(
         self,
         twin_id: str,
         model: TEE_LLM,
@@ -70,7 +70,8 @@ class Twins:
             payload["max_tokens"] = max_tokens
 
         try:
-            response = httpx.post(url, json=payload, headers=headers, timeout=60)
+            async with httpx.AsyncClient() as client:
+                response = await client.post(url, json=payload, headers=headers, timeout=60)
             response.raise_for_status()
             result = response.json()
 
