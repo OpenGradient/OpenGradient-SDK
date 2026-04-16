@@ -20,7 +20,7 @@ A Python SDK for decentralized model management and inference services on the Op
 
 ### 30-Second Quickstart
 
-Install, grab a private key from the [faucet](https://faucet.opengradient.ai), and run:
+Install, set up a private key with OPG tokens, and run:
 
     import asyncio, os, opengradient as og
 

@@ -18,7 +18,6 @@ from .client.model_hub import ModelHub
 from .types import InferenceMode, x402SettlementMode
 
 DEFAULT_BLOCKCHAIN_EXPLORER = "https://explorer.opengradient.ai/tx/"
-DEFAULT_OG_FAUCET_URL = "https://faucet.opengradient.ai/?address="
 DEFAULT_HUB_SIGNUP_URL = "https://hub.opengradient.ai/signup"
 
 OG_CONFIG_FILE = Path.home() / ".opengradient_config.json"
@@ -760,17 +759,10 @@ def create_account_impl() -> EthAccount:
     eth_account = generate_eth_account()
     click.echo(f"Generated OpenGradient chain account with address: {eth_account.address}")
 
-    click.echo("\n" + "-" * 50)
-    click.echo("Step 3: Fund Your Account")
-    click.echo("-" * 50)
-    click.echo("Please fund your account clicking 'Request' on the Faucet website")
-    webbrowser.open(DEFAULT_OG_FAUCET_URL + eth_account.address, new=2)
-    click.confirm("Have you successfully funded your account using the Faucet?", abort=True)
-
     click.echo("\n" + "=" * 50)
     click.echo("Account Creation Complete!".center(50))
     click.echo("=" * 50)
-    click.echo("\nYour OpenGradient account has been successfully created and funded.")
+    click.echo("\nYour OpenGradient account has been successfully created.")
     click.secho(f"Address: {eth_account.address}", fg="green")
     click.secho("Private key generated. Store it securely; it will not be shown.", fg="yellow")
     click.secho("\nPlease save this information for your records.\n", fg="cyan")

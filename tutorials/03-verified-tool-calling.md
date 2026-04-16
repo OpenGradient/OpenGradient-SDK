@@ -22,7 +22,7 @@ results into actionable advice.
 pip install opengradient
 ```
 
-You need an OpenGradient private key funded with test tokens:
+You need an OpenGradient private key funded with OPG tokens on Base mainnet:
 
 ```bash
 export OG_PRIVATE_KEY="0x..."

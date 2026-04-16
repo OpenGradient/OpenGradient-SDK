@@ -22,7 +22,7 @@ blockchain, giving you a fully verifiable AI financial advisor.
 pip install opengradient langgraph
 ```
 
-You also need an OpenGradient private key funded with test tokens. Any standard
+You also need an OpenGradient private key funded with OPG tokens on Base mainnet. Any standard
 Ethereum private key works -- you can generate one with any Ethereum wallet.
 
 ```bash
