@@ -70,6 +70,7 @@ async def chat(
     temperature: float = 0.0,
     tools: Optional[List[Dict]] = None,
     tool_choice: Optional[str] = None,
+    response_format: Optional[`ResponseFormat`] = None,
     x402_settlement_mode: `x402SettlementMode` = x402SettlementMode.BATCH_HASHED,
     stream: bool = False
 ) ‑> Union[`TextGenerationOutput`, AsyncGenerator[`StreamChunk`, None]]
@@ -85,6 +86,11 @@ Perform inference on an LLM model using chat via TEE.
 * **`temperature (float)`**: Temperature for LLM inference, between 0 and 1.
 * **`tools (List[dict], optional)`**: Set of tools for function calling.
 * **`tool_choice (str, optional)`**: Sets a specific tool to choose.
+* **`response_format (ResponseFormat, optional)`**: Enforce a specific output format.
+        Use ``ResponseFormat(type="json_object")`` for any valid JSON (not supported
+        by Anthropic models). Use ``ResponseFormat(type="json_schema", json_schema={...})``
+        to enforce a strict schema (supported by all providers including Anthropic).
+        Defaults to None (plain text).
 * **`x402_settlement_mode (x402SettlementMode, optional)`**: Settlement mode for x402 payments.
         - PRIVATE: Payment only, no input/output data on-chain (most privacy-preserving).
         - BATCH_HASHED: Aggregates inferences into a Merkle tree with input/output hashes and signatures (default, most cost-efficient).
@@ -117,6 +123,7 @@ Union[TextGenerationOutput, AsyncGenerator[StreamChunk, None]]:
 
 **Raises**
 
+* **`ValueError`**: If ``response_format="json_object"`` is used with an Anthropic model.
 * **`RuntimeError`**: If the inference fails.
 
 ---
@@ -227,42 +234,3 @@ Permit2ApprovalResult: Contains ``allowance_before``,
 * **`ValueError`**: If ``min_allowance`` is less than 0.1 or
         ``approve_amount`` is less than ``min_allowance``.
 * **`RuntimeError`**: If the approval transaction fails.
-## TEE Endpoint Discovery & x402 Payment Settlement
-
-### Automatic Endpoint Discovery (Production)
-
-By default, `LLM()` constructor automatically discovers active TEE endpoints from the on-chain TEE registry using the `rpc_url` parameter (defaults to the OpenGradient devnet).
-
-**Key Points:**
-- The TEE endpoint is **dynamically discovered** from the registry
-- x402 payments are always settled on **Base**, regardless of which TEE endpoint serves your request
-- This is the recommended approach for production use
-
-**Example:**
-```python
-# Automatically discovers TEE endpoint from registry
-llm = og.LLM(private_key=os.environ.get("OG_PRIVATE_KEY"))
-```
-
-### Manual Endpoint Configuration (Development/Self-Hosted)
-
-For development, testing, or self-hosted TEE servers, use `LLM.from_url()` with a hardcoded endpoint:
-
-**Key Points:**
-- TLS certificate verification is disabled (suitable for self-signed certs)
-- x402 payment settlement still occurs on Base
-- Intended for non-production environments only
-
-**Example:**
-```python
-# Connect to a specific TEE endpoint directly
-llm = og.LLM.from_url(
-    private_key=os.environ.get("OG_PRIVATE_KEY"),
-    llm_server_url="https://your-tee-endpoint.example.com"
-)
-```
-
-### Important: x402 Payment Settlement
-
-Regardless of which TEE endpoint serves your inference request, **x402 payment settlement always occurs on Base blockchain**. This ensures all payments are recorded on-chain for auditability and ensures consistent settlement across all TEE providers.
-

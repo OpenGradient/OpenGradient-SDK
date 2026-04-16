@@ -6,7 +6,7 @@ opengradient
 
 # Package opengradient
 
-**Version: 0.9.3**
+**Version: 1.0.0**
 
 OpenGradient Python SDK for decentralized AI inference with end-to-end verification.
 
@@ -83,3 +83,66 @@ hub = og.ModelHub(email="you@example.com", password="...")
 repo = hub.create_model("my-model", "A price prediction model")
 hub.upload("model.onnx", repo.name, repo.initialVersion)
 ```
+
+## Classes
+
+### `ResponseFormat`
+
+Controls the output format enforced by the TEE gateway.
+
+Use ``type="json_object"`` to receive any valid JSON object (supported by
+OpenAI, Gemini, and Grok). Use ``type="json_schema"`` with a ``json_schema``
+definition to enforce a specific schema (supported by all providers,
+including Anthropic).
+
+**Attributes**
+
+* **`type`**: One of ``"text"``, ``"json_object"``, or ``"json_schema"``.
+* **`json_schema`**: Schema definition (required when ``type="json_schema"``).
+        Must contain ``name`` (str) and ``schema`` (dict).
+        ``strict`` (bool) is optional.
+
+**Raises**
+
+* **`ValueError`**: If ``type`` is not a recognised value, or if
+        ``type="json_schema"`` is used without providing ``json_schema``.
+
+Examples::
+
+    # Any valid JSON object — OpenAI, Gemini, Grok only
+    ResponseFormat(type="json_object")
+
+    # Strict schema — all providers including Anthropic
+    ResponseFormat(
+        type="json_schema",
+        json_schema={
+            "name": "person",
+            "strict": True,
+            "schema": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string"},
+                    "age": {"type": "integer"},
+                },
+                "required": ["name", "age"],
+                "additionalProperties": False,
+            },
+        },
+    )
+
+#### Constructor
+
+```python
+def __init__(type: str, json_schema: Optional[Dict] = None)
+```
+
+#### Methods
+
+---
+
+#### `to_dict()`
+
+```python
+def to_dict(self) ‑> Dict
+```
+Serialise to a JSON-compatible dict for the TEE gateway request payload.

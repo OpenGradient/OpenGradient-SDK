@@ -227,6 +227,67 @@ A container for numeric tensor data used as input for ONNX models.
 def __init__(name: str, values: List[Tuple[int, int]])
 ```
 
+### `ResponseFormat`
+
+Controls the output format enforced by the TEE gateway.
+
+Use ``type="json_object"`` to receive any valid JSON object (supported by
+OpenAI, Gemini, and Grok). Use ``type="json_schema"`` with a ``json_schema``
+definition to enforce a specific schema (supported by all providers,
+including Anthropic).
+
+**Attributes**
+
+* **`type`**: One of ``"text"``, ``"json_object"``, or ``"json_schema"``.
+* **`json_schema`**: Schema definition (required when ``type="json_schema"``).
+        Must contain ``name`` (str) and ``schema`` (dict).
+        ``strict`` (bool) is optional.
+
+**Raises**
+
+* **`ValueError`**: If ``type`` is not a recognised value, or if
+        ``type="json_schema"`` is used without providing ``json_schema``.
+
+Examples::
+
+    # Any valid JSON object — OpenAI, Gemini, Grok only
+    ResponseFormat(type="json_object")
+
+    # Strict schema — all providers including Anthropic
+    ResponseFormat(
+        type="json_schema",
+        json_schema={
+            "name": "person",
+            "strict": True,
+            "schema": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string"},
+                    "age": {"type": "integer"},
+                },
+                "required": ["name", "age"],
+                "additionalProperties": False,
+            },
+        },
+    )
+
+#### Constructor
+
+```python
+def __init__(type: str, json_schema: Optional[Dict] = None)
+```
+
+#### Methods
+
+---
+
+#### `to_dict()`
+
+```python
+def to_dict(self) ‑> Dict
+```
+Serialise to a JSON-compatible dict for the TEE gateway request payload.
+
 ### `SchedulerParams`
 
 #### Constructor
@@ -403,7 +464,6 @@ auditability and tamper-proof AI inference.
 * static `GEMINI_2_5_FLASH_LITE`
 * static `GEMINI_2_5_PRO`
 * static `GEMINI_3_FLASH`
-* static `GEMINI_3_PRO`
 * static `GPT_4_1_2025_04_14`
 * static `GPT_5`
 * static `GPT_5_2`
@@ -454,6 +514,7 @@ def __init__(
     finish_reason: Optional[str] = None,
     chat_output: Optional[Dict] = None,
     completion_output: Optional[str] = None,
+    usage: Optional[Dict] = None,
     payment_hash: Optional[str] = None,
     tee_signature: Optional[str] = None,
     tee_timestamp: Optional[str] = None,

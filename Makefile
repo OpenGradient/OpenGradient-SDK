@@ -25,7 +25,7 @@ check:
 	uv run mypy examples
 
 docs:
-	uv run pdoc opengradient -o docs --template-dir ./templates --force
+	uv run pdoc3 opengradient -o docs --template-dir ./templates --force
 
 # ============================================================================
 # Testing
