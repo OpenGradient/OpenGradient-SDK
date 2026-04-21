@@ -1,5 +1,6 @@
 """LLM chat and completion via TEE-verified execution with x402 payments."""
 
+import base64
 import json
 import logging
 from dataclasses import dataclass
@@ -34,6 +35,7 @@ BASE_MAINNET_RPC = os.getenv("BASE_MAINNET_RPC", "https://base-rpc.publicnode.co
 _CHAT_ENDPOINT = "/v1/chat/completions"
 _COMPLETION_ENDPOINT = "/v1/completions"
 _REQUEST_TIMEOUT = 60
+
 
 @dataclass(frozen=True)
 class _ChatParams:
@@ -385,8 +387,13 @@ class LLM:
                 headers=self._headers(params.x402_settlement_mode),
                 timeout=_REQUEST_TIMEOUT,
             )
-            response.raise_for_status()
             raw_body = await response.aread()
+            if response.status_code >= 400:
+                raise httpx.HTTPStatusError(
+                    _format_http_error(response, raw_body),
+                    request=response.request,
+                    response=response,
+                )
             result = json.loads(raw_body.decode())
 
             choices = result.get("choices")
@@ -532,3 +539,23 @@ class LLM:
                     chunk.tee_endpoint = tee.endpoint
                     chunk.tee_payment_address = tee.payment_address
                 yield chunk
+
+
+def _decode_payment_required(header_value: Optional[str]) -> str:
+    """Decode the base64-encoded JSON in the `payment-required` response header."""
+    if not header_value:
+        return "<missing>"
+    try:
+        decoded = base64.b64decode(header_value).decode("utf-8")
+        return json.dumps(json.loads(decoded), indent=2)
+    except Exception:
+        return header_value
+
+
+def _format_http_error(response: httpx.Response, body: bytes) -> str:
+    """Build an error message that surfaces the x402 payment-required details."""
+    return (
+        f"HTTP {response.status_code} from {response.url}\n"
+        f"Payment-Required: {_decode_payment_required(response.headers.get('payment-required'))}\n"
+        f"Body: {body.decode(errors='replace')}"
+    )
