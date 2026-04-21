@@ -7,7 +7,7 @@ so LLM builds normally — no test-only constructor params, no mocking of privat
 import json
 import ssl
 from contextlib import asynccontextmanager
-from typing import List
+from typing import Dict, List
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -80,6 +80,9 @@ class _FakeResponse:
     def __init__(self, status_code: int, body: bytes):
         self.status_code = status_code
         self._body = body
+        self.headers: Dict[str, str] = {}
+        self.request = MagicMock()
+        self.url = "https://test.tee.server/v1/chat/completions"
 
     def raise_for_status(self):
         pass

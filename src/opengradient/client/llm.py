@@ -388,8 +388,12 @@ class LLM:
                 timeout=_REQUEST_TIMEOUT,
             )
             raw_body = await response.aread()
-            if response.is_error:
-                raise RuntimeError(_format_http_error(response, raw_body))
+            if response.status_code >= 400:
+                raise httpx.HTTPStatusError(
+                    _format_http_error(response, raw_body),
+                    request=response.request,
+                    response=response,
+                )
             result = json.loads(raw_body.decode())
 
             choices = result.get("choices")
