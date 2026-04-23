@@ -16,7 +16,7 @@ from x402.mechanisms.evm import EthAccountSigner
 from x402.mechanisms.evm.exact.register import register_exact_evm_client
 from x402.mechanisms.evm.upto.register import register_upto_evm_client
 
-from ..types import TEE_LLM, ResponseFormat, StreamChoice, StreamChunk, StreamDelta, TextGenerationOutput, x402SettlementMode
+from ..types import TEE_LLM, ResponseFormat, StreamChunk, TextGenerationOutput, x402SettlementMode
 from .opg_token import Permit2ApprovalResult, ensure_opg_approval
 from .tee_connection import RegistryTEEConnection, StaticTEEConnection, TEEConnectionInterface
 from .tee_registry import TEERegistry
@@ -366,11 +366,6 @@ class LLM:
         if not stream:
             return await self._chat_request(params, messages)
 
-        # The TEE streaming endpoint omits tool call content from SSE events.
-        # Fall back to non-streaming and emit a single final StreamChunk.
-        if tools:
-            return self._chat_tools_as_stream(params, messages)
-
         return self._chat_stream(params, messages)
 
     # ── Chat internals ──────────────────────────────────────────────────
@@ -423,31 +418,6 @@ class LLM:
             raise
         except Exception as e:
             raise RuntimeError(f"TEE LLM chat failed: {e}") from e
-
-    async def _chat_tools_as_stream(self, params: _ChatParams, messages: List[Dict]) -> AsyncGenerator[StreamChunk, None]:
-        """Non-streaming fallback for tool-call requests wrapped as a single StreamChunk."""
-        result = await self._chat_request(params, messages)
-        chat_output = result.chat_output or {}
-        yield StreamChunk(
-            choices=[
-                StreamChoice(
-                    delta=StreamDelta(
-                        role=chat_output.get("role"),
-                        content=chat_output.get("content"),
-                        tool_calls=chat_output.get("tool_calls"),
-                    ),
-                    index=0,
-                    finish_reason=result.finish_reason,
-                )
-            ],
-            model=params.model,
-            is_final=True,
-            tee_signature=result.tee_signature,
-            tee_timestamp=result.tee_timestamp,
-            tee_id=result.tee_id,
-            tee_endpoint=result.tee_endpoint,
-            tee_payment_address=result.tee_payment_address,
-        )
 
     async def _chat_stream(self, params: _ChatParams, messages: List[Dict]) -> AsyncGenerator[StreamChunk, None]:
         """Async SSE streaming implementation."""

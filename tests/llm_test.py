@@ -461,19 +461,19 @@ class TestChatStreaming:
         with pytest.raises(RuntimeError, match="streaming request failed"):
             _ = [chunk async for chunk in gen]
 
-    async def test_tools_with_stream_falls_back_to_single_chunk(self, fake_http):
-        """When tools + stream=True, LLM falls back to non-streaming and yields one chunk."""
+    async def test_tools_with_stream_uses_sse_chunks(self, fake_http):
+        """When tools + stream=True, tool call deltas are streamed through SSE."""
         tools = [{"type": "function", "function": {"name": "f"}}]
-        fake_http.set_response(
+        fake_http.set_stream_response(
             200,
-            {
-                "choices": [
-                    {
-                        "message": {"role": "assistant", "content": None, "tool_calls": [{"id": "tc1"}]},
-                        "finish_reason": "tool_calls",
-                    }
-                ],
-            },
+            [
+                (
+                    b'data: {"model":"gpt-5","choices":[{"index":0,"delta":{"role":"assistant","tool_calls":'
+                    b'[{"id":"tc1","index":0,"function":{"name":"f","arguments":"{\\"city\\":\\"NYC\\"}"}}]},'
+                    b'"finish_reason":"tool_calls"}]}\n\n'
+                ),
+                b"data: [DONE]\n\n",
+            ],
         )
         llm = _make_llm()
 
@@ -487,7 +487,13 @@ class TestChatStreaming:
 
         assert len(chunks) == 1
         assert chunks[0].is_final
-        assert chunks[0].choices[0].delta.tool_calls == [{"id": "tc1"}]
+        assert chunks[0].choices[0].delta.tool_calls == [
+            {
+                "id": "tc1",
+                "index": 0,
+                "function": {"name": "f", "arguments": '{"city":"NYC"}'},
+            }
+        ]
         assert chunks[0].choices[0].finish_reason == "tool_calls"
 
 
