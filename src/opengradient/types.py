@@ -502,11 +502,18 @@ class TEE_LLM(str, Enum):
     """
 
     # OpenAI models via TEE
+    # Note: GPT_5_5 is coming out 
     GPT_4_1_2025_04_14 = "openai/gpt-4.1-2025-04-14"
     O4_MINI = "openai/o4-mini"
     GPT_5 = "openai/gpt-5"
     GPT_5_MINI = "openai/gpt-5-mini"
     GPT_5_2 = "openai/gpt-5.2"
+    GPT_4_1_MINI = "openai/gpt-4.1-mini"
+    GPT_4_1_NANO = "openai/gpt-4.1-nano"
+    O3 = "openai/o3"
+    GPT_5_4 = "openai/gpt-5.4"
+    GPT_5_4_MINI = "openai/gpt-5.4-mini"
+    GPT_5_4_NANO = "openai/gpt-5.4-nano"
 
     # Anthropic models via TEE
     CLAUDE_SONNET_4_5 = "anthropic/claude-sonnet-4-5"
@@ -514,6 +521,7 @@ class TEE_LLM(str, Enum):
     CLAUDE_HAIKU_4_5 = "anthropic/claude-haiku-4-5"
     CLAUDE_OPUS_4_5 = "anthropic/claude-opus-4-5"
     CLAUDE_OPUS_4_6 = "anthropic/claude-opus-4-6"
+    CLAUDE_OPUS_4_7 = "anthropic/claude-opus-4-7"
 
     # Google models via TEE
     # Note: gemini-2.5-flash, gemini-2.5-pro, and gemini-2.5-flash-lite are scheduled
@@ -523,6 +531,8 @@ class TEE_LLM(str, Enum):
     GEMINI_2_5_PRO = "google/gemini-2.5-pro"
     GEMINI_2_5_FLASH_LITE = "google/gemini-2.5-flash-lite"
     GEMINI_3_FLASH = "google/gemini-3-flash-preview"
+    GEMINI_3_1_FLASH_PREVIEW = "google/gemini-3.1-pro-preview"
+    GEMINI_3_1_FLASH_LITE_PREVIEW = "google/gemini-3.1-flash-lite-preview"
 
     # xAI Grok models via TEE
     GROK_4 = "x-ai/grok-4"
