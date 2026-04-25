@@ -28,6 +28,8 @@ DEFAULT_RPC_URL = "https://ogevmdevnet.opengradient.ai"
 DEFAULT_TEE_REGISTRY_ADDRESS = "0x4e72238852f3c918f4E4e57AeC9280dDB0c80248"
 
 X402_PROCESSING_HASH_HEADER = "x-processing-hash"
+X402_DATA_SETTLEMENT_TX_HASH_HEADER = "x-settlement-tx-hash"
+X402_DATA_SETTLEMENT_BLOB_ID_HEADER = "x-settlement-walrus-blob-id"
 X402_PLACEHOLDER_API_KEY = "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
 BASE_MAINNET_NETWORK = "eip155:8453"
 BASE_MAINNET_RPC = os.getenv("BASE_MAINNET_RPC", "https://base-rpc.publicnode.com")
@@ -146,6 +148,14 @@ class LLM:
             "Authorization": f"Bearer {X402_PLACEHOLDER_API_KEY}",
             "X-SETTLEMENT-TYPE": settlement_mode.value,
         }
+
+    @staticmethod
+    def _data_settlement_transaction_hash(response: httpx.Response) -> Optional[str]:
+        return response.headers.get(X402_DATA_SETTLEMENT_TX_HASH_HEADER)
+
+    @staticmethod
+    def _data_settlement_blob_id(response: httpx.Response) -> Optional[str]:
+        return response.headers.get(X402_DATA_SETTLEMENT_BLOB_ID_HEADER)
 
     def _chat_payload(self, params: _ChatParams, messages: List[Dict], stream: bool = False) -> Dict:
         payload: Dict = {
@@ -285,7 +295,8 @@ class LLM:
             raw_body = await response.aread()
             result = json.loads(raw_body.decode())
             return TextGenerationOutput(
-                transaction_hash="external",
+                data_settlement_transaction_hash=self._data_settlement_transaction_hash(response),
+                data_settlement_blob_id=self._data_settlement_blob_id(response),
                 completion_output=result.get("completion"),
                 tee_signature=result.get("tee_signature"),
                 tee_timestamp=result.get("tee_timestamp"),
@@ -337,7 +348,7 @@ class LLM:
 
         Returns:
             Union[TextGenerationOutput, AsyncGenerator[StreamChunk, None]]:
-                - If stream=False: TextGenerationOutput with chat_output, transaction_hash, finish_reason, and payment_hash
+                - If stream=False: TextGenerationOutput with chat_output, data settlement metadata, finish_reason, and payment_hash
                 - If stream=True: Async generator yielding StreamChunk objects
 
         Raises:
@@ -408,7 +419,8 @@ class LLM:
                 ).strip()
 
             return TextGenerationOutput(
-                transaction_hash="external",
+                data_settlement_transaction_hash=self._data_settlement_transaction_hash(response),
+                data_settlement_blob_id=self._data_settlement_blob_id(response),
                 finish_reason=choices[0].get("finish_reason"),
                 chat_output=message,
                 usage=result.get("usage"),
@@ -447,6 +459,8 @@ class LLM:
             tee_id=result.tee_id,
             tee_endpoint=result.tee_endpoint,
             tee_payment_address=result.tee_payment_address,
+            data_settlement_transaction_hash=result.data_settlement_transaction_hash,
+            data_settlement_blob_id=result.data_settlement_blob_id,
         )
 
     async def _chat_stream(self, params: _ChatParams, messages: List[Dict]) -> AsyncGenerator[StreamChunk, None]:
@@ -535,6 +549,10 @@ class LLM:
 
                 chunk = StreamChunk.from_sse_data(data)
                 if chunk.is_final:
+                    chunk.data_settlement_transaction_hash = (
+                        self._data_settlement_transaction_hash(response)
+                    )
+                    chunk.data_settlement_blob_id = self._data_settlement_blob_id(response)
                     chunk.tee_id = tee.tee_id
                     chunk.tee_endpoint = tee.endpoint
                     chunk.tee_payment_address = tee.payment_address

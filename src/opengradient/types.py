@@ -237,6 +237,10 @@ class StreamChunk:
         tee_id: On-chain TEE registry ID of the enclave that served this request (final chunk only)
         tee_endpoint: Endpoint URL of the TEE that served this request (final chunk only)
         tee_payment_address: Payment address registered for the TEE (final chunk only)
+        data_settlement_transaction_hash: Transaction hash for the data settlement
+            transaction, present on the final chunk when available.
+        data_settlement_blob_id: Walrus blob ID for individual data settlement,
+            present on the final chunk when available.
     """
 
     choices: List[StreamChoice]
@@ -248,6 +252,8 @@ class StreamChunk:
     tee_id: Optional[str] = None
     tee_endpoint: Optional[str] = None
     tee_payment_address: Optional[str] = None
+    data_settlement_transaction_hash: Optional[str] = None
+    data_settlement_blob_id: Optional[str] = None
 
     @classmethod
     def from_sse_data(cls, data: Dict) -> "StreamChunk":
@@ -400,8 +406,12 @@ class TextGenerationOutput:
     performed inside a TEE enclave.
 
     Attributes:
-        transaction_hash: Blockchain transaction hash.  Set to
-            ``"external"`` for TEE-routed providers.
+        data_settlement_transaction_hash: Blockchain transaction hash for
+            the data settlement transaction. Set to ``"external"`` when the
+            provider does not return data settlement metadata.
+        data_settlement_blob_id: Walrus blob ID for individual data
+            settlement. ``None`` for private/batch settlement or when the
+            provider does not return it.
         finish_reason: Reason the model stopped generating
             (e.g. ``"stop"``, ``"tool_call"``, ``"error"``).
             Only populated for chat requests.
@@ -416,8 +426,11 @@ class TextGenerationOutput:
             time.
     """
 
-    transaction_hash: str
-    """Blockchain transaction hash. Set to ``"external"`` for TEE-routed providers."""
+    data_settlement_transaction_hash: str
+    """Blockchain transaction hash for the data settlement transaction. Set to ``"external"`` when unavailable."""
+
+    data_settlement_blob_id: Optional[str] = None
+    """Walrus blob ID for individual data settlement. ``None`` when unavailable."""
 
     finish_reason: Optional[str] = None
     """Reason the model stopped generating (e.g. ``"stop"``, ``"tool_call"``, ``"error"``). Only populated for chat requests."""
