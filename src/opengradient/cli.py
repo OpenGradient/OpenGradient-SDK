@@ -415,7 +415,11 @@ def completion(
         )
 
         print_llm_completion_result(
-            model_cid, completion_output.transaction_hash, completion_output.completion_output, is_vanilla=False, result=completion_output
+            model_cid,
+            completion_output.data_settlement_transaction_hash,
+            completion_output.completion_output,
+            is_vanilla=False,
+            result=completion_output,
         )
 
     except Exception as e:
@@ -603,7 +607,12 @@ def chat(
             print_streaming_chat_result(model_cid, result, is_tee=True)
         else:
             print_llm_chat_result(
-                model_cid, result.transaction_hash, result.finish_reason, result.chat_output, is_vanilla=False, result=result
+                model_cid,
+                result.data_settlement_transaction_hash,
+                result.finish_reason,
+                result.chat_output,
+                is_vanilla=False,
+                result=result,
             )
 
     except Exception as e:
