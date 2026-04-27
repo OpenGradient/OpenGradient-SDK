@@ -78,7 +78,7 @@ class TestOpenGradientChatModel:
 class TestGenerate:
     def test_text_response(self, model, mock_llm_client):
         mock_llm_client.chat.return_value = TextGenerationOutput(
-            transaction_hash="external",
+            data_settlement_transaction_hash="external",
             finish_reason="stop",
             chat_output={"role": "assistant", "content": "Hello there!"},
         )
@@ -91,7 +91,7 @@ class TestGenerate:
 
     async def test_async_text_response(self, model, mock_llm_client):
         mock_llm_client.chat.return_value = TextGenerationOutput(
-            transaction_hash="external",
+            data_settlement_transaction_hash="external",
             finish_reason="stop",
             chat_output={"role": "assistant", "content": "Hello async!"},
         )
@@ -103,7 +103,7 @@ class TestGenerate:
 
     def test_tool_call_response_flat_format(self, model, mock_llm_client):
         mock_llm_client.chat.return_value = TextGenerationOutput(
-            transaction_hash="external",
+            data_settlement_transaction_hash="external",
             finish_reason="tool_call",
             chat_output={
                 "role": "assistant",
@@ -129,7 +129,7 @@ class TestGenerate:
 
     def test_tool_call_response_nested_format(self, model, mock_llm_client):
         mock_llm_client.chat.return_value = TextGenerationOutput(
-            transaction_hash="external",
+            data_settlement_transaction_hash="external",
             finish_reason="tool_call",
             chat_output={
                 "role": "assistant",
@@ -158,7 +158,7 @@ class TestGenerate:
 
     def test_content_as_list_of_blocks(self, model, mock_llm_client):
         mock_llm_client.chat.return_value = TextGenerationOutput(
-            transaction_hash="external",
+            data_settlement_transaction_hash="external",
             finish_reason="stop",
             chat_output={
                 "role": "assistant",
@@ -172,7 +172,7 @@ class TestGenerate:
 
     def test_empty_chat_output(self, model, mock_llm_client):
         mock_llm_client.chat.return_value = TextGenerationOutput(
-            transaction_hash="external",
+            data_settlement_transaction_hash="external",
             finish_reason="stop",
             chat_output=None,
         )
@@ -185,7 +185,7 @@ class TestGenerate:
 class TestMessageConversion:
     def test_converts_all_message_types(self, model, mock_llm_client):
         mock_llm_client.chat.return_value = TextGenerationOutput(
-            transaction_hash="external",
+            data_settlement_transaction_hash="external",
             finish_reason="stop",
             chat_output={"role": "assistant", "content": "ok"},
         )
@@ -224,7 +224,7 @@ class TestMessageConversion:
 
     def test_passes_correct_params_to_client(self, model, mock_llm_client):
         mock_llm_client.chat.return_value = TextGenerationOutput(
-            transaction_hash="external",
+            data_settlement_transaction_hash="external",
             finish_reason="stop",
             chat_output={"role": "assistant", "content": "ok"},
         )
@@ -299,7 +299,7 @@ class TestBindTools:
 
     def test_tools_used_in_generate(self, model, mock_llm_client):
         mock_llm_client.chat.return_value = TextGenerationOutput(
-            transaction_hash="external",
+            data_settlement_transaction_hash="external",
             finish_reason="stop",
             chat_output={"role": "assistant", "content": "ok"},
         )

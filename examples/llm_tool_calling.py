@@ -68,7 +68,7 @@ async def main():
 
     print(f"Finish reason: {result.finish_reason}")
     print(f"Chat output: {result.chat_output}")
-    print(f"Transaction hash: {result.transaction_hash}")
+    print(f"Data settlement transaction hash: {result.data_settlement_transaction_hash}")
 
 
 asyncio.run(main())

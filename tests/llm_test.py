@@ -95,6 +95,7 @@ class _FakeStreamResponse:
     def __init__(self, status_code: int, chunks: List[bytes]):
         self.status_code = status_code
         self._chunks = chunks
+        self.headers: Dict[str, str] = {}
 
     async def aiter_raw(self):
         for chunk in self._chunks:
@@ -169,7 +170,7 @@ class TestCompletion:
         assert result.completion_output == "Hello world"
         assert result.tee_signature == "sig-abc"
         assert result.tee_timestamp == "2025-01-01T00:00:00Z"
-        assert result.transaction_hash == "external"
+        assert result.data_settlement_transaction_hash is None
         assert result.tee_id == "test-tee-id"
         assert result.tee_payment_address == "0xTestPayment"
 

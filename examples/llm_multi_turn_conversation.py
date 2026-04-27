@@ -42,7 +42,7 @@ async def chat_turn(
         model: TEE_LLM model to use.
 
     Returns:
-        Tuple of (assistant_reply, updated_history, transaction_hash).
+        Tuple of (assistant_reply, updated_history, data_settlement_transaction_hash).
     """
     history = add_user_message(history, user_input)
 
@@ -58,7 +58,7 @@ async def chat_turn(
     reply = str(result.chat_output["content"])
     history = add_assistant_message(history, reply)
 
-    return reply, history, result.transaction_hash
+    return reply, history, result.data_settlement_transaction_hash
 
 
 async def main():
