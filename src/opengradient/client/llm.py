@@ -149,14 +149,6 @@ class LLM:
             "X-SETTLEMENT-TYPE": settlement_mode.value,
         }
 
-    @staticmethod
-    def _data_settlement_transaction_hash(response: httpx.Response) -> Optional[str]:
-        return response.headers.get(X402_DATA_SETTLEMENT_TX_HASH_HEADER)
-
-    @staticmethod
-    def _data_settlement_blob_id(response: httpx.Response) -> Optional[str]:
-        return response.headers.get(X402_DATA_SETTLEMENT_BLOB_ID_HEADER)
-
     def _chat_payload(self, params: _ChatParams, messages: List[Dict], stream: bool = False) -> Dict:
         payload: Dict = {
             "model": params.model,
@@ -295,8 +287,8 @@ class LLM:
             raw_body = await response.aread()
             result = json.loads(raw_body.decode())
             return TextGenerationOutput(
-                data_settlement_transaction_hash=self._data_settlement_transaction_hash(response),
-                data_settlement_blob_id=self._data_settlement_blob_id(response),
+                data_settlement_transaction_hash=response.headers.get(X402_DATA_SETTLEMENT_TX_HASH_HEADER),
+                data_settlement_blob_id=response.headers.get(X402_DATA_SETTLEMENT_BLOB_ID_HEADER),
                 completion_output=result.get("completion"),
                 tee_signature=result.get("tee_signature"),
                 tee_timestamp=result.get("tee_timestamp"),
@@ -419,8 +411,8 @@ class LLM:
                 ).strip()
 
             return TextGenerationOutput(
-                data_settlement_transaction_hash=self._data_settlement_transaction_hash(response),
-                data_settlement_blob_id=self._data_settlement_blob_id(response),
+                data_settlement_transaction_hash=response.headers.get(X402_DATA_SETTLEMENT_TX_HASH_HEADER),
+                data_settlement_blob_id=response.headers.get(X402_DATA_SETTLEMENT_BLOB_ID_HEADER),
                 finish_reason=choices[0].get("finish_reason"),
                 chat_output=message,
                 usage=result.get("usage"),
@@ -549,10 +541,8 @@ class LLM:
 
                 chunk = StreamChunk.from_sse_data(data)
                 if chunk.is_final:
-                    chunk.data_settlement_transaction_hash = (
-                        self._data_settlement_transaction_hash(response)
-                    )
-                    chunk.data_settlement_blob_id = self._data_settlement_blob_id(response)
+                    chunk.data_settlement_transaction_hash = response.headers.get(X402_DATA_SETTLEMENT_TX_HASH_HEADER)
+                    chunk.data_settlement_blob_id = response.headers.get(X402_DATA_SETTLEMENT_BLOB_ID_HEADER)
                     chunk.tee_id = tee.tee_id
                     chunk.tee_endpoint = tee.endpoint
                     chunk.tee_payment_address = tee.payment_address

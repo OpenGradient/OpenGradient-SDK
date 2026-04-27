@@ -79,7 +79,6 @@ class Twins:
                 raise RuntimeError(f"Invalid response: 'choices' missing or empty in {result}")
 
             return TextGenerationOutput(
-                data_settlement_transaction_hash="",
                 finish_reason=choices[0].get("finish_reason"),
                 chat_output=choices[0].get("message"),
                 payment_hash=None,

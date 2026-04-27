@@ -31,7 +31,7 @@ async def chat_turn(
     history: list,
     user_input: str,
     model: og.TEE_LLM = og.TEE_LLM.GEMINI_2_5_FLASH,
-) -> tuple[str, list, str]:
+) -> tuple[str, list, str | None]:
     """
     Execute a single conversation turn.
 

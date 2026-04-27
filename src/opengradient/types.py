@@ -407,8 +407,8 @@ class TextGenerationOutput:
 
     Attributes:
         data_settlement_transaction_hash: Blockchain transaction hash for
-            the data settlement transaction. Set to ``"external"`` when the
-            provider does not return data settlement metadata.
+            the data settlement transaction. ``None`` when the provider
+            does not return data settlement metadata.
         data_settlement_blob_id: Walrus blob ID for individual data
             settlement. ``None`` for private/batch settlement or when the
             provider does not return it.
@@ -426,8 +426,8 @@ class TextGenerationOutput:
             time.
     """
 
-    data_settlement_transaction_hash: str
-    """Blockchain transaction hash for the data settlement transaction. Set to ``"external"`` when unavailable."""
+    data_settlement_transaction_hash: Optional[str] = None
+    """Blockchain transaction hash for the data settlement transaction. ``None`` when unavailable."""
 
     data_settlement_blob_id: Optional[str] = None
     """Walrus blob ID for individual data settlement. ``None`` when unavailable."""
@@ -593,13 +593,9 @@ class ResponseFormat:
     def __post_init__(self) -> None:
         valid_types = ("text", "json_object", "json_schema")
         if self.type not in valid_types:
-            raise ValueError(
-                f"ResponseFormat.type must be one of {valid_types}, got '{self.type}'"
-            )
+            raise ValueError(f"ResponseFormat.type must be one of {valid_types}, got '{self.type}'")
         if self.type == "json_schema" and not self.json_schema:
-            raise ValueError(
-                "ResponseFormat.json_schema is required when type='json_schema'"
-            )
+            raise ValueError("ResponseFormat.json_schema is required when type='json_schema'")
 
     def to_dict(self) -> Dict:
         """Serialise to a JSON-compatible dict for the TEE gateway request payload."""
