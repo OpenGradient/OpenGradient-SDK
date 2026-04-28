@@ -24,5 +24,12 @@ async def main():
     )
     print(result.chat_output["content"])
 
+    print("\n" + "=" * 40)
+    tx_hash = result.data_settlement_transaction_hash
+    if tx_hash:
+        print(f"Settlement tx: {tx_hash}")
+        print(f"Explorer: https://explorer.opengradient.ai/tx/{tx_hash}?tab=index")
+    else:
+        print("No settlement tx hash returned")
 
 asyncio.run(main())
