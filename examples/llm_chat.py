@@ -24,6 +24,7 @@ async def main():
     )
     print(result.chat_output["content"])
 
+    # Print inference settlement details
     print("\n" + "=" * 40)
     tx_hash = result.data_settlement_transaction_hash
     if tx_hash:
