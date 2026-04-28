@@ -16,6 +16,7 @@ async def main():
         {"role": "user", "content": "What is the capital of France?"},
     ]
 
+    # Run inference with full public settlement
     result = await llm.chat(
         model=og.TEE_LLM.GEMINI_2_5_FLASH,
         messages=messages,
