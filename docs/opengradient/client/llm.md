@@ -101,13 +101,17 @@ Perform inference on an LLM model using chat via TEE.
 **Returns**
 
 Union[TextGenerationOutput, AsyncGenerator[StreamChunk, None]]:
-    - If stream=False: TextGenerationOutput with chat_output, transaction_hash, finish_reason, and payment_hash
+    - If stream=False: TextGenerationOutput with chat_output, data settlement metadata, finish_reason, and payment_hash
     - If stream=True: Async generator yielding StreamChunk objects
 
 **`TextGenerationOutput` fields:**
 
-* **`transaction_hash`**: Blockchain transaction hash.  Set to
-        ``"external"`` for TEE-routed providers.
+* **`data_settlement_transaction_hash`**: Blockchain transaction hash for
+        the data settlement transaction. ``None`` when the provider
+        does not return data settlement metadata.
+* **`data_settlement_blob_id`**: Walrus blob ID for individual data
+        settlement. ``None`` for private/batch settlement or when the
+        provider does not return it.
 * **`finish_reason`**: Reason the model stopped generating
         (e.g. ``"stop"``, ``"tool_call"``, ``"error"``).
         Only populated for chat requests.
@@ -174,8 +178,12 @@ TextGenerationOutput: Generated text results including:
 
 **`TextGenerationOutput` fields:**
 
-* **`transaction_hash`**: Blockchain transaction hash.  Set to
-        ``"external"`` for TEE-routed providers.
+* **`data_settlement_transaction_hash`**: Blockchain transaction hash for
+        the data settlement transaction. ``None`` when the provider
+        does not return data settlement metadata.
+* **`data_settlement_blob_id`**: Walrus blob ID for individual data
+        settlement. ``None`` for private/batch settlement or when the
+        provider does not return it.
 * **`finish_reason`**: Reason the model stopped generating
         (e.g. ``"stop"``, ``"tool_call"``, ``"error"``).
         Only populated for chat requests.

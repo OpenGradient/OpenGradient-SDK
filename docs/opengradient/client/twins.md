@@ -55,8 +55,12 @@ TextGenerationOutput: Generated text results including chat_output and finish_re
 
 **`TextGenerationOutput` fields:**
 
-* **`transaction_hash`**: Blockchain transaction hash.  Set to
-        ``"external"`` for TEE-routed providers.
+* **`data_settlement_transaction_hash`**: Blockchain transaction hash for
+        the data settlement transaction. ``None`` when the provider
+        does not return data settlement metadata.
+* **`data_settlement_blob_id`**: Walrus blob ID for individual data
+        settlement. ``None`` for private/batch settlement or when the
+        provider does not return it.
 * **`finish_reason`**: Reason the model stopped generating
         (e.g. ``"stop"``, ``"tool_call"``, ``"error"``).
         Only populated for chat requests.
