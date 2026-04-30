@@ -516,10 +516,17 @@ class TEE_LLM(str, Enum):
 
     # OpenAI models via TEE
     GPT_4_1_2025_04_14 = "openai/gpt-4.1-2025-04-14"
+    GPT_4_1_MINI = "openai/gpt-4.1-mini"
+    GPT_4_1_NANO = "openai/gpt-4.1-nano"
+    O3 = "openai/o3"
     O4_MINI = "openai/o4-mini"
     GPT_5 = "openai/gpt-5"
     GPT_5_MINI = "openai/gpt-5-mini"
     GPT_5_2 = "openai/gpt-5.2"
+    GPT_5_4 = "openai/gpt-5.4"
+    GPT_5_4_MINI = "openai/gpt-5.4-mini"
+    GPT_5_4_NANO = "openai/gpt-5.4-nano"
+    GPT_5_5 = "openai/gpt-5.5"
 
     # Anthropic models via TEE
     CLAUDE_SONNET_4_5 = "anthropic/claude-sonnet-4-5"
@@ -527,21 +534,27 @@ class TEE_LLM(str, Enum):
     CLAUDE_HAIKU_4_5 = "anthropic/claude-haiku-4-5"
     CLAUDE_OPUS_4_5 = "anthropic/claude-opus-4-5"
     CLAUDE_OPUS_4_6 = "anthropic/claude-opus-4-6"
+    CLAUDE_OPUS_4_7 = "anthropic/claude-opus-4-7"
 
     # Google models via TEE
     # Note: gemini-2.5-flash, gemini-2.5-pro, and gemini-2.5-flash-lite are scheduled
-    # for deprecation on June 17, 2026 (flash-lite: July 22, 2026). Replacements will be
-    # gemini-3-flash-preview, gemini-3.1-pro-preview, and gemini-3.1-flash-lite-preview.
+    # for deprecation on June 17, 2026 (flash-lite: July 22, 2026). Use the Gemini 3
+    # replacements below for new integrations.
     GEMINI_2_5_FLASH = "google/gemini-2.5-flash"
     GEMINI_2_5_PRO = "google/gemini-2.5-pro"
     GEMINI_2_5_FLASH_LITE = "google/gemini-2.5-flash-lite"
     GEMINI_3_FLASH = "google/gemini-3-flash-preview"
+    GEMINI_3_1_PRO_PREVIEW = "google/gemini-3.1-pro-preview"
+    GEMINI_3_1_FLASH_LITE_PREVIEW = "google/gemini-3.1-flash-lite-preview"
 
     # xAI Grok models via TEE
     GROK_4 = "x-ai/grok-4"
     GROK_4_FAST = "x-ai/grok-4-fast"
     GROK_4_1_FAST = "x-ai/grok-4-1-fast"
     GROK_4_1_FAST_NON_REASONING = "x-ai/grok-4-1-fast-non-reasoning"
+    GROK_4_20_REASONING = "x-ai/grok-4.20-reasoning"
+    GROK_4_20_NON_REASONING = "x-ai/grok-4.20-non-reasoning"
+    GROK_CODE_FAST_1 = "x-ai/grok-code-fast-1"
 
 
 @dataclass
