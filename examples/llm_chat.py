@@ -13,12 +13,12 @@ async def main():
     llm.ensure_opg_approval(min_allowance=0.1)
 
     messages = [
-        {"role": "user", "content": "What is the capital of France?"},
+        {"role": "user", "content": "What model are you?"},
     ]
 
     # Run inference with full public settlement
     result = await llm.chat(
-        model=og.TEE_LLM.GEMINI_2_5_FLASH,
+        model=og.TEE_LLM.GPT_5_5,
         messages=messages,
         max_tokens=300,
         x402_settlement_mode=og.x402SettlementMode.INDIVIDUAL_FULL,
