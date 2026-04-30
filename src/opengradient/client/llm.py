@@ -149,6 +149,14 @@ class LLM:
             "X-SETTLEMENT-TYPE": settlement_mode.value,
         }
 
+    @staticmethod
+    def _data_settlement_transaction_hash(response: httpx.Response) -> Optional[str]:
+        return response.headers.get(X402_DATA_SETTLEMENT_TX_HASH_HEADER)
+
+    @staticmethod
+    def _data_settlement_blob_id(response: httpx.Response) -> Optional[str]:
+        return response.headers.get(X402_DATA_SETTLEMENT_BLOB_ID_HEADER)
+
     def _chat_payload(self, params: _ChatParams, messages: List[Dict], stream: bool = False) -> Dict:
         payload: Dict = {
             "model": params.model,
@@ -287,8 +295,8 @@ class LLM:
             raw_body = await response.aread()
             result = json.loads(raw_body.decode())
             return TextGenerationOutput(
-                data_settlement_transaction_hash=response.headers.get(X402_DATA_SETTLEMENT_TX_HASH_HEADER),
-                data_settlement_blob_id=response.headers.get(X402_DATA_SETTLEMENT_BLOB_ID_HEADER),
+                data_settlement_transaction_hash=self._data_settlement_transaction_hash(response),
+                data_settlement_blob_id=self._data_settlement_blob_id(response),
                 completion_output=result.get("completion"),
                 tee_signature=result.get("tee_signature"),
                 tee_timestamp=result.get("tee_timestamp"),
@@ -411,8 +419,8 @@ class LLM:
                 ).strip()
 
             return TextGenerationOutput(
-                data_settlement_transaction_hash=response.headers.get(X402_DATA_SETTLEMENT_TX_HASH_HEADER),
-                data_settlement_blob_id=response.headers.get(X402_DATA_SETTLEMENT_BLOB_ID_HEADER),
+                data_settlement_transaction_hash=self._data_settlement_transaction_hash(response),
+                data_settlement_blob_id=self._data_settlement_blob_id(response),
                 finish_reason=choices[0].get("finish_reason"),
                 chat_output=message,
                 usage=result.get("usage"),
@@ -511,6 +519,7 @@ class LLM:
             raise RuntimeError(f"TEE LLM streaming request failed with status {status_code}: {body.decode('utf-8', errors='replace')}")
 
         buffer = b""
+        pending_final_chunk: Optional[StreamChunk] = None
         async for raw_chunk in response.aiter_raw():
             if not raw_chunk:
                 continue
@@ -532,6 +541,8 @@ class LLM:
 
                 data_str = decoded[6:].strip()
                 if data_str == "[DONE]":
+                    if pending_final_chunk is not None:
+                        yield pending_final_chunk
                     return
 
                 try:
@@ -541,12 +552,22 @@ class LLM:
 
                 chunk = StreamChunk.from_sse_data(data)
                 if chunk.is_final:
-                    chunk.data_settlement_transaction_hash = response.headers.get(X402_DATA_SETTLEMENT_TX_HASH_HEADER)
-                    chunk.data_settlement_blob_id = response.headers.get(X402_DATA_SETTLEMENT_BLOB_ID_HEADER)
+                    chunk.data_settlement_transaction_hash = (
+                        chunk.data_settlement_transaction_hash
+                        or self._data_settlement_transaction_hash(response)
+                    )
+                    chunk.data_settlement_blob_id = (
+                        chunk.data_settlement_blob_id or self._data_settlement_blob_id(response)
+                    )
                     chunk.tee_id = tee.tee_id
                     chunk.tee_endpoint = tee.endpoint
                     chunk.tee_payment_address = tee.payment_address
+                    pending_final_chunk = chunk
+                    continue
                 yield chunk
+
+        if pending_final_chunk is not None:
+            yield pending_final_chunk
 
 
 def _decode_payment_required(header_value: Optional[str]) -> str:
