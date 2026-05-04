@@ -29,8 +29,8 @@ async def main():
 
         if settlement_mode == og.x402SettlementMode.INDIVIDUAL_FULL:
             if chunk.data_settlement_blob_id: 
-                print("\nData Settlement Blob ID: ", chunk.data_settlement_blob_id)
+                print("\n Data Settlement Blob ID: ", chunk.data_settlement_blob_id)
             if chunk.data_settlement_transaction_hash:
-                print("\nData Settlement Transaction Hash: ", chunk.data_settlement_transaction_hash)
+                print("\n Data Settlement Transaction Hash: ", chunk.data_settlement_transaction_hash)
 
 asyncio.run(main())
