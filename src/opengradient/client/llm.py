@@ -151,12 +151,14 @@ class LLM:
 
     @staticmethod
     def _data_settlement_transaction_hash(response: httpx.Response) -> Optional[str]:
-        value: Optional[str] = response.headers.get(X402_DATA_SETTLEMENT_TX_HASH_HEADER)
+        headers = getattr(response, "headers", {}) or {}
+        value: Optional[str] = headers.get(X402_DATA_SETTLEMENT_TX_HASH_HEADER)
         return value
 
     @staticmethod
     def _data_settlement_blob_id(response: httpx.Response) -> Optional[str]:
-        value: Optional[str] = response.headers.get(X402_DATA_SETTLEMENT_BLOB_ID_HEADER)
+        headers = getattr(response, "headers", {}) or {}
+        value: Optional[str] = headers.get(X402_DATA_SETTLEMENT_BLOB_ID_HEADER)
         return value
 
     def _chat_payload(self, params: _ChatParams, messages: List[Dict], stream: bool = False) -> Dict:

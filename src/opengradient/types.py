@@ -293,6 +293,8 @@ class StreamChunk:
             is_final=is_final,
             tee_signature=data.get("tee_signature"),
             tee_timestamp=data.get("tee_timestamp"),
+            data_settlement_transaction_hash=data.get("data_settlement_transaction_hash"),
+            data_settlement_blob_id=data.get("data_settlement_blob_id"),
         )
 
 
