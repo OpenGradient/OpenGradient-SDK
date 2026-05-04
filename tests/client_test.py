@@ -180,6 +180,27 @@ class TestStreamChunk:
         assert chunk.usage.total_tokens == 30
         assert chunk.is_final
 
+    def test_from_sse_data_preserves_settlement_metadata(self):
+        """Test parsing settlement metadata carried in the final SSE payload."""
+        data = {
+            "model": "gpt-4o",
+            "choices": [
+                {
+                    "index": 0,
+                    "delta": {},
+                    "finish_reason": "stop",
+                }
+            ],
+            "data_settlement_transaction_hash": "0xtx",
+            "data_settlement_blob_id": "blob-123",
+        }
+
+        chunk = StreamChunk.from_sse_data(data)
+
+        assert chunk.is_final
+        assert chunk.data_settlement_transaction_hash == "0xtx"
+        assert chunk.data_settlement_blob_id == "blob-123"
+
 
 # --- x402 Settlement Mode Tests ---
 

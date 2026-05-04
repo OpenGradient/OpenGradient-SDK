@@ -13,7 +13,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 
-from opengradient.client.llm import LLM
+from opengradient.client.llm import (
+    X402_DATA_SETTLEMENT_BLOB_ID_HEADER,
+    X402_DATA_SETTLEMENT_TX_HASH_HEADER,
+    LLM,
+)
 from opengradient.types import TEE_LLM, x402SettlementMode
 
 # ── Fake HTTP transport ──────────────────────────────────────────────
@@ -448,6 +452,58 @@ class TestChatStreaming:
         assert final.is_final
         assert final.tee_id == "test-tee-id"
         assert final.tee_payment_address == "0xTestPayment"
+
+    async def test_stream_reads_settlement_metadata_from_final_sse_chunk(self, fake_http):
+        fake_http.set_stream_response(
+            200,
+            [
+                (
+                    b'data: {"model":"gpt-5","choices":[{"index":0,"delta":{"content":"done"},'
+                    b'"finish_reason":"stop"}],"data_settlement_transaction_hash":"0xtx",'
+                    b'"data_settlement_blob_id":"blob-123"}\n\n'
+                ),
+                b"data: [DONE]\n\n",
+            ],
+        )
+        llm = _make_llm()
+
+        gen = await llm.chat(
+            model=TEE_LLM.GPT_5,
+            messages=[{"role": "user", "content": "Hi"}],
+            stream=True,
+        )
+
+        chunks = [chunk async for chunk in gen]
+
+        final = chunks[-1]
+        assert final.data_settlement_transaction_hash == "0xtx"
+        assert final.data_settlement_blob_id == "blob-123"
+
+    async def test_stream_falls_back_to_settlement_headers_when_event_omits_them(self, fake_http):
+        fake_http.set_stream_response(
+            200,
+            [
+                b'data: {"model":"gpt-5","choices":[{"index":0,"delta":{"content":"done"},"finish_reason":"stop"}]}\n\n',
+                b"data: [DONE]\n\n",
+            ],
+        )
+        fake_http._stream_response.headers = {
+            X402_DATA_SETTLEMENT_TX_HASH_HEADER: "0xheader",
+            X402_DATA_SETTLEMENT_BLOB_ID_HEADER: "blob-header",
+        }
+        llm = _make_llm()
+
+        gen = await llm.chat(
+            model=TEE_LLM.GPT_5,
+            messages=[{"role": "user", "content": "Hi"}],
+            stream=True,
+        )
+
+        chunks = [chunk async for chunk in gen]
+
+        final = chunks[-1]
+        assert final.data_settlement_transaction_hash == "0xheader"
+        assert final.data_settlement_blob_id == "blob-header"
 
     async def test_stream_error_raises(self, fake_http):
         fake_http.set_stream_response(500, [b"Internal Server Error"])
