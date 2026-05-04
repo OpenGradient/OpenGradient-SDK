@@ -556,6 +556,11 @@ class TEE_LLM(str, Enum):
     GROK_4_20_NON_REASONING = "x-ai/grok-4.20-non-reasoning"
     GROK_CODE_FAST_1 = "x-ai/grok-code-fast-1"
 
+    # ByteDance Seed models via TEE (BytePlus ModelArk)
+    SEED_1_6 = "bytedance/seed-1.6"
+    SEED_1_8 = "bytedance/seed-1.8"
+    SEED_2_0_LITE = "bytedance/seed-2.0-lite"
+
 
 @dataclass
 class ResponseFormat:
