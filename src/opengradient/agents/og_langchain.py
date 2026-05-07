@@ -177,15 +177,16 @@ class OpenGradientChatModel(BaseChatModel):
         if not private_key:
             raise ValueError("private_key is required when client is not provided.")
 
-        llm_kwargs: Dict[str, Any] = {}
-        if rpc_url is not None:
-            llm_kwargs["rpc_url"] = rpc_url
-        if tee_registry_address is not None:
-            llm_kwargs["tee_registry_address"] = tee_registry_address
         if llm_server_url is not None:
-            llm_kwargs["llm_server_url"] = llm_server_url
+            self._llm = LLM.from_url(private_key, llm_server_url)
+        else:
+            llm_kwargs: Dict[str, Any] = {}
+            if rpc_url is not None:
+                llm_kwargs["rpc_url"] = rpc_url
+            if tee_registry_address is not None:
+                llm_kwargs["tee_registry_address"] = tee_registry_address
 
-        self._llm = LLM(private_key=private_key, **llm_kwargs)
+            self._llm = LLM(private_key=private_key, **llm_kwargs)
         self._owns_client = True
 
     @property
