@@ -29,6 +29,8 @@ dependencies = [
     "pydantic>=2.9.2",
     "og-x402>=0.0.2.dev2",
     "og-x402[extensions]>=0.0.2.dev2",
+    "pyhpke>=0.6.0",
+    "httpx>=0.27.0",
 ]
 
 [project.optional-dependencies]

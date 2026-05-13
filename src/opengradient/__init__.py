@@ -77,7 +77,7 @@ hub.upload("model.onnx", repo.name, repo.initialVersion)
 """
 
 from . import agents, alphasense
-from .client import LLM, Alpha, ModelHub, Twins
+from .client import LLM, Alpha, AnonymousLLM, AnonymousResult, ModelHub, Twins
 from .types import (
     TEE_LLM,
     CandleOrder,
@@ -98,6 +98,8 @@ from .types import (
 __all__ = [
     "LLM",
     "Alpha",
+    "AnonymousLLM",
+    "AnonymousResult",
     "ModelHub",
     "Twins",
     "TEE_LLM",

@@ -31,11 +31,12 @@ repo = hub.create_model("my-model", "A price prediction model")
 """
 
 from .alpha import Alpha
+from .anonymous_llm import AnonymousLLM, AnonymousResult, HpkeConfig
 from .llm import LLM
 from .model_hub import ModelHub
 from .twins import Twins
 
-__all__ = ["LLM", "Alpha", "ModelHub", "Twins"]
+__all__ = ["LLM", "Alpha", "ModelHub", "Twins", "AnonymousLLM", "AnonymousResult", "HpkeConfig"]
 
 __pdoc__ = {
     "Alpha": False,
