@@ -169,6 +169,37 @@ print(f"Output: {result.model_output}")
 print(f"Tx hash: {result.transaction_hash}")
 ```
 
+#### Running Inference with Error Handling
+
+Add `try/except` handling to make common failures actionable:
+
+```python
+import os
+
+import opengradient as og
+from web3.exceptions import ContractLogicError
+
+alpha = og.Alpha(private_key=os.environ["OG_PRIVATE_KEY"])
+
+try:
+    result = alpha.infer(
+        model_cid="your-model-cid",
+        model_input={"input_key": "input_value"},
+        inference_mode=og.InferenceMode.VANILLA,
+    )
+    print(f"Output: {result.model_output}")
+    print(f"Tx hash: {result.transaction_hash}")
+except ValueError as e:
+    print(f"Invalid input or retry configuration: {e}")
+except ContractLogicError as e:
+    print(f"Contract reverted: {e}")
+except RuntimeError as e:
+    print(f"Inference failed: {e}")
+```
+
+For a complete retry + error classification example, see:
+`examples/alpha/run_inference_with_error_handling.py`
+
 ### LLM Chat
 
 LLM chat methods are async:
