@@ -151,12 +151,31 @@ class RegistryTEEConnection:
         )
 
     async def reconnect(self) -> None:
-        """Connect to a new TEE from the registry and rebuild the HTTP client."""
+        """Connect to a new TEE from the registry and rebuild the HTTP client.
+
+        On success, closes the previous HTTP client to free the underlying
+        TCP connection.  On failure, the existing connection is kept and the
+        exception is re-raised so callers can take appropriate action.
+        """
         async with self._refresh_lock:
+            old_active = self._active
             try:
                 self._active = self._connect()
             except Exception:
-                logger.debug("Failed to close previous HTTP client during TEE refresh.", exc_info=True)
+                logger.warning(
+                    "Failed to reconnect to a new TEE from registry; keeping existing connection.",
+                    exc_info=True,
+                )
+                raise
+            else:
+                # Close the old HTTP client now that we have a live replacement.
+                try:
+                    await old_active.http_client.aclose()
+                except Exception:
+                    logger.debug(
+                        "Failed to close previous HTTP client after successful TEE refresh.",
+                        exc_info=True,
+                    )
 
     # ── Background health check ─────────────────────────────────────────
 
