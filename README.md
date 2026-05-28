@@ -210,6 +210,8 @@ The SDK provides access to models from multiple providers via the `og.TEE_LLM` e
 - Claude Haiku 4.5
 - Claude Opus 4.5
 - Claude Opus 4.6
+- Claude Opus 4.7
+- Claude Opus 4.8
 
 #### Google
 - Gemini 2.5 Flash

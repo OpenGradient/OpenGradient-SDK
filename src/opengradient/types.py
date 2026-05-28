@@ -537,6 +537,7 @@ class TEE_LLM(str, Enum):
     CLAUDE_OPUS_4_5 = "anthropic/claude-opus-4-5"
     CLAUDE_OPUS_4_6 = "anthropic/claude-opus-4-6"
     CLAUDE_OPUS_4_7 = "anthropic/claude-opus-4-7"
+    CLAUDE_OPUS_4_8 = "anthropic/claude-opus-4-8"
 
     # Google models via TEE
     # Note: gemini-2.5-flash, gemini-2.5-pro, and gemini-2.5-flash-lite are scheduled
