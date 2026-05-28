@@ -468,21 +468,38 @@ auditability and tamper-proof AI inference.
 * static `CLAUDE_HAIKU_4_5`
 * static `CLAUDE_OPUS_4_5`
 * static `CLAUDE_OPUS_4_6`
+* static `CLAUDE_OPUS_4_7`
+* static `CLAUDE_OPUS_4_8`
 * static `CLAUDE_SONNET_4_5`
 * static `CLAUDE_SONNET_4_6`
 * static `GEMINI_2_5_FLASH`
 * static `GEMINI_2_5_FLASH_LITE`
 * static `GEMINI_2_5_PRO`
+* static `GEMINI_3_1_FLASH_LITE_PREVIEW`
+* static `GEMINI_3_1_PRO_PREVIEW`
 * static `GEMINI_3_FLASH`
 * static `GPT_4_1_2025_04_14`
+* static `GPT_4_1_MINI`
+* static `GPT_4_1_NANO`
 * static `GPT_5`
 * static `GPT_5_2`
+* static `GPT_5_4`
+* static `GPT_5_4_MINI`
+* static `GPT_5_4_NANO`
+* static `GPT_5_5`
 * static `GPT_5_MINI`
 * static `GROK_4`
 * static `GROK_4_1_FAST`
 * static `GROK_4_1_FAST_NON_REASONING`
+* static `GROK_4_20_NON_REASONING`
+* static `GROK_4_20_REASONING`
 * static `GROK_4_FAST`
+* static `GROK_CODE_FAST_1`
+* static `O3`
 * static `O4_MINI`
+* static `SEED_1_6`
+* static `SEED_1_8`
+* static `SEED_2_0_LITE`
 
 ### `TextGenerationOutput`
 
