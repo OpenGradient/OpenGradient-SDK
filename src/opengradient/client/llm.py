@@ -18,7 +18,12 @@ from x402.mechanisms.evm.upto.register import register_upto_evm_client
 
 from ..types import TEE_LLM, ResponseFormat, StreamChoice, StreamChunk, StreamDelta, TextGenerationOutput, x402SettlementMode
 from .opg_token import Permit2ApprovalResult, ensure_opg_approval
-from .tee_connection import RegistryTEEConnection, StaticTEEConnection, TEEConnectionInterface
+from .tee_connection import (
+    ActiveTEE,
+    RegistryTEEConnection,
+    StaticTEEConnection,
+    TEEConnectionInterface,
+)
 from .tee_registry import TEERegistry
 
 logger = logging.getLogger(__name__)
@@ -139,6 +144,15 @@ class LLM:
     async def close(self) -> None:
         """Cancel the background refresh loop and close the HTTP client."""
         await self._tee.close()
+
+    def resolve_tee_connection(self, tee_id: Optional[str] = None) -> ActiveTEE:
+        """Resolve the current TEE or a specific active registry TEE.
+
+        This is primarily for backend relays that need SDK-managed TEE routing,
+        TLS pinning, and x402 clients without using the chat/completion helpers
+        directly, for example when forwarding OHTTP ciphertext.
+        """
+        return self._tee.resolve(tee_id)
 
     # ── Request helpers ─────────────────────────────────────────────────
 
