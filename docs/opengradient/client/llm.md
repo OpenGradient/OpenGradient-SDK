@@ -242,3 +242,16 @@ Permit2ApprovalResult: Contains ``allowance_before``,
 * **`ValueError`**: If ``min_allowance`` is less than 0.1 or
         ``approve_amount`` is less than ``min_allowance``.
 * **`RuntimeError`**: If the approval transaction fails.
+
+---
+
+#### `resolve_tee_connection()`
+
+```python
+def resolve_tee_connection(self, tee_id: Optional[str] = None) ‑> `ActiveTEE`
+```
+Resolve the current TEE or a specific active registry TEE.
+
+This is primarily for backend relays that need SDK-managed TEE routing,
+TLS pinning, and x402 clients without using the chat/completion helpers
+directly, for example when forwarding OHTTP ciphertext.

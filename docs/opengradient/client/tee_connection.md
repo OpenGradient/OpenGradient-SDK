@@ -101,6 +101,18 @@ async def reconnect(self) ‑> None
 ```
 Connect to a new TEE from the registry and rebuild the HTTP client.
 
+---
+
+#### `resolve()`
+
+```python
+def resolve(self, tee_id: Optional[str] = None) ‑> `ActiveTEE`
+```
+Resolve a TEE connection, optionally pinned to an active TEE id.
+
+Backend OHTTP relays can use this when the browser encrypted to a
+specific on-chain TEE config, while the backend still owns x402 payment.
+
 ### `StaticTEEConnection`
 
 TEE connection with a hardcoded endpoint URL.
@@ -157,6 +169,18 @@ async def reconnect(self) ‑> None
 ```
 Rebuild the HTTP client (same endpoint).
 
+---
+
+#### `resolve()`
+
+```python
+def resolve(self, tee_id: Optional[str] = None) ‑> `ActiveTEE`
+```
+Return the static connection.
+
+Static/dev connections do not have a registry to validate selected
+TEE ids against, so they always resolve to the configured endpoint.
+
 ### `TEEConnectionInterface`
 
 Interface for TEE connection implementations.
@@ -199,4 +223,12 @@ def get(self) ‑> `ActiveTEE`
 
 ```python
 async def reconnect(self) ‑> None
+```
+
+---
+
+#### `resolve()`
+
+```python
+def resolve(self, tee_id: Optional[str] = None) ‑> `ActiveTEE`
 ```
