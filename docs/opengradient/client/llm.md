@@ -29,7 +29,7 @@ OPG tokens for Permit2 spending by calling ``ensure_opg_approval``.
 def __init__(
     private_key: str,
     rpc_url: str = 'https://ogevmdevnet.opengradient.ai',
-    tee_registry_address: str = '0x4e72238852f3c918f4E4e57AeC9280dDB0c80248'
+    tee_registry_address: str = '0x703cB174AEadB35D611858369B4b1111dC9Abda6'
 )
 ```
 
