@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 T = TypeVar("T")
 
 DEFAULT_RPC_URL = "https://ogevmdevnet.opengradient.ai"
-DEFAULT_TEE_REGISTRY_ADDRESS = "0x4e72238852f3c918f4E4e57AeC9280dDB0c80248"
+DEFAULT_TEE_REGISTRY_ADDRESS = "0x703cB174AEadB35D611858369B4b1111dC9Abda6"
 
 X402_PROCESSING_HASH_HEADER = "x-processing-hash"
 X402_DATA_SETTLEMENT_TX_HASH_HEADER = "x-settlement-tx-hash"
