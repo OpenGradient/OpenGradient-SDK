@@ -30,6 +30,19 @@ class TEEInfo(NamedTuple):
     enabled: bool
     registered_at: int
     last_heartbeat_at: int
+    ohttp_config: "OHTTPConfig"
+
+
+class OHTTPConfig(NamedTuple):
+    """Mirrors the on-chain TEERegistry.OHTTPConfig struct."""
+
+    key_id: int
+    kem_id: int
+    kdf_id: int
+    aead_id: int
+    public_key: bytes
+    key_config: bytes
+    registered_at: int
 
 
 @dataclass(frozen=True)

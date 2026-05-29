@@ -18,8 +18,20 @@ def _make_tee_info(
     payment_address="0xPayment",
     pub_key=b"pubkey",
     tls_cert_der=b"\x01\x02\x03",
+    ohttp_config=None,
 ):
     """Build a tuple matching the TEEInfo struct order from the new contract."""
+    if ohttp_config is None:
+        ohttp_config = (
+            1,  # keyId
+            32,  # kemId
+            1,  # kdfId
+            3,  # aeadId
+            b"\x04" * 32,  # publicKey
+            b"key-config",  # keyConfig
+            1000,  # registeredAt
+        )
+
     return (
         "0xOwner",  # owner
         payment_address,  # paymentAddress
@@ -31,6 +43,7 @@ def _make_tee_info(
         True,  # enabled (always True from getActiveTEEs)
         1000,  # registeredAt
         2000,  # lastHeartbeatAt
+        ohttp_config,  # ohttpConfig
     )
 
 

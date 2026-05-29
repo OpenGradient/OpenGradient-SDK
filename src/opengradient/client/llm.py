@@ -1,14 +1,14 @@
 """LLM chat and completion via TEE-verified execution with x402 payments."""
 
+import asyncio
 import base64
 import json
 import logging
+import os
 from dataclasses import dataclass
 from typing import AsyncGenerator, Awaitable, Callable, Dict, List, Optional, TypeVar, Union
-import httpx
-import asyncio
-import os
 
+import httpx
 from eth_account import Account
 from eth_account.account import LocalAccount
 from x402 import x402Client
@@ -16,7 +16,15 @@ from x402.mechanisms.evm import EthAccountSigner
 from x402.mechanisms.evm.exact.register import register_exact_evm_client
 from x402.mechanisms.evm.upto.register import register_upto_evm_client
 
-from ..types import TEE_LLM, ResponseFormat, StreamChoice, StreamChunk, StreamDelta, TextGenerationOutput, x402SettlementMode
+from ..types import (
+    TEE_LLM,
+    ResponseFormat,
+    StreamChoice,
+    StreamChunk,
+    StreamDelta,
+    TextGenerationOutput,
+    x402SettlementMode,
+)
 from .opg_token import Permit2ApprovalResult, ensure_opg_approval
 from .tee_connection import (
     ActiveTEE,
@@ -30,7 +38,7 @@ logger = logging.getLogger(__name__)
 T = TypeVar("T")
 
 DEFAULT_RPC_URL = "https://ogevmdevnet.opengradient.ai"
-DEFAULT_TEE_REGISTRY_ADDRESS = "0x4e72238852f3c918f4E4e57AeC9280dDB0c80248"
+DEFAULT_TEE_REGISTRY_ADDRESS = "0x703cB174AEadB35D611858369B4b1111dC9Abda6"
 
 X402_PROCESSING_HASH_HEADER = "x-processing-hash"
 X402_DATA_SETTLEMENT_TX_HASH_HEADER = "x-settlement-tx-hash"
@@ -278,7 +286,8 @@ class LLM:
             temperature (float): Temperature for LLM inference, between 0 and 1. Default is 0.0.
             x402_settlement_mode (x402SettlementMode, optional): Settlement mode for x402 payments.
                 - PRIVATE: Payment only, no input/output data on-chain (most privacy-preserving).
-                - BATCH_HASHED: Aggregates inferences into a Merkle tree with input/output hashes and signatures (default, most cost-efficient).
+                - BATCH_HASHED: Aggregates input/output hashes and signatures into a Merkle tree
+                  (default, most cost-efficient).
                 - INDIVIDUAL_FULL: Records input, output, timestamp, and verification on-chain (maximum auditability).
                 Defaults to BATCH_HASHED.
 
@@ -359,7 +368,8 @@ class LLM:
                 Defaults to None (plain text).
             x402_settlement_mode (x402SettlementMode, optional): Settlement mode for x402 payments.
                 - PRIVATE: Payment only, no input/output data on-chain (most privacy-preserving).
-                - BATCH_HASHED: Aggregates inferences into a Merkle tree with input/output hashes and signatures (default, most cost-efficient).
+                - BATCH_HASHED: Aggregates input/output hashes and signatures into a Merkle tree
+                  (default, most cost-efficient).
                 - INDIVIDUAL_FULL: Records input, output, timestamp, and verification on-chain (maximum auditability).
                 Defaults to BATCH_HASHED.
             stream (bool, optional): Whether to stream the response. Default is False.

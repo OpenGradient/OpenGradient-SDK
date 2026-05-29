@@ -14,7 +14,21 @@
           {"internalType": "uint8", "name": "teeType", "type": "uint8"},
           {"internalType": "bool", "name": "enabled", "type": "bool"},
           {"internalType": "uint256", "name": "registeredAt", "type": "uint256"},
-          {"internalType": "uint256", "name": "lastHeartbeatAt", "type": "uint256"}
+          {"internalType": "uint256", "name": "lastHeartbeatAt", "type": "uint256"},
+          {
+            "components": [
+              {"internalType": "uint8", "name": "keyId", "type": "uint8"},
+              {"internalType": "uint16", "name": "kemId", "type": "uint16"},
+              {"internalType": "uint16", "name": "kdfId", "type": "uint16"},
+              {"internalType": "uint16", "name": "aeadId", "type": "uint16"},
+              {"internalType": "bytes", "name": "publicKey", "type": "bytes"},
+              {"internalType": "bytes", "name": "keyConfig", "type": "bytes"},
+              {"internalType": "uint256", "name": "registeredAt", "type": "uint256"}
+            ],
+            "internalType": "struct TEERegistry.OHTTPConfig",
+            "name": "ohttpConfig",
+            "type": "tuple"
+          }
         ],
         "internalType": "struct TEERegistry.TEEInfo[]",
         "name": "",
@@ -53,9 +67,45 @@
           {"internalType": "uint8", "name": "teeType", "type": "uint8"},
           {"internalType": "bool", "name": "enabled", "type": "bool"},
           {"internalType": "uint256", "name": "registeredAt", "type": "uint256"},
-          {"internalType": "uint256", "name": "lastHeartbeatAt", "type": "uint256"}
+          {"internalType": "uint256", "name": "lastHeartbeatAt", "type": "uint256"},
+          {
+            "components": [
+              {"internalType": "uint8", "name": "keyId", "type": "uint8"},
+              {"internalType": "uint16", "name": "kemId", "type": "uint16"},
+              {"internalType": "uint16", "name": "kdfId", "type": "uint16"},
+              {"internalType": "uint16", "name": "aeadId", "type": "uint16"},
+              {"internalType": "bytes", "name": "publicKey", "type": "bytes"},
+              {"internalType": "bytes", "name": "keyConfig", "type": "bytes"},
+              {"internalType": "uint256", "name": "registeredAt", "type": "uint256"}
+            ],
+            "internalType": "struct TEERegistry.OHTTPConfig",
+            "name": "ohttpConfig",
+            "type": "tuple"
+          }
         ],
         "internalType": "struct TEERegistry.TEEInfo",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "bytes32", "name": "teeId", "type": "bytes32"}],
+    "name": "getOHTTPConfig",
+    "outputs": [
+      {
+        "components": [
+          {"internalType": "uint8", "name": "keyId", "type": "uint8"},
+          {"internalType": "uint16", "name": "kemId", "type": "uint16"},
+          {"internalType": "uint16", "name": "kdfId", "type": "uint16"},
+          {"internalType": "uint16", "name": "aeadId", "type": "uint16"},
+          {"internalType": "bytes", "name": "publicKey", "type": "bytes"},
+          {"internalType": "bytes", "name": "keyConfig", "type": "bytes"},
+          {"internalType": "uint256", "name": "registeredAt", "type": "uint256"}
+        ],
+        "internalType": "struct TEERegistry.OHTTPConfig",
         "name": "",
         "type": "tuple"
       }
