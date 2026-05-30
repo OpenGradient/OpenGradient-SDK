@@ -217,8 +217,10 @@ The SDK provides access to models from multiple providers via the `og.TEE_LLM` e
 - Gemini 2.5 Flash
 - Gemini 2.5 Pro
 - Gemini 2.5 Flash Lite
-- Gemini 3 Pro
 - Gemini 3 Flash
+- Gemini 3.1 Pro
+- Gemini 3.1 Flash Lite
+- Gemini 3.5 Flash
 
 #### xAI
 - Grok 4
