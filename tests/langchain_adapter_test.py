@@ -239,6 +239,7 @@ class TestMessageConversion:
             temperature=0.0,
             tools=[],
             tool_choice=None,
+            web_search=False,
             x402_settlement_mode=x402SettlementMode.BATCH_HASHED,
             stream=False,
         )

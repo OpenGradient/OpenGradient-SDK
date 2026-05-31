@@ -84,6 +84,30 @@ python examples/llm_tool_calling.py
 - The model decides when to invoke tools based on the user's query
 - Uses x402 protocol for payment processing
 
+#### `llm_web_search.py`
+Runs an LLM chat completion with native web search enabled.
+
+```bash
+python examples/llm_web_search.py
+```
+
+**What it does:**
+- Sets `web_search=True` to enable the provider's built-in web search
+- The model searches the web to answer the query, citing live sources
+- Each search is billed per search on top of token usage (supported by OpenAI, Anthropic, Google, and xAI models)
+
+#### `llm_image_generation.py`
+Generates an image using a native image-output model ("nano banana").
+
+```bash
+python examples/llm_image_generation.py
+```
+
+**What it does:**
+- Calls an image-output model (`og.TEE_LLM.GEMINI_3_1_FLASH_IMAGE`) with a text prompt
+- Reads the generated images from `result.images` (data URIs) and writes them to disk
+- Image output is billed as completion tokens; images travel out-of-band and are not part of the signed output hash
+
 ## Alpha Testnet Examples
 
 Examples for features only available on the **Alpha Testnet** are located in the [`alpha/`](./alpha/) folder. These include:

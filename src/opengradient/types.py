@@ -241,6 +241,8 @@ class StreamChunk:
             transaction, present on the final chunk when available.
         data_settlement_blob_id: Walrus blob ID for individual data settlement,
             present on the final chunk when available.
+        images: Generated images returned by image-output models, present on the
+            final chunk when available. Each entry is a ``data:`` URI.
     """
 
     choices: List[StreamChoice]
@@ -254,6 +256,7 @@ class StreamChunk:
     tee_payment_address: Optional[str] = None
     data_settlement_transaction_hash: Optional[str] = None
     data_settlement_blob_id: Optional[str] = None
+    images: Optional[List[str]] = None
 
     @classmethod
     def from_sse_data(cls, data: Dict) -> "StreamChunk":
@@ -295,6 +298,7 @@ class StreamChunk:
             tee_timestamp=data.get("tee_timestamp"),
             data_settlement_transaction_hash=data.get("data_settlement_transaction_hash"),
             data_settlement_blob_id=data.get("data_settlement_blob_id"),
+            images=data.get("images"),
         )
 
 
@@ -443,6 +447,11 @@ class TextGenerationOutput:
     completion_output: Optional[str] = None
     """Raw text returned by a completion request."""
 
+    images: Optional[List[str]] = None
+    """Generated images returned by image-output models (e.g. ``TEE_LLM.GEMINI_3_1_FLASH_IMAGE``).
+    Each entry is a ``data:`` URI (``data:image/png;base64,...``). ``None`` when the request did
+    not generate any images. Images travel out-of-band and are not part of the signed output hash."""
+
     usage: Optional[Dict] = None
     """Token usage for the request. Contains ``prompt_tokens``, ``completion_tokens``, and ``total_tokens`` when reported by the server."""
 
@@ -549,6 +558,13 @@ class TEE_LLM(str, Enum):
     GEMINI_3_FLASH = "google/gemini-3-flash-preview"
     GEMINI_3_1_PRO_PREVIEW = "google/gemini-3.1-pro-preview"
     GEMINI_3_1_FLASH_LITE_PREVIEW = "google/gemini-3.1-flash-lite-preview"
+    GEMINI_3_5_FLASH = "google/gemini-3.5-flash"
+
+    # Google native image-generation models ("nano banana") via TEE.
+    # These return generated images on the response (see ``TextGenerationOutput.images``
+    # and ``StreamChunk.images``) and bill image output as completion tokens.
+    GEMINI_2_5_FLASH_IMAGE = "google/gemini-2.5-flash-image"
+    GEMINI_3_1_FLASH_IMAGE = "google/gemini-3.1-flash-image"
 
     # xAI Grok models via TEE
     GROK_4 = "x-ai/grok-4"
