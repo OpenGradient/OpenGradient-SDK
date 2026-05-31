@@ -215,6 +215,24 @@ class TestCompletion:
         payload = fake_http.post_calls[0]["json"]
         assert "stop" not in payload
 
+    async def test_web_search_included_in_payload(self, fake_http):
+        fake_http.set_response(200, {"completion": "ok"})
+        llm = _make_llm()
+
+        await llm.completion(model=TEE_LLM.GPT_5, prompt="Hi", web_search=True)
+
+        payload = fake_http.post_calls[0]["json"]
+        assert payload["web_search"] is True
+
+    async def test_web_search_omitted_by_default(self, fake_http):
+        fake_http.set_response(200, {"completion": "ok"})
+        llm = _make_llm()
+
+        await llm.completion(model=TEE_LLM.GPT_5, prompt="Hi")
+
+        payload = fake_http.post_calls[0]["json"]
+        assert "web_search" not in payload
+
     async def test_settlement_mode_header(self, fake_http):
         fake_http.set_response(200, {"completion": "ok"})
         llm = _make_llm()
@@ -366,6 +384,70 @@ class TestChat:
         payload = fake_http.post_calls[0]["json"]
         assert payload["tool_choice"] == "auto"
 
+    async def test_web_search_included_in_payload(self, fake_http):
+        fake_http.set_response(
+            200,
+            {
+                "choices": [{"message": {"role": "assistant", "content": "ok"}, "finish_reason": "stop"}],
+            },
+        )
+        llm = _make_llm()
+
+        await llm.chat(model=TEE_LLM.GPT_5, messages=[{"role": "user", "content": "Hi"}], web_search=True)
+
+        payload = fake_http.post_calls[0]["json"]
+        assert payload["web_search"] is True
+
+    async def test_web_search_omitted_by_default(self, fake_http):
+        fake_http.set_response(
+            200,
+            {
+                "choices": [{"message": {"role": "assistant", "content": "ok"}, "finish_reason": "stop"}],
+            },
+        )
+        llm = _make_llm()
+
+        await llm.chat(model=TEE_LLM.GPT_5, messages=[{"role": "user", "content": "Hi"}])
+
+        payload = fake_http.post_calls[0]["json"]
+        assert "web_search" not in payload
+
+    async def test_generated_images_surfaced(self, fake_http):
+        fake_http.set_response(
+            200,
+            {
+                "choices": [
+                    {
+                        "message": {
+                            "role": "assistant",
+                            "content": "Here is your image",
+                            "images": ["data:image/png;base64,aGVsbG8="],
+                        },
+                        "finish_reason": "stop",
+                    }
+                ],
+            },
+        )
+        llm = _make_llm()
+
+        result = await llm.chat(model=TEE_LLM.GEMINI_3_1_FLASH_IMAGE, messages=[{"role": "user", "content": "Draw a cat"}])
+
+        assert result.images == ["data:image/png;base64,aGVsbG8="]
+        assert result.chat_output["content"] == "Here is your image"
+
+    async def test_images_none_when_absent(self, fake_http):
+        fake_http.set_response(
+            200,
+            {
+                "choices": [{"message": {"role": "assistant", "content": "ok"}, "finish_reason": "stop"}],
+            },
+        )
+        llm = _make_llm()
+
+        result = await llm.chat(model=TEE_LLM.GPT_5, messages=[{"role": "user", "content": "Hi"}])
+
+        assert result.images is None
+
     async def test_empty_choices_raises(self, fake_http):
         fake_http.set_response(200, {"choices": []})
         llm = _make_llm()
@@ -504,6 +586,31 @@ class TestChatStreaming:
         final = chunks[-1]
         assert final.data_settlement_transaction_hash == "0xheader"
         assert final.data_settlement_blob_id == "blob-header"
+
+    async def test_stream_surfaces_images_on_final_chunk(self, fake_http):
+        fake_http.set_stream_response(
+            200,
+            [
+                (
+                    b'data: {"model":"gemini-3.1-flash-image","choices":[{"index":0,"delta":{"content":"caption"},'
+                    b'"finish_reason":"stop"}],"images":["data:image/png;base64,aGVsbG8="]}\n\n'
+                ),
+                b"data: [DONE]\n\n",
+            ],
+        )
+        llm = _make_llm()
+
+        gen = await llm.chat(
+            model=TEE_LLM.GEMINI_3_1_FLASH_IMAGE,
+            messages=[{"role": "user", "content": "Draw a cat"}],
+            stream=True,
+        )
+
+        chunks = [chunk async for chunk in gen]
+
+        final = chunks[-1]
+        assert final.is_final
+        assert final.images == ["data:image/png;base64,aGVsbG8="]
 
     async def test_stream_error_raises(self, fake_http):
         fake_http.set_stream_response(500, [b"Internal Server Error"])

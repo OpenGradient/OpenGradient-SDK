@@ -56,6 +56,7 @@ class _ChatParams:
     tool_choice: Optional[str]
     response_format: Optional[ResponseFormat]
     x402_settlement_mode: x402SettlementMode
+    web_search: bool = False
 
 
 class LLM:
@@ -191,6 +192,8 @@ class LLM:
             payload["tool_choice"] = params.tool_choice or "auto"
         if params.response_format:
             payload["response_format"] = params.response_format.to_dict()
+        if params.web_search:
+            payload["web_search"] = True
         return payload
 
     async def _call_with_tee_retry(
@@ -265,6 +268,7 @@ class LLM:
         max_tokens: int = 100,
         stop_sequence: Optional[List[str]] = None,
         temperature: float = 0.0,
+        web_search: bool = False,
         x402_settlement_mode: x402SettlementMode = x402SettlementMode.BATCH_HASHED,
     ) -> TextGenerationOutput:
         """
@@ -276,6 +280,10 @@ class LLM:
             max_tokens (int): Maximum number of tokens for LLM output. Default is 100.
             stop_sequence (List[str], optional): List of stop sequences for LLM. Default is None.
             temperature (float): Temperature for LLM inference, between 0 and 1. Default is 0.0.
+            web_search (bool, optional): Enable the provider's native web search. When True,
+                the model can search the web to answer the prompt; each search is billed per
+                search on top of token usage at the provider's list price. Supported by OpenAI,
+                Anthropic, Google, and xAI models; other providers ignore the flag. Default is False.
             x402_settlement_mode (x402SettlementMode, optional): Settlement mode for x402 payments.
                 - PRIVATE: Payment only, no input/output data on-chain (most privacy-preserving).
                 - BATCH_HASHED: Aggregates inferences into a Merkle tree with input/output hashes and signatures (default, most cost-efficient).
@@ -300,6 +308,8 @@ class LLM:
         }
         if stop_sequence:
             payload["stop"] = stop_sequence
+        if web_search:
+            payload["web_search"] = True
 
         async def _request() -> TextGenerationOutput:
             tee = self._tee.get()
@@ -338,6 +348,7 @@ class LLM:
         tools: Optional[List[Dict]] = None,
         tool_choice: Optional[str] = None,
         response_format: Optional[ResponseFormat] = None,
+        web_search: bool = False,
         x402_settlement_mode: x402SettlementMode = x402SettlementMode.BATCH_HASHED,
         stream: bool = False,
     ) -> Union[TextGenerationOutput, AsyncGenerator[StreamChunk, None]]:
@@ -357,6 +368,10 @@ class LLM:
                 by Anthropic models). Use ``ResponseFormat(type="json_schema", json_schema={...})``
                 to enforce a strict schema (supported by all providers including Anthropic).
                 Defaults to None (plain text).
+            web_search (bool, optional): Enable the provider's native web search. When True,
+                the model can search the web while answering; each search is billed per search
+                on top of token usage at the provider's list price. Supported by OpenAI,
+                Anthropic, Google, and xAI models; other providers ignore the flag. Default is False.
             x402_settlement_mode (x402SettlementMode, optional): Settlement mode for x402 payments.
                 - PRIVATE: Payment only, no input/output data on-chain (most privacy-preserving).
                 - BATCH_HASHED: Aggregates inferences into a Merkle tree with input/output hashes and signatures (default, most cost-efficient).
@@ -366,8 +381,9 @@ class LLM:
 
         Returns:
             Union[TextGenerationOutput, AsyncGenerator[StreamChunk, None]]:
-                - If stream=False: TextGenerationOutput with chat_output, data settlement metadata, finish_reason, and payment_hash
-                - If stream=True: Async generator yielding StreamChunk objects
+                - If stream=False: TextGenerationOutput with chat_output, data settlement metadata, finish_reason, and payment_hash.
+                  Image-output models (e.g. ``TEE_LLM.GEMINI_3_1_FLASH_IMAGE``) populate ``images`` with the generated images as ``data:`` URIs.
+                - If stream=True: Async generator yielding StreamChunk objects. The final chunk carries any generated ``images``.
 
         Raises:
             ValueError: If ``response_format="json_object"`` is used with an Anthropic model.
@@ -390,6 +406,7 @@ class LLM:
             tool_choice=tool_choice,
             response_format=response_format,
             x402_settlement_mode=x402_settlement_mode,
+            web_search=web_search,
         )
 
         if not stream:
@@ -441,6 +458,7 @@ class LLM:
                 data_settlement_blob_id=self._data_settlement_blob_id(response),
                 finish_reason=choices[0].get("finish_reason"),
                 chat_output=message,
+                images=message.get("images"),
                 usage=result.get("usage"),
                 tee_signature=result.get("tee_signature"),
                 tee_timestamp=result.get("tee_timestamp"),
@@ -479,6 +497,7 @@ class LLM:
             tee_payment_address=result.tee_payment_address,
             data_settlement_transaction_hash=result.data_settlement_transaction_hash,
             data_settlement_blob_id=result.data_settlement_blob_id,
+            images=result.images,
         )
 
     async def _chat_stream(self, params: _ChatParams, messages: List[Dict]) -> AsyncGenerator[StreamChunk, None]:
@@ -571,12 +590,9 @@ class LLM:
                 chunk = StreamChunk.from_sse_data(data)
                 if chunk.is_final:
                     chunk.data_settlement_transaction_hash = (
-                        chunk.data_settlement_transaction_hash
-                        or self._data_settlement_transaction_hash(response)
+                        chunk.data_settlement_transaction_hash or self._data_settlement_transaction_hash(response)
                     )
-                    chunk.data_settlement_blob_id = (
-                        chunk.data_settlement_blob_id or self._data_settlement_blob_id(response)
-                    )
+                    chunk.data_settlement_blob_id = chunk.data_settlement_blob_id or self._data_settlement_blob_id(response)
                     chunk.tee_id = tee.tee_id
                     chunk.tee_endpoint = tee.endpoint
                     chunk.tee_payment_address = tee.payment_address

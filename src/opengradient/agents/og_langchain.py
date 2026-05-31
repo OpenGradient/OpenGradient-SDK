@@ -135,6 +135,7 @@ class OpenGradientChatModel(BaseChatModel):
     model_cid: Union[TEE_LLM, str]
     max_tokens: int = 300
     temperature: float = 0.0
+    web_search: bool = False
     x402_settlement_mode: x402SettlementMode = x402SettlementMode.BATCH_HASHED
 
     _llm: LLM = PrivateAttr()
@@ -149,6 +150,7 @@ class OpenGradientChatModel(BaseChatModel):
         model: Optional[Union[TEE_LLM, str]] = None,
         max_tokens: int = 300,
         temperature: float = 0.0,
+        web_search: bool = False,
         x402_settlement_mode: x402SettlementMode = x402SettlementMode.BATCH_HASHED,
         client: Optional[LLM] = None,
         rpc_url: Optional[str] = None,
@@ -165,6 +167,7 @@ class OpenGradientChatModel(BaseChatModel):
             model_cid=resolved_model_cid,
             max_tokens=max_tokens,
             temperature=temperature,
+            web_search=web_search,
             x402_settlement_mode=x402_settlement_mode,
             **kwargs,
         )
@@ -307,6 +310,7 @@ class OpenGradientChatModel(BaseChatModel):
             "temperature": kwargs.get("temperature", self.temperature),
             "tools": kwargs.get("tools", self._tools),
             "tool_choice": kwargs.get("tool_choice", self._tool_choice),
+            "web_search": kwargs.get("web_search", self.web_search),
             "x402_settlement_mode": x402_settlement_mode,
             "stream": stream,
         }

@@ -46,6 +46,8 @@ OpenGradient enables developers to build AI applications with verifiable executi
 
 - **Verifiable LLM Inference**: Drop-in replacement for OpenAI and Anthropic APIs with cryptographic attestation
 - **Multi-Provider Support**: Access models from OpenAI, Anthropic, Google, and xAI through a unified interface
+- **Native Web Search**: Opt-in `web_search` flag enables each provider's built-in web search, billed per search
+- **Image Generation**: Native image-output models ("nano banana") return generated images directly on the response
 - **TEE Execution**: Trusted Execution Environment inference with cryptographic verification
 - **Model Hub Integration**: Registry for model discovery, versioning, and deployment
 - **Consensus-Based Verification**: End-to-end verified AI execution through the OpenGradient network
@@ -168,6 +170,37 @@ async for chunk in stream:
         print(chunk.choices[0].delta.content, end="")
 ```
 
+### Native Web Search
+
+Set `web_search=True` to let the model search the web while answering. Each search is billed per search on top of token usage, at the provider's list price. Supported by OpenAI, Anthropic, Google, and xAI models; other providers ignore the flag.
+```python
+completion = await llm.chat(
+    model=og.TEE_LLM.CLAUDE_SONNET_4_6,
+    messages=[{"role": "user", "content": "What are today's top tech headlines?"}],
+    max_tokens=500,
+    web_search=True,
+)
+print(completion.chat_output["content"])
+```
+
+### Image Generation
+
+Native image-output models ("nano banana") return generated images on the response. The generated images are available in `result.images` as `data:` URIs, while any text caption is in `chat_output["content"]`. Images travel out-of-band and are not part of the signed output hash.
+```python
+import base64
+
+result = await llm.chat(
+    model=og.TEE_LLM.GEMINI_3_1_FLASH_IMAGE,
+    messages=[{"role": "user", "content": "A friendly robot reading under a tree"}],
+    max_tokens=1024,
+)
+
+for i, image in enumerate(result.images or []):
+    payload = image.split(",", 1)[1]  # strip the "data:image/png;base64," prefix
+    with open(f"image_{i}.png", "wb") as f:
+        f.write(base64.b64decode(payload))
+```
+
 ### Verifiable LangChain Integration
 
 Use OpenGradient as a drop-in LLM provider for LangChain agents with network-verified execution:
@@ -219,6 +252,9 @@ The SDK provides access to models from multiple providers via the `og.TEE_LLM` e
 - Gemini 2.5 Flash Lite
 - Gemini 3 Pro
 - Gemini 3 Flash
+- Gemini 3.5 Flash
+- Gemini 2.5 Flash Image (native image generation, "nano banana")
+- Gemini 3.1 Flash Image (native image generation, "nano banana 2")
 
 #### xAI
 - Grok 4
