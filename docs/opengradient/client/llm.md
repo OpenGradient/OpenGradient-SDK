@@ -71,6 +71,7 @@ async def chat(
     tools: Optional[List[Dict]] = None,
     tool_choice: Optional[str] = None,
     response_format: Optional[`ResponseFormat`] = None,
+    web_search: bool = False,
     x402_settlement_mode: `x402SettlementMode` = x402SettlementMode.BATCH_HASHED,
     stream: bool = False
 ) ‑> Union[`TextGenerationOutput`, AsyncGenerator[`StreamChunk`, None]]
@@ -91,6 +92,10 @@ Perform inference on an LLM model using chat via TEE.
         by Anthropic models). Use ``ResponseFormat(type="json_schema", json_schema={...})``
         to enforce a strict schema (supported by all providers including Anthropic).
         Defaults to None (plain text).
+* **`web_search (bool, optional)`**: Enable the provider's native web search. When True,
+        the model can search the web while answering; each search is billed per search
+        on top of token usage at the provider's list price. Supported by OpenAI,
+        Anthropic, Google, and xAI models; other providers ignore the flag. Default is False.
 * **`x402_settlement_mode (x402SettlementMode, optional)`**: Settlement mode for x402 payments.
         - PRIVATE: Payment only, no input/output data on-chain (most privacy-preserving).
         - BATCH_HASHED: Aggregates inferences into a Merkle tree with input/output hashes and signatures (default, most cost-efficient).
@@ -101,8 +106,9 @@ Perform inference on an LLM model using chat via TEE.
 **Returns**
 
 Union[TextGenerationOutput, AsyncGenerator[StreamChunk, None]]:
-    - If stream=False: TextGenerationOutput with chat_output, data settlement metadata, finish_reason, and payment_hash
-    - If stream=True: Async generator yielding StreamChunk objects
+    - If stream=False: TextGenerationOutput with chat_output, data settlement metadata, finish_reason, and payment_hash.
+      Image-output models (e.g. ``TEE_LLM.GEMINI_3_1_FLASH_IMAGE``) populate ``images`` with the generated images as ``data:`` URIs.
+    - If stream=True: Async generator yielding StreamChunk objects. The final chunk carries any generated ``images``.
 
 **`TextGenerationOutput` fields:**
 
@@ -120,10 +126,12 @@ Union[TextGenerationOutput, AsyncGenerator[StreamChunk, None]]:
         optionally ``tool_calls``.
 * **`completion_output`**: Raw text returned by a completion request.
 * **`payment_hash`**: Payment hash for the x402 transaction.
-* **`tee_signature`**: RSA-PSS signature over the response produced
-        by the TEE enclave.
+* **`tee_signature`**: RSA-PSS signature over the response produced by
+        the TEE enclave. Forwarded as-is from the server; verified at
+        settlement on-chain, not by the SDK at return time. See the
+        class-level "Trust model" note above.
 * **`tee_timestamp`**: ISO-8601 timestamp from the TEE at signing
-        time.
+        time. Forwarded as-is alongside ``tee_signature``.
 
 **Raises**
 
@@ -151,6 +159,7 @@ async def completion(
     max_tokens: int = 100,
     stop_sequence: Optional[List[str]] = None,
     temperature: float = 0.0,
+    web_search: bool = False,
     x402_settlement_mode: `x402SettlementMode` = x402SettlementMode.BATCH_HASHED
 ) ‑> `TextGenerationOutput`
 ```
@@ -163,6 +172,10 @@ Perform inference on an LLM model using completions via TEE.
 * **`max_tokens (int)`**: Maximum number of tokens for LLM output. Default is 100.
 * **`stop_sequence (List[str], optional)`**: List of stop sequences for LLM. Default is None.
 * **`temperature (float)`**: Temperature for LLM inference, between 0 and 1. Default is 0.0.
+* **`web_search (bool, optional)`**: Enable the provider's native web search. When True,
+        the model can search the web to answer the prompt; each search is billed per
+        search on top of token usage at the provider's list price. Supported by OpenAI,
+        Anthropic, Google, and xAI models; other providers ignore the flag. Default is False.
 * **`x402_settlement_mode (x402SettlementMode, optional)`**: Settlement mode for x402 payments.
         - PRIVATE: Payment only, no input/output data on-chain (most privacy-preserving).
         - BATCH_HASHED: Aggregates inferences into a Merkle tree with input/output hashes and signatures (default, most cost-efficient).
@@ -192,10 +205,12 @@ TextGenerationOutput: Generated text results including:
         optionally ``tool_calls``.
 * **`completion_output`**: Raw text returned by a completion request.
 * **`payment_hash`**: Payment hash for the x402 transaction.
-* **`tee_signature`**: RSA-PSS signature over the response produced
-        by the TEE enclave.
+* **`tee_signature`**: RSA-PSS signature over the response produced by
+        the TEE enclave. Forwarded as-is from the server; verified at
+        settlement on-chain, not by the SDK at return time. See the
+        class-level "Trust model" note above.
 * **`tee_timestamp`**: ISO-8601 timestamp from the TEE at signing
-        time.
+        time. Forwarded as-is alongside ``tee_signature``.
 
 **Raises**
 

@@ -69,10 +69,12 @@ TextGenerationOutput: Generated text results including chat_output and finish_re
         optionally ``tool_calls``.
 * **`completion_output`**: Raw text returned by a completion request.
 * **`payment_hash`**: Payment hash for the x402 transaction.
-* **`tee_signature`**: RSA-PSS signature over the response produced
-        by the TEE enclave.
+* **`tee_signature`**: RSA-PSS signature over the response produced by
+        the TEE enclave. Forwarded as-is from the server; verified at
+        settlement on-chain, not by the SDK at return time. See the
+        class-level "Trust model" note above.
 * **`tee_timestamp`**: ISO-8601 timestamp from the TEE at signing
-        time.
+        time. Forwarded as-is alongside ``tee_signature``.
 
 **Raises**
 

@@ -117,8 +117,10 @@ specific on-chain TEE config, while the backend still owns x402 payment.
 
 TEE connection with a hardcoded endpoint URL.
 
-No registry lookup, no background refresh. TLS certificate verification
-is disabled because self-hosted TEE servers typically use self-signed certs.
+Intended for self-hosted development only. No registry lookup, no
+background refresh, and TLS certificate verification is disabled
+(``verify=False``) because self-hosted TEE servers typically use
+self-signed certs.
 
 #### Constructor
 
