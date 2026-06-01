@@ -232,7 +232,10 @@ class StreamChunk:
         model: Model identifier
         usage: Token usage information (only in final chunk)
         is_final: Whether this is the final chunk (before [DONE])
-        tee_signature: RSA-PSS signature over the response, present on the final chunk
+        tee_signature: RSA-PSS signature over the response, present on the final chunk.
+            Forwarded as-is; verified at on-chain settlement, not by the SDK. Live
+            trust comes from the registry-pinned TLS channel — see
+            ``TextGenerationOutput`` for the trust model.
         tee_timestamp: ISO timestamp from the TEE at signing time, present on the final chunk
         tee_id: On-chain TEE registry ID of the enclave that served this request (final chunk only)
         tee_endpoint: Endpoint URL of the TEE that served this request (final chunk only)
@@ -407,9 +410,21 @@ class TextGenerationOutput:
     **completion** requests it is in ``completion_output``.  Only the
     field that matches the request type will be populated.
 
-    Every response includes a ``tee_signature`` and ``tee_timestamp``
-    that can be used to cryptographically verify the inference was
-    performed inside a TEE enclave.
+    Trust model:
+        Live trust in the response comes from the **TLS channel** the SDK
+        used to obtain it: when the TEE is resolved via the on-chain
+        registry, the SDK pins the registry-attested TLS certificate, so
+        a successful response is, by construction, from a network-attested
+        TEE enclave. See ``opengradient.client.tee_registry`` for the
+        pinning logic.
+
+        ``tee_signature`` and ``tee_timestamp`` are durable proof material
+        intended for **on-chain settlement verification** and offline /
+        auditor use (e.g. when a response is archived and re-checked
+        outside the original TLS session). The SDK does not verify the
+        signature at return time, and a non-erroring response does not
+        imply client-side signature verification has occurred — only that
+        the TLS-pinned channel was honored.
 
     Attributes:
         data_settlement_transaction_hash: Blockchain transaction hash for
@@ -426,10 +441,12 @@ class TextGenerationOutput:
             optionally ``tool_calls``.
         completion_output: Raw text returned by a completion request.
         payment_hash: Payment hash for the x402 transaction.
-        tee_signature: RSA-PSS signature over the response produced
-            by the TEE enclave.
+        tee_signature: RSA-PSS signature over the response produced by
+            the TEE enclave. Forwarded as-is from the server; verified at
+            settlement on-chain, not by the SDK at return time. See the
+            class-level "Trust model" note above.
         tee_timestamp: ISO-8601 timestamp from the TEE at signing
-            time.
+            time. Forwarded as-is alongside ``tee_signature``.
     """
 
     data_settlement_transaction_hash: Optional[str] = None
@@ -459,7 +476,8 @@ class TextGenerationOutput:
     """Payment hash for the x402 transaction."""
 
     tee_signature: Optional[str] = None
-    """RSA-PSS signature over the response produced by the TEE enclave."""
+    """RSA-PSS signature over the response produced by the TEE enclave.
+    Forwarded as-is; verified at on-chain settlement, not at SDK return time."""
 
     tee_timestamp: Optional[str] = None
     """ISO-8601 timestamp from the TEE at signing time."""

@@ -63,8 +63,18 @@ def _normalize_tee_id(tee_id: Optional[str]) -> Optional[str]:
 class StaticTEEConnection:
     """TEE connection with a hardcoded endpoint URL.
 
-    No registry lookup, no background refresh. TLS certificate verification
-    is disabled because self-hosted TEE servers typically use self-signed certs.
+    Intended for self-hosted development only. No registry lookup, no
+    background refresh, and TLS certificate verification is disabled
+    (``verify=False``) because self-hosted TEE servers typically use
+    self-signed certs.
+
+    Warning:
+        This is **not a production trust path**. Because TLS is unverified,
+        the connection is not bound to a network-attested TEE: there is no
+        registry cert pinning and no PCR-attested identity. Responses
+        received over this connection should not be treated as TEE-verified.
+        For production use, resolve TEEs via ``RegistryTEEConnection``,
+        which pins the on-chain registry's TLS certificate.
 
     Args:
         x402_client: Configured x402 payment client for creating HTTP clients.

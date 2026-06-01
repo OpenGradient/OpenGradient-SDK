@@ -80,6 +80,20 @@ OpenGradient operates two networks:
 
 For current network RPC endpoints, contract addresses, and deployment information, refer to the [Network Deployment Documentation](https://docs.opengradient.ai/learn/network/deployment.html).
 
+## Trust Model
+
+OpenGradient's verifiable inference relies on three distinct layers. Understanding which layer enforces what makes it easier to reason about what an SDK response does and does not guarantee.
+
+1. **TEE attestation (network-side, at registration).** Each TEE proves its identity and code measurement (PCR hash) to the OpenGradient network when it registers in the on-chain `TEERegistry` contract. The network verifies the attestation and stores the TEE's public key, PCR hash, and TLS certificate on-chain. SDK clients do not re-run attestation themselves.
+
+2. **TLS certificate pinning (SDK-side, at request time).** When the SDK resolves a TEE through `RegistryTEEConnection` (the production path), it reads the registered TLS certificate directly from the registry and pins it as the *only* trust anchor for the connection (`CERT_REQUIRED`, no system-CA fallback). A successful response is therefore, by TLS construction, from a TEE the network has already attested. This is the live trust binding for SDK responses.
+
+3. **Signature verification (settlement-side, on-chain).** The `tee_signature` and `tee_timestamp` returned with each response are durable proof material. Signature verification happens during on-chain settlement, not in the SDK at return time. These fields are also useful for offline / auditor verification when a response leaves the original TLS session.
+
+> **Note:** The SDK does **not** verify `tee_signature` client-side at return time. A non-erroring response means the TLS-pinned channel was honored; signature checking lives at the settlement layer. If you archive a response and want to re-verify it offline, use the registry's stored public key for that TEE.
+>
+> The `StaticTEEConnection` mode (used for self-hosted dev with `verify=False`) bypasses both the registry and TLS pinning, and is **not a production trust path**.
+
 ## Getting Started
 
 ### Prerequisites
@@ -144,7 +158,7 @@ See [Payment Settlement](#payment-settlement) for details on settlement modes.
 
 ### TEE-Secured LLM Chat
 
-OpenGradient provides secure, verifiable inference through Trusted Execution Environments. All supported models include cryptographic attestation verified by the OpenGradient network. LLM methods are async:
+OpenGradient provides secure, verifiable inference through Trusted Execution Environments. All supported models run in TEEs whose attestation is verified by the OpenGradient network at registration; the SDK binds each request to an attested TEE via registry-pinned TLS, and signed proof material is verified at on-chain settlement (see [Trust Model](#trust-model)). LLM methods are async:
 ```python
 completion = await llm.chat(
     model=og.TEE_LLM.GPT_5,
