@@ -275,6 +275,10 @@ The SDK provides access to models from multiple providers via the `og.TEE_LLM` e
 - Grok 4 Fast
 - Grok 4.1 Fast (reasoning and non-reasoning)
 
+#### Nous Research
+- Hermes 4 405B
+- Hermes 4 70B
+
 For a complete list, reference the `og.TEE_LLM` enum or consult the [API documentation](https://docs.opengradient.ai/api_reference/python_sdk/).
 
 ## Alpha Testnet Features
