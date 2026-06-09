@@ -509,6 +509,8 @@ auditability and tamper-proof AI inference.
 * static `GROK_4_20_REASONING`
 * static `GROK_4_FAST`
 * static `GROK_CODE_FAST_1`
+* static `HERMES_4_405B`
+* static `HERMES_4_70B`
 * static `O3`
 * static `O4_MINI`
 * static `SEED_1_6`

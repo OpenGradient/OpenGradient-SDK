@@ -598,6 +598,10 @@ class TEE_LLM(str, Enum):
     SEED_1_8 = "bytedance/seed-1.8"
     SEED_2_0_LITE = "bytedance/seed-2.0-lite"
 
+    # Nous Research Hermes models via TEE (Nous Portal)
+    HERMES_4_405B = "nous/hermes-4-405b"
+    HERMES_4_70B = "nous/hermes-4-70b"
+
 
 @dataclass
 class ResponseFormat:
