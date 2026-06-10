@@ -45,9 +45,12 @@ class OhttpConfig(NamedTuple):
 class TEEInfo(NamedTuple):
     """Mirrors the on-chain TEERegistry.TEEInfo struct (full record).
 
-    Includes the ``ohttp_config`` sub-struct and the RSA ``public_key`` signing
-    key, so callers can both encrypt OHTTP requests to the TEE and verify the
-    signatures it returns — not just dial its endpoint.
+    This is a thin positional wrapper over the tuple web3 decodes from the
+    contract (built via ``TEEInfo(*raw)``), so every field holds the raw
+    decoded value. In particular ``ohttp_config`` is the *raw* decoded
+    sub-tuple, not a parsed `OhttpConfig` — use `_parse_ohttp_config` (as
+    `TEERegistry` does) to coerce it. The parsed, typed form is surfaced on
+    `TEEEndpoint.ohttp_config`.
     """
 
     owner: str
@@ -60,7 +63,7 @@ class TEEInfo(NamedTuple):
     enabled: bool
     registered_at: int
     last_heartbeat_at: int
-    ohttp_config: OhttpConfig
+    ohttp_config: Sequence[Any]
 
 
 @dataclass(frozen=True)
