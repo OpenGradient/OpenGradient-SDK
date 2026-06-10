@@ -4,7 +4,7 @@ import logging
 import random
 import ssl
 from dataclasses import dataclass
-from typing import List, NamedTuple, Optional
+from typing import Any, List, NamedTuple, Optional, Sequence
 
 from web3 import Web3
 
@@ -17,8 +17,41 @@ TEE_TYPE_LLM_PROXY = 0
 TEE_TYPE_VALIDATOR = 1
 
 
+class OhttpConfig(NamedTuple):
+    """Mirrors the on-chain TEERegistry.OhttpConfig struct.
+
+    The HPKE key material a client needs to encrypt an Oblivious HTTP request to
+    this TEE (the same configuration the chat-app browser client reads).
+
+    Attributes:
+        key_id: OHTTP key configuration id.
+        kem_id: HPKE KEM id (0x0020 = DHKEM(X25519, HKDF-SHA256)).
+        kdf_id: HPKE KDF id (0x0001 = HKDF-SHA256).
+        aead_id: HPKE AEAD id (0x0003 = ChaCha20-Poly1305).
+        public_key: The TEE's HPKE (X25519) recipient public key.
+        key_config: The serialized OHTTP key config blob.
+        registered_at: Block timestamp the OHTTP config was registered.
+    """
+
+    key_id: int
+    kem_id: int
+    kdf_id: int
+    aead_id: int
+    public_key: bytes
+    key_config: bytes
+    registered_at: int
+
+
 class TEEInfo(NamedTuple):
-    """Mirrors the on-chain TEERegistry.TEEInfo struct."""
+    """Mirrors the on-chain TEERegistry.TEEInfo struct (full record).
+
+    This is a thin positional wrapper over the tuple web3 decodes from the
+    contract (built via ``TEEInfo(*raw)``), so every field holds the raw
+    decoded value. In particular ``ohttp_config`` is the *raw* decoded
+    sub-tuple, not a parsed `OhttpConfig` — use `_parse_ohttp_config` (as
+    `TEERegistry` does) to coerce it. The parsed, typed form is surfaced on
+    `TEEEndpoint.ohttp_config`.
+    """
 
     owner: str
     payment_address: str
@@ -30,16 +63,32 @@ class TEEInfo(NamedTuple):
     enabled: bool
     registered_at: int
     last_heartbeat_at: int
+    ohttp_config: Sequence[Any]
 
 
 @dataclass(frozen=True)
 class TEEEndpoint:
-    """A verified TEE with its endpoint URL and TLS certificate from the registry."""
+    """A verified TEE resolved from the registry.
+
+    Carries everything needed for both trust paths: the endpoint + pinned TLS
+    cert for a direct x402 connection, and the OHTTP/HPKE key material +
+    signing key for the oblivious-HTTP relay path.
+
+    Attributes:
+        tee_id: keccak256 of the TEE's signing public key (0x-prefixed hex).
+        endpoint: The TEE gateway endpoint URL.
+        tls_cert_der: DER-encoded TLS certificate pinned at registration.
+        payment_address: x402 settlement address for this TEE.
+        signing_public_key_der: DER (SPKI) RSA public key the TEE signs with.
+        ohttp_config: The TEE's OHTTP/HPKE key configuration, if present.
+    """
 
     tee_id: str
     endpoint: str
     tls_cert_der: bytes
     payment_address: str
+    signing_public_key_der: bytes = b""
+    ohttp_config: Optional[OhttpConfig] = None
 
 
 class TEERegistry:
@@ -103,6 +152,8 @@ class TEERegistry:
                     endpoint=tee.endpoint,
                     tls_cert_der=bytes(tee.tls_certificate),
                     payment_address=tee.payment_address,
+                    signing_public_key_der=bytes(tee.public_key),
+                    ohttp_config=_parse_ohttp_config(tee.ohttp_config),
                 )
             )
 
@@ -111,6 +162,10 @@ class TEERegistry:
     def get_llm_tee(self) -> Optional[TEEEndpoint]:
         """
         Return a random active LLM proxy TEE from the registry.
+
+        The returned ``TEEEndpoint`` is the full record: endpoint + pinned TLS
+        cert for direct x402 connections, plus the OHTTP/HPKE ``ohttp_config``
+        and ``signing_public_key_der`` for the oblivious-HTTP relay path.
 
         Returns:
             TEEEndpoint for an active LLM proxy TEE, or None if none are available.
@@ -121,6 +176,49 @@ class TEERegistry:
             return None
 
         return random.choice(tees)
+
+    def get_llm_tee_ohttp_config(self) -> Optional[TEEEndpoint]:
+        """
+        Return a random active LLM proxy TEE that advertises an OHTTP config.
+
+        Like ``get_llm_tee`` but skips TEEs missing HPKE key material, so the
+        result is guaranteed usable for the Oblivious HTTP path.
+
+        Returns:
+            A TEEEndpoint with a non-empty ``ohttp_config``, or None.
+        """
+        candidates = [
+            tee
+            for tee in self.get_active_tees_by_type(TEE_TYPE_LLM_PROXY)
+            if tee.ohttp_config is not None and len(tee.ohttp_config.public_key) == 32
+        ]
+        if not candidates:
+            logger.warning("No active LLM proxy TEEs with an OHTTP config found in registry")
+            return None
+
+        return random.choice(candidates)
+
+
+def _parse_ohttp_config(raw: Sequence[Any]) -> Optional[OhttpConfig]:
+    """Coerce the decoded on-chain ohttpConfig tuple into an OhttpConfig.
+
+    Returns None when the TEE has no OHTTP config registered (empty public key).
+    """
+    try:
+        cfg = OhttpConfig(
+            key_id=int(raw[0]),
+            kem_id=int(raw[1]),
+            kdf_id=int(raw[2]),
+            aead_id=int(raw[3]),
+            public_key=bytes(raw[4]),
+            key_config=bytes(raw[5]),
+            registered_at=int(raw[6]),
+        )
+    except (TypeError, IndexError, ValueError):
+        return None
+    if not cfg.public_key:
+        return None
+    return cfg
 
 
 def build_ssl_context_from_der(der_cert: bytes) -> ssl.SSLContext:

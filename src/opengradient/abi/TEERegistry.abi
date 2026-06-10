@@ -1,80 +1,304 @@
 [
-  {
-    "inputs": [{"internalType": "uint8", "name": "teeType", "type": "uint8"}],
-    "name": "getActiveTEEs",
-    "outputs": [
-      {
-        "components": [
-          {"internalType": "address", "name": "owner", "type": "address"},
-          {"internalType": "address", "name": "paymentAddress", "type": "address"},
-          {"internalType": "string", "name": "endpoint", "type": "string"},
-          {"internalType": "bytes", "name": "publicKey", "type": "bytes"},
-          {"internalType": "bytes", "name": "tlsCertificate", "type": "bytes"},
-          {"internalType": "bytes32", "name": "pcrHash", "type": "bytes32"},
-          {"internalType": "uint8", "name": "teeType", "type": "uint8"},
-          {"internalType": "bool", "name": "enabled", "type": "bool"},
-          {"internalType": "uint256", "name": "registeredAt", "type": "uint256"},
-          {"internalType": "uint256", "name": "lastHeartbeatAt", "type": "uint256"}
+    {
+        "inputs": [
+            {
+                "internalType": "uint8",
+                "name": "teeType",
+                "type": "uint8"
+            }
         ],
-        "internalType": "struct TEERegistry.TEEInfo[]",
-        "name": "",
-        "type": "tuple[]"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [{"internalType": "uint8", "name": "teeType", "type": "uint8"}],
-    "name": "getEnabledTEEs",
-    "outputs": [{"internalType": "bytes32[]", "name": "", "type": "bytes32[]"}],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [{"internalType": "uint8", "name": "teeType", "type": "uint8"}],
-    "name": "getTEEsByType",
-    "outputs": [{"internalType": "bytes32[]", "name": "", "type": "bytes32[]"}],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [{"internalType": "bytes32", "name": "teeId", "type": "bytes32"}],
-    "name": "getTEE",
-    "outputs": [
-      {
-        "components": [
-          {"internalType": "address", "name": "owner", "type": "address"},
-          {"internalType": "address", "name": "paymentAddress", "type": "address"},
-          {"internalType": "string", "name": "endpoint", "type": "string"},
-          {"internalType": "bytes", "name": "publicKey", "type": "bytes"},
-          {"internalType": "bytes", "name": "tlsCertificate", "type": "bytes"},
-          {"internalType": "bytes32", "name": "pcrHash", "type": "bytes32"},
-          {"internalType": "uint8", "name": "teeType", "type": "uint8"},
-          {"internalType": "bool", "name": "enabled", "type": "bool"},
-          {"internalType": "uint256", "name": "registeredAt", "type": "uint256"},
-          {"internalType": "uint256", "name": "lastHeartbeatAt", "type": "uint256"}
+        "name": "getActiveTEEs",
+        "outputs": [
+            {
+                "components": [
+                    {
+                        "internalType": "address",
+                        "name": "owner",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "paymentAddress",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "string",
+                        "name": "endpoint",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "bytes",
+                        "name": "publicKey",
+                        "type": "bytes"
+                    },
+                    {
+                        "internalType": "bytes",
+                        "name": "tlsCertificate",
+                        "type": "bytes"
+                    },
+                    {
+                        "internalType": "bytes32",
+                        "name": "pcrHash",
+                        "type": "bytes32"
+                    },
+                    {
+                        "internalType": "uint8",
+                        "name": "teeType",
+                        "type": "uint8"
+                    },
+                    {
+                        "internalType": "bool",
+                        "name": "enabled",
+                        "type": "bool"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "registeredAt",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "lastHeartbeatAt",
+                        "type": "uint256"
+                    },
+                    {
+                        "components": [
+                            {
+                                "internalType": "uint8",
+                                "name": "keyId",
+                                "type": "uint8"
+                            },
+                            {
+                                "internalType": "uint16",
+                                "name": "kemId",
+                                "type": "uint16"
+                            },
+                            {
+                                "internalType": "uint16",
+                                "name": "kdfId",
+                                "type": "uint16"
+                            },
+                            {
+                                "internalType": "uint16",
+                                "name": "aeadId",
+                                "type": "uint16"
+                            },
+                            {
+                                "internalType": "bytes",
+                                "name": "publicKey",
+                                "type": "bytes"
+                            },
+                            {
+                                "internalType": "bytes",
+                                "name": "keyConfig",
+                                "type": "bytes"
+                            },
+                            {
+                                "internalType": "uint256",
+                                "name": "registeredAt",
+                                "type": "uint256"
+                            }
+                        ],
+                        "internalType": "struct TEERegistry.OhttpConfig",
+                        "name": "ohttpConfig",
+                        "type": "tuple"
+                    }
+                ],
+                "internalType": "struct TEERegistry.TEEInfo[]",
+                "name": "",
+                "type": "tuple[]"
+            }
         ],
-        "internalType": "struct TEERegistry.TEEInfo",
-        "name": "",
-        "type": "tuple"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [{"internalType": "bytes32", "name": "teeId", "type": "bytes32"}],
-    "name": "isTEEActive",
-    "outputs": [{"internalType": "bool", "name": "", "type": "bool"}],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [{"internalType": "bytes32", "name": "teeId", "type": "bytes32"}],
-    "name": "isTEEEnabled",
-    "outputs": [{"internalType": "bool", "name": "", "type": "bool"}],
-    "stateMutability": "view",
-    "type": "function"
-  }
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint8",
+                "name": "teeType",
+                "type": "uint8"
+            }
+        ],
+        "name": "getEnabledTEEs",
+        "outputs": [
+            {
+                "internalType": "bytes32[]",
+                "name": "",
+                "type": "bytes32[]"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint8",
+                "name": "teeType",
+                "type": "uint8"
+            }
+        ],
+        "name": "getTEEsByType",
+        "outputs": [
+            {
+                "internalType": "bytes32[]",
+                "name": "",
+                "type": "bytes32[]"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "bytes32",
+                "name": "teeId",
+                "type": "bytes32"
+            }
+        ],
+        "name": "getTEE",
+        "outputs": [
+            {
+                "components": [
+                    {
+                        "internalType": "address",
+                        "name": "owner",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "paymentAddress",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "string",
+                        "name": "endpoint",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "bytes",
+                        "name": "publicKey",
+                        "type": "bytes"
+                    },
+                    {
+                        "internalType": "bytes",
+                        "name": "tlsCertificate",
+                        "type": "bytes"
+                    },
+                    {
+                        "internalType": "bytes32",
+                        "name": "pcrHash",
+                        "type": "bytes32"
+                    },
+                    {
+                        "internalType": "uint8",
+                        "name": "teeType",
+                        "type": "uint8"
+                    },
+                    {
+                        "internalType": "bool",
+                        "name": "enabled",
+                        "type": "bool"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "registeredAt",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "lastHeartbeatAt",
+                        "type": "uint256"
+                    },
+                    {
+                        "components": [
+                            {
+                                "internalType": "uint8",
+                                "name": "keyId",
+                                "type": "uint8"
+                            },
+                            {
+                                "internalType": "uint16",
+                                "name": "kemId",
+                                "type": "uint16"
+                            },
+                            {
+                                "internalType": "uint16",
+                                "name": "kdfId",
+                                "type": "uint16"
+                            },
+                            {
+                                "internalType": "uint16",
+                                "name": "aeadId",
+                                "type": "uint16"
+                            },
+                            {
+                                "internalType": "bytes",
+                                "name": "publicKey",
+                                "type": "bytes"
+                            },
+                            {
+                                "internalType": "bytes",
+                                "name": "keyConfig",
+                                "type": "bytes"
+                            },
+                            {
+                                "internalType": "uint256",
+                                "name": "registeredAt",
+                                "type": "uint256"
+                            }
+                        ],
+                        "internalType": "struct TEERegistry.OhttpConfig",
+                        "name": "ohttpConfig",
+                        "type": "tuple"
+                    }
+                ],
+                "internalType": "struct TEERegistry.TEEInfo",
+                "name": "",
+                "type": "tuple"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "bytes32",
+                "name": "teeId",
+                "type": "bytes32"
+            }
+        ],
+        "name": "isTEEActive",
+        "outputs": [
+            {
+                "internalType": "bool",
+                "name": "",
+                "type": "bool"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "bytes32",
+                "name": "teeId",
+                "type": "bytes32"
+            }
+        ],
+        "name": "isTEEEnabled",
+        "outputs": [
+            {
+                "internalType": "bool",
+                "name": "",
+                "type": "bool"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    }
 ]
