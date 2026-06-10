@@ -18,19 +18,33 @@ def _make_tee_info(
     payment_address="0xPayment",
     pub_key=b"pubkey",
     tls_cert_der=b"\x01\x02\x03",
+    ohttp_public_key=b"\x55" * 32,
 ):
-    """Build a tuple matching the TEEInfo struct order from the new contract."""
+    """Build a tuple matching the full TEEInfo struct order from the contract.
+
+    Includes the trailing ``ohttpConfig`` sub-tuple (keyId, kemId, kdfId, aeadId,
+    publicKey, keyConfig, registeredAt) that the full registry read parses.
+    """
     return (
         "0xOwner",  # owner
         payment_address,  # paymentAddress
         endpoint,  # endpoint
-        pub_key,  # publicKey
+        pub_key,  # publicKey (RSA signing key, DER)
         tls_cert_der,  # tlsCertificate
         b"\x00" * 32,  # pcrHash
         0,  # teeType
         True,  # enabled (always True from getActiveTEEs)
         1000,  # registeredAt
         2000,  # lastHeartbeatAt
+        (  # ohttpConfig
+            1,  # keyId
+            0x0020,  # kemId (X25519)
+            0x0001,  # kdfId (HKDF-SHA256)
+            0x0003,  # aeadId (ChaCha20-Poly1305)
+            ohttp_public_key,  # publicKey (HPKE X25519)
+            b"keyconfig",  # keyConfig
+            3000,  # registeredAt
+        ),
     )
 
 
@@ -97,6 +111,12 @@ class TestGetActiveTeesByType:
         assert result[0].endpoint == "https://tee.example.com"
         assert result[0].payment_address == "0xPayment"
         assert result[0].tls_cert_der == b"\x01\x02\x03"
+        # Full registry read: the signing key + OHTTP config come back too.
+        assert result[0].signing_public_key_der == b"pubkey"
+        assert result[0].ohttp_config is not None
+        assert result[0].ohttp_config.kem_id == 0x0020
+        assert result[0].ohttp_config.aead_id == 0x0003
+        assert len(result[0].ohttp_config.public_key) == 32
         contract.functions.getActiveTEEs.assert_called_once_with(TEE_TYPE_LLM_PROXY)
 
     def test_skips_tee_with_empty_endpoint(self, mock_contract):
