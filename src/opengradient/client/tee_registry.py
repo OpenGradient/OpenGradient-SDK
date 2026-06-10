@@ -4,7 +4,7 @@ import logging
 import random
 import ssl
 from dataclasses import dataclass
-from typing import List, NamedTuple, Optional
+from typing import Any, List, NamedTuple, Optional, Sequence
 
 from web3 import Web3
 
@@ -196,7 +196,7 @@ class TEERegistry:
         return random.choice(candidates)
 
 
-def _parse_ohttp_config(raw: object) -> Optional[OhttpConfig]:
+def _parse_ohttp_config(raw: Sequence[Any]) -> Optional[OhttpConfig]:
     """Coerce the decoded on-chain ohttpConfig tuple into an OhttpConfig.
 
     Returns None when the TEE has no OHTTP config registered (empty public key).
