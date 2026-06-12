@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.11"
 resolution-markers = [
     "python_full_version >= '3.14'",
@@ -1909,10 +1909,11 @@ wheels = [
 
 [[package]]
 name = "opengradient"
-version = "1.0.7"
+version = "1.0.8"
 source = { editable = "." }
 dependencies = [
     { name = "click" },
+    { name = "cryptography" },
     { name = "eth-account" },
     { name = "firebase-rest-api" },
     { name = "langchain" },
@@ -1920,6 +1921,7 @@ dependencies = [
     { name = "og-x402", extra = ["extensions"] },
     { name = "openai" },
     { name = "pydantic" },
+    { name = "pyhpke" },
     { name = "requests" },
     { name = "requests-toolbelt" },
     { name = "web3" },
@@ -1944,6 +1946,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "click", specifier = ">=8.1.7" },
+    { name = "cryptography", specifier = ">=43.0.0" },
     { name = "eth-account", specifier = ">=0.13.4" },
     { name = "firebase-rest-api", specifier = ">=1.11.0" },
     { name = "langchain", specifier = ">=0.3.7" },
@@ -1955,6 +1958,7 @@ requires-dist = [
     { name = "openai", specifier = ">=1.58.1" },
     { name = "pdoc3", marker = "extra == 'dev'", specifier = "==0.10.0" },
     { name = "pydantic", specifier = ">=2.9.2" },
+    { name = "pyhpke", specifier = ">=0.6.0" },
     { name = "pytest", marker = "extra == 'dev'" },
     { name = "pytest-asyncio", marker = "extra == 'dev'" },
     { name = "requests", specifier = ">=2.32.3" },
@@ -2450,6 +2454,18 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/b0/77/a5b8c569bf593b0140bde72ea885a803b82086995367bf2037de0159d924/pygments-2.19.2.tar.gz", hash = "sha256:636cb2477cec7f8952536970bc533bc43743542f70392ae026374600add5b887", size = 4968631, upload-time = "2025-06-21T13:39:12.283Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/c7/21/705964c7812476f378728bdf590ca4b771ec72385c533964653c68e86bdc/pygments-2.19.2-py3-none-any.whl", hash = "sha256:86540386c03d588bb81d44bc3928634ff26449851e99741617ecb9037ee5ec0b", size = 1225217, upload-time = "2025-06-21T13:39:07.939Z" },
+]
+
+[[package]]
+name = "pyhpke"
+version = "0.6.4"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "cryptography" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/27/37/1acb2cee5afd3dcf45b425b0d984a9cba8917fd935106ef278b42062ecfa/pyhpke-0.6.4.tar.gz", hash = "sha256:1402c6c41a0605941d2d2a589774d346c0e7a0dc7f745e84c6f0a06c2fd335c9", size = 1638147, upload-time = "2025-12-21T10:38:07.556Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/88/f6/ff7df9e21b38ec1c827efd90c28b3bc76eddbfdf5a44aaf2fadb59a17cb9/pyhpke-0.6.4-py3-none-any.whl", hash = "sha256:abd0b2fec1424858399ffbed0d236fb7e9740dece9907f59ca40bd567d7fef78", size = 23792, upload-time = "2025-12-21T10:38:06.172Z" },
 ]
 
 [[package]]

@@ -81,6 +81,10 @@ class TEEEndpoint:
         payment_address: x402 settlement address for this TEE.
         signing_public_key_der: DER (SPKI) RSA public key the TEE signs with.
         ohttp_config: The TEE's OHTTP/HPKE key configuration, if present.
+        pcr_hash: The reproducible-build PCR measurement hash recorded on-chain
+            (``0x``-prefixed hex). Lets a caller refuse any TEE whose code
+            fingerprint differs from a known-good build — trusting math over the
+            registry operator.
     """
 
     tee_id: str
@@ -89,6 +93,7 @@ class TEEEndpoint:
     payment_address: str
     signing_public_key_der: bytes = b""
     ohttp_config: Optional[OhttpConfig] = None
+    pcr_hash: str = ""
 
 
 class TEERegistry:
@@ -154,6 +159,7 @@ class TEERegistry:
                     payment_address=tee.payment_address,
                     signing_public_key_der=bytes(tee.public_key),
                     ohttp_config=_parse_ohttp_config(tee.ohttp_config),
+                    pcr_hash="0x" + bytes(tee.pcr_hash).hex(),
                 )
             )
 
