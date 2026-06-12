@@ -53,8 +53,8 @@ _SUITE = CipherSuite.new(
 )
 
 
-def _header_bytes() -> bytes:
-    return bytes([KEY_CONFIG_ID]) + struct.pack(">HHH", KEM_ID_X25519, KDF_ID_HKDF_SHA256, AEAD_ID_CHACHA20_POLY1305)
+def _header_bytes(key_id: int = KEY_CONFIG_ID) -> bytes:
+    return bytes([key_id]) + struct.pack(">HHH", KEM_ID_X25519, KDF_ID_HKDF_SHA256, AEAD_ID_CHACHA20_POLY1305)
 
 
 @dataclass
@@ -74,29 +74,51 @@ class EncapsulatedRequest:
     chunked_response_secret: bytes
 
 
-def encapsulate_request(public_key_raw: bytes, plaintext: bytes) -> EncapsulatedRequest:
+def encapsulate_request(
+    public_key_raw: bytes,
+    plaintext: bytes,
+    *,
+    key_id: int = KEY_CONFIG_ID,
+    kem_id: int = KEM_ID_X25519,
+    kdf_id: int = KDF_ID_HKDF_SHA256,
+    aead_id: int = AEAD_ID_CHACHA20_POLY1305,
+) -> EncapsulatedRequest:
     """HPKE-seal ``plaintext`` to a TEE's raw X25519 public key.
 
     Args:
         public_key_raw: The 32-byte raw X25519 public key from the TEE's OHTTP
             config (``OhttpConfig.public_key``).
         plaintext: The inner request body (typically a UTF-8 JSON chat request).
+        key_id: The OHTTP key-config id from the TEE's ``OhttpConfig.key_id``.
+            Threaded into the request header so a TEE that rotated to a new
+            key_id (while keeping this suite) can still decapsulate. Defaults to
+            the canonical ``0x01``.
+        kem_id, kdf_id, aead_id: The HPKE algorithm ids from the TEE's config.
+            This client implements one fixed suite; mismatching ids are rejected
+            rather than silently producing an undecryptable request.
 
     Returns:
         An `EncapsulatedRequest` ready to send to a relay.
 
     Raises:
-        ValueError: If ``public_key_raw`` is not 32 bytes.
+        ValueError: If ``public_key_raw`` is not 32 bytes, or the algorithm ids
+            don't match this client's supported suite.
     """
     if len(public_key_raw) != 32:
         raise ValueError("X25519 public key must be 32 bytes")
+    if (kem_id, kdf_id, aead_id) != (KEM_ID_X25519, KDF_ID_HKDF_SHA256, AEAD_ID_CHACHA20_POLY1305):
+        raise ValueError(
+            "unsupported HPKE suite "
+            f"(kem={kem_id:#06x}, kdf={kdf_id:#06x}, aead={aead_id:#06x}); "
+            "this client only implements DHKEM-X25519 / HKDF-SHA256 / ChaCha20-Poly1305"
+        )
 
     pkr = _SUITE.kem.deserialize_public_key(public_key_raw)
-    info = _LABEL_REQUEST + b"\x00" + _header_bytes()
+    info = _LABEL_REQUEST + b"\x00" + _header_bytes(key_id)
     enc, sender = _SUITE.create_sender_context(pkr, info=info)
 
     ciphertext = sender.seal(plaintext, aad=b"")
-    wire = _header_bytes() + bytes(enc) + ciphertext
+    wire = _header_bytes(key_id) + bytes(enc) + ciphertext
 
     export_len = max(_NN, _NK)
     return EncapsulatedRequest(

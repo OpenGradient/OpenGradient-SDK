@@ -110,6 +110,14 @@ class OhttpRelayClient:
         self._relay_url = relay_url
         self._tee = tee
         self._ohttp_public_key = tee.ohttp_config.public_key
+        # Honor the registry's advertised key/algorithm ids (key rotation) rather
+        # than assuming the canonical defaults.
+        self._enc_ids = {
+            "key_id": tee.ohttp_config.key_id,
+            "kem_id": tee.ohttp_config.kem_id,
+            "kdf_id": tee.ohttp_config.kdf_id,
+            "aead_id": tee.ohttp_config.aead_id,
+        }
         self._auth_headers = auth_headers
         self._session = session or requests.Session()
         self._timeout = timeout
@@ -130,7 +138,7 @@ class OhttpRelayClient:
             opengradient.client.tee_verify.UnsupportedRequestError: If the body is invalid.
         """
         wire, canonical = build_inner_request(body)
-        enc = encapsulate_request(self._ohttp_public_key, json.dumps(wire).encode("utf-8"))
+        enc = encapsulate_request(self._ohttp_public_key, json.dumps(wire).encode("utf-8"), **self._enc_ids)
 
         resp = self._session.post(
             self._relay_url,
@@ -180,7 +188,7 @@ class OhttpRelayClient:
         """
         wire, canonical = build_inner_request(body)
         wire = {**wire, "stream": True}
-        enc = encapsulate_request(self._ohttp_public_key, json.dumps(wire).encode("utf-8"))
+        enc = encapsulate_request(self._ohttp_public_key, json.dumps(wire).encode("utf-8"), **self._enc_ids)
 
         resp = self._session.post(
             self._relay_url,
@@ -195,32 +203,45 @@ class OhttpRelayClient:
         decrypter = ChunkedResponseDecrypter(enc.chunked_response_secret, enc.enc)
         frames: list[str] = []
         full_content = ""
+        tool_calls: dict[int, dict] = {}
         final_frame: Optional[dict] = None
 
         chunks = resp.iter_content(chunk_size=8192)
-        for raw, is_last in _with_last(chunks):
-            for plaintext in decrypter.push(raw, done=is_last):
-                text = plaintext.decode("utf-8", errors="replace")
-                frames.append(text)
-                delta, final = _parse_sse_frame(text)
-                full_content += delta
-                if final is not None:
-                    final_frame = final
+        try:
+            for raw, is_last in _with_last(chunks):
+                # A malformed/truncated encrypted stream is an integrity failure;
+                # surface it as VerificationError, not a raw ValueError.
+                for plaintext in decrypter.push(raw, done=is_last):
+                    text = plaintext.decode("utf-8", errors="replace")
+                    frames.append(text)
+                    for parsed in _iter_sse_objects(text):
+                        full_content += _delta_content(parsed)
+                        _accumulate_tool_calls(tool_calls, parsed)
+                        if isinstance(parsed.get("tee_signature"), str) or isinstance(parsed.get("tee_output_hash"), str):
+                            final_frame = parsed
+        except ValueError as exc:
+            raise VerificationError(f"malformed TEE stream: {exc}") from exc
 
         if final_frame is None:
             raise VerificationError("TEE stream missing a signed final frame")
 
+        # The gateway signs the assistant text, except for tool-call responses
+        # where it signs json.dumps(tool_calls, sort_keys=True) of the buffered
+        # calls — mirror that so honest tool-call streams verify.
+        if _finish_reason(final_frame) == "tool_calls" and tool_calls:
+            response_content = json.dumps([tool_calls[i] for i in sorted(tool_calls)], sort_keys=True)
+        else:
+            response_content = full_content
+
         proof = verify_response(
             canonical_request=canonical,
             response_body=final_frame,
-            response_content=full_content,
+            response_content=response_content,
             signing_key_pem=self._signing_key_pem,
             expected_tee_id=self._tee.tee_id,
             tee_host=self._tee.endpoint,
         )
-        return VerifiedChatResponse(
-            body=final_frame, content=full_content, proof=proof, stream_frames=frames
-        )
+        return VerifiedChatResponse(body=final_frame, content=response_content, proof=proof, stream_frames=frames)
 
     def _headers(self, *, stream: bool) -> dict:
         headers = {
@@ -249,10 +270,8 @@ def _normalize_inner(decoded) -> tuple[int, dict]:
     raise VerificationError("malformed inner response")
 
 
-def _parse_sse_frame(text: str) -> tuple[str, Optional[dict]]:
-    """Parse one decrypted SSE frame; return ``(delta_text, final_frame_or_None)``."""
-    delta = ""
-    final: Optional[dict] = None
+def _iter_sse_objects(text: str):
+    """Yield the parsed JSON objects from a decrypted SSE frame's ``data:`` lines."""
     for line in text.splitlines():
         line = line.strip()
         if not line.startswith("data:"):
@@ -268,10 +287,46 @@ def _parse_sse_frame(text: str) -> tuple[str, Optional[dict]]:
             continue
         if isinstance(parsed.get("error"), str):
             raise RelayError(502, parsed["error"])
-        delta += _delta_content(parsed)
-        if isinstance(parsed.get("tee_signature"), str) or isinstance(parsed.get("tee_output_hash"), str):
-            final = parsed
-    return delta, final
+        yield parsed
+
+
+def _accumulate_tool_calls(buffered: dict[int, dict], frame: dict) -> None:
+    """Fold a streamed ``delta.tool_calls`` fragment into ``buffered`` (keyed by index).
+
+    Mirrors the gateway's streaming tool-call buffer so the reconstructed list
+    matches the signed output: ids/names are set when present, argument fragments
+    are concatenated in arrival order.
+    """
+    choices = frame.get("choices")
+    if not isinstance(choices, list) or not choices or not isinstance(choices[0], dict):
+        return
+    delta = choices[0].get("delta")
+    if not isinstance(delta, dict):
+        return
+    fragments = delta.get("tool_calls")
+    if not isinstance(fragments, list):
+        return
+    for frag in fragments:
+        if not isinstance(frag, dict):
+            continue
+        idx = frag.get("index", 0)
+        slot = buffered.setdefault(idx, {"id": "", "type": "function", "function": {"name": "", "arguments": ""}})
+        if frag.get("id"):
+            slot["id"] = frag["id"]
+        if frag.get("type"):
+            slot["type"] = frag["type"]
+        fn = frag.get("function") or {}
+        if fn.get("name"):
+            slot["function"]["name"] = fn["name"]
+        if fn.get("arguments"):
+            slot["function"]["arguments"] += fn["arguments"]
+
+
+def _finish_reason(frame: dict) -> Optional[str]:
+    choices = frame.get("choices")
+    if isinstance(choices, list) and choices and isinstance(choices[0], dict):
+        return choices[0].get("finish_reason")
+    return None
 
 
 def _delta_content(frame: dict) -> str:

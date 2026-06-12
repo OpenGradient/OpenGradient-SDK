@@ -156,3 +156,28 @@ def test_build_inner_request_strips_attachment_bytes_from_hash_only():
     assert canonical["messages"][0]["content"][1] == {"type": "image_url"}
     assert canonical["temperature"] == 0.7
     assert canonical["max_tokens"] == 256
+
+
+def test_non_list_tools_rejected():
+    with pytest.raises(verify.UnsupportedRequestError, match="tools"):
+        build_inner_request(
+            {"model": "gpt-4.1", "messages": [{"role": "user", "content": "x"}], "tools": {"a": 1}}
+        )
+
+
+def test_non_dict_message_rejected():
+    with pytest.raises(verify.UnsupportedRequestError, match="message must be"):
+        build_inner_request({"model": "gpt-4.1", "messages": ["not a dict"]})
+
+
+def test_tool_choice_preserved_on_wire_but_not_hashed():
+    body = {
+        "model": "gpt-4.1",
+        "messages": [{"role": "user", "content": "x"}],
+        "tool_choice": "auto",
+    }
+    wire, canonical = build_inner_request(body)
+    # Forwarded to the gateway so caller intent isn't silently dropped...
+    assert wire["tool_choice"] == "auto"
+    # ...but excluded from the signed request hash (the gateway doesn't commit to it).
+    assert "tool_choice" not in canonical

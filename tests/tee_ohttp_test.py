@@ -1,64 +1,38 @@
-"""Wire-compatibility round-trips for the client OHTTP encapsulation.
+"""OHTTP client wire-compatibility round-trips.
 
-When a tee-gateway checkout is available (``OG_TEE_GATEWAY`` env var, or a sibling
-``../tee-gateway``), these round-trip our client crypto against the *actual*
-server recipient code, guaranteeing the two stay byte-compatible. The gateway's
-``tee_gateway/ohttp.py`` only needs ``cryptography`` + ``pyhpke``, so importing it
-standalone is cheap. The tests skip cleanly when no checkout is found.
+These run in CI against a self-contained in-repo recipient (the ``recipient``
+fixture), so the encapsulation/decryption code is always exercised. When a real
+tee-gateway checkout is present, ``test_cross_check_against_real_gateway`` also
+round-trips against the actual server code to catch any drift.
 """
 
 from __future__ import annotations
-
-import os
-import sys
-from pathlib import Path
 
 import pytest
 
 from opengradient.client import tee_ohttp as cli
 
 
-def _load_server_ohttp():
-    override = os.getenv("OG_TEE_GATEWAY")
-    candidates = [Path(override)] if override else []
-    candidates.append(Path(__file__).resolve().parents[2] / "tee-gateway")
-    for root in candidates:
-        if (root / "tee_gateway" / "ohttp.py").exists():
-            sys.path.insert(0, str(root))
-            import tee_gateway.ohttp as srv
-
-            return srv
-    return None
-
-
-@pytest.fixture(scope="module")
-def server_ohttp():
-    srv = _load_server_ohttp()
-    if srv is None:
-        pytest.skip("tee-gateway checkout not found (set OG_TEE_GATEWAY)")
-    return srv
-
-
-def test_request_and_single_shot_response(server_ohttp):
-    priv, pub_raw = server_ohttp.generate_keypair()
+def test_request_and_single_shot_response(recipient):
+    priv, pub_raw = recipient.generate_keypair()
     plaintext = b'{"model":"gpt-4.1","messages":[{"role":"user","content":"hi"}]}'
 
     enc_req = cli.encapsulate_request(pub_raw, plaintext)
-    decap = server_ohttp.decapsulate_request(priv, enc_req.wire)
+    decap = recipient.decapsulate_request(priv, enc_req.wire)
     assert decap.plaintext == plaintext
     assert decap.enc == enc_req.enc
 
     resp_pt = b'{"choices":[{"message":{"content":"hello"}}]}'
-    sealed = server_ohttp.encapsulate_response(decap.response_key, decap.enc, resp_pt)
+    sealed = recipient.encapsulate_response(decap.response_key, decap.enc, resp_pt)
     assert cli.decrypt_response(enc_req.response_secret, enc_req.enc, sealed) == resp_pt
 
 
-def test_chunked_response_whole_and_incremental(server_ohttp):
-    priv, pub_raw = server_ohttp.generate_keypair()
+def test_chunked_response_whole_and_incremental(recipient):
+    priv, pub_raw = recipient.generate_keypair()
     enc_req = cli.encapsulate_request(pub_raw, b"{}")
-    decap = server_ohttp.decapsulate_request(priv, enc_req.wire)
+    decap = recipient.decapsulate_request(priv, enc_req.wire)
 
-    encr = server_ohttp.ChunkedResponseEncrypter(decap.response_key_chunked, decap.enc)
+    encr = recipient.ChunkedResponseEncrypter(decap.response_key_chunked, decap.enc)
     wire = encr.header()
     frames = [b"data: a\n\n", b"data: b\n\n", b"data: [DONE]\n\n"]
     wire += encr.encrypt_chunk(frames[0], is_final=False)
@@ -75,11 +49,11 @@ def test_chunked_response_whole_and_incremental(server_ohttp):
     assert out == frames
 
 
-def test_truncated_chunked_stream_is_rejected(server_ohttp):
-    priv, pub_raw = server_ohttp.generate_keypair()
+def test_truncated_chunked_stream_is_rejected(recipient):
+    priv, pub_raw = recipient.generate_keypair()
     enc_req = cli.encapsulate_request(pub_raw, b"{}")
-    decap = server_ohttp.decapsulate_request(priv, enc_req.wire)
-    encr = server_ohttp.ChunkedResponseEncrypter(decap.response_key_chunked, decap.enc)
+    decap = recipient.decapsulate_request(priv, enc_req.wire)
+    encr = recipient.ChunkedResponseEncrypter(decap.response_key_chunked, decap.enc)
     wire = encr.header() + encr.encrypt_chunk(b"data: a\n\n", is_final=False)
     dec = cli.ChunkedResponseDecrypter(enc_req.chunked_response_secret, enc_req.enc)
     with pytest.raises(ValueError):
@@ -89,3 +63,28 @@ def test_truncated_chunked_stream_is_rejected(server_ohttp):
 def test_rejects_wrong_size_public_key():
     with pytest.raises(ValueError):
         cli.encapsulate_request(b"too short", b"{}")
+
+
+def test_rejects_unsupported_suite():
+    with pytest.raises(ValueError, match="unsupported HPKE suite"):
+        cli.encapsulate_request(b"\x00" * 32, b"{}", aead_id=0x0001)
+
+
+def test_custom_key_id_round_trips(recipient):
+    # A TEE that rotated to key_id=0x07 must still decapsulate (the id is carried
+    # in the header and bound into the HPKE info string on both sides).
+    priv, pub_raw = recipient.generate_keypair()
+    enc_req = cli.encapsulate_request(pub_raw, b"{}", key_id=0x07)
+    assert enc_req.wire[0] == 0x07
+    decap = recipient.decapsulate_request(priv, enc_req.wire)
+    assert decap.plaintext == b"{}"
+
+
+def test_cross_check_against_real_gateway(real_tee_gateway):
+    """When a tee-gateway checkout is present, confirm we're byte-compatible with it."""
+    priv, pub_raw = real_tee_gateway.generate_keypair()
+    enc_req = cli.encapsulate_request(pub_raw, b'{"ping":1}')
+    decap = real_tee_gateway.decapsulate_request(priv, enc_req.wire)
+    assert decap.plaintext == b'{"ping":1}'
+    sealed = real_tee_gateway.encapsulate_response(decap.response_key, decap.enc, b'{"pong":1}')
+    assert cli.decrypt_response(enc_req.response_secret, enc_req.enc, sealed) == b'{"pong":1}'

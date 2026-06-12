@@ -190,6 +190,9 @@ def build_inner_request(body: dict) -> tuple[dict, dict]:
     messages = body.get("messages")
     if not isinstance(messages, list) or not messages:
         raise UnsupportedRequestError("request is missing 'messages'")
+    for m in messages:
+        if not isinstance(m, dict):
+            raise UnsupportedRequestError(f"each message must be a JSON object, got {type(m).__name__}")
 
     canonical_messages = [_canonical_message(m) for m in messages]
 
@@ -205,18 +208,34 @@ def build_inner_request(body: dict) -> tuple[dict, dict]:
         canonical["stop"] = body["stop"]
     if body.get("tools"):
         tools = body["tools"]
-        canonical["tools"] = tools if isinstance(tools, list) else list(tools)
+        # The gateway hashes the tools list as-is; coercing a non-list (e.g. a
+        # dict) would change the wire request AND produce a hash that can never
+        # match. Reject it rather than guessing.
+        if not isinstance(tools, list):
+            raise UnsupportedRequestError(f"'tools' must be a list, got {type(tools).__name__}")
+        canonical["tools"] = tools
     if body.get("response_format"):
         canonical["response_format"] = body["response_format"]
     if body.get("web_search"):
         canonical["web_search"] = True
 
+    # The wire request is the canonical request with full (un-stripped) user
+    # content restored, plus any generation-affecting fields the gateway honors
+    # but does NOT fold into the signed hash (e.g. tool_choice) — dropping those
+    # would silently ignore caller intent.
     wire = copy.deepcopy(canonical)
     wire["messages"] = [
-        ({**cm, "content": orig.get("content")} if cm.get("role") == "user" else cm)
-        for cm, orig in zip(wire["messages"], messages)
+        ({**cm, "content": orig.get("content")} if cm.get("role") == "user" else cm) for cm, orig in zip(wire["messages"], messages)
     ]
+    for field in _WIRE_ONLY_PASSTHROUGH:
+        if body.get(field) is not None:
+            wire[field] = body[field]
     return wire, canonical
+
+
+# Fields forwarded to the gateway on the wire but intentionally excluded from the
+# signed request hash (the gateway does not commit to them either).
+_WIRE_ONLY_PASSTHROUGH = ("tool_choice",)
 
 
 def canonical_request_bytes(canonical_request: dict) -> bytes:
