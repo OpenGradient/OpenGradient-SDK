@@ -33,9 +33,28 @@ repo = hub.create_model("my-model", "A price prediction model")
 from .alpha import Alpha
 from .llm import LLM
 from .model_hub import ModelHub
+from .tee_ohttp_client import OhttpRelayClient, RelayError, VerifiedChatResponse
+from .tee_registry import TEEEndpoint, TEERegistry
+from .tee_verify import TeeProof, VerificationError, build_inner_request, verify_response
 from .twins import Twins
 
-__all__ = ["LLM", "Alpha", "ModelHub", "Twins"]
+__all__ = [
+    "LLM",
+    "Alpha",
+    "ModelHub",
+    "Twins",
+    # Verified-inference building blocks: route an OpenAI-style request to a TEE
+    # through an untrusted relay, then cryptographically verify the response.
+    "TEERegistry",
+    "TEEEndpoint",
+    "OhttpRelayClient",
+    "VerifiedChatResponse",
+    "RelayError",
+    "TeeProof",
+    "VerificationError",
+    "build_inner_request",
+    "verify_response",
+]
 
 __pdoc__ = {
     "Alpha": False,
@@ -45,5 +64,8 @@ __pdoc__ = {
     "client": False,
     "exceptions": False,
     "opg_token": False,
-    "tee_registry": False,
+    "tee_registry": True,
+    "tee_ohttp": True,
+    "tee_verify": True,
+    "tee_ohttp_client": True,
 }

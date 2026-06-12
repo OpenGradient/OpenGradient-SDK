@@ -77,7 +77,21 @@ hub.upload("model.onnx", repo.name, repo.initialVersion)
 """
 
 from . import agents, alphasense
-from .client import LLM, Alpha, ModelHub, Twins
+from .client import (
+    LLM,
+    Alpha,
+    ModelHub,
+    OhttpRelayClient,
+    RelayError,
+    TEEEndpoint,
+    TEERegistry,
+    TeeProof,
+    Twins,
+    VerificationError,
+    VerifiedChatResponse,
+    build_inner_request,
+    verify_response,
+)
 from .types import (
     TEE_LLM,
     CandleOrder,
@@ -112,6 +126,16 @@ __all__ = [
     "x402SettlementMode",
     "agents",
     "alphasense",
+    # Verified-inference building blocks
+    "TEERegistry",
+    "TEEEndpoint",
+    "OhttpRelayClient",
+    "VerifiedChatResponse",
+    "RelayError",
+    "TeeProof",
+    "VerificationError",
+    "build_inner_request",
+    "verify_response",
 ]
 
 __pdoc__ = {
@@ -140,4 +164,13 @@ __pdoc__ = {
     "CandleType": False,
     "HistoricalInputQuery": False,
     "SchedulerParams": False,
+    "TEERegistry": False,
+    "TEEEndpoint": False,
+    "OhttpRelayClient": False,
+    "VerifiedChatResponse": False,
+    "RelayError": False,
+    "TeeProof": False,
+    "VerificationError": False,
+    "build_inner_request": False,
+    "verify_response": False,
 }
