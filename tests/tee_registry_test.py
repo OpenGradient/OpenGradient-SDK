@@ -153,6 +153,26 @@ class TestGetActiveTeesByType:
         result = registry.get_active_tees_by_type(TEE_TYPE_LLM_PROXY)
         assert len(result) == 3
 
+    def test_skips_blacklisted_tee(self, mock_contract):
+        """A locally blacklisted tee_id is dropped even when active on-chain."""
+        registry, contract = mock_contract
+
+        # mock_contract's keccak maps b"pubkey" -> 0xaa*32; blacklist that id.
+        blacklisted_id = "0x" + ("aa" * 32)
+        contract.functions.getActiveTEEs.return_value.call.return_value = [
+            _make_tee_info(endpoint="https://blacklisted.example.com", pub_key=b"pubkey"),
+            _make_tee_info(endpoint="https://allowed.example.com", pub_key=b"other"),
+        ]
+
+        with patch(
+            "opengradient.client.tee_registry._BLACKLISTED_TEE_IDS_NORMALIZED",
+            frozenset({blacklisted_id.removeprefix("0x")}),
+        ):
+            result = registry.get_active_tees_by_type(TEE_TYPE_LLM_PROXY)
+
+        assert len(result) == 1
+        assert result[0].endpoint == "https://allowed.example.com"
+
     def test_validator_type_label(self, mock_contract):
         """Ensure validator type queries work the same way."""
         registry, contract = mock_contract

@@ -16,6 +16,25 @@ logger = logging.getLogger(__name__)
 TEE_TYPE_LLM_PROXY = 0
 TEE_TYPE_VALIDATOR = 1
 
+# TEE ids blacklisted locally in the app. Any TEE whose id appears here is
+# dropped from every registry lookup regardless of its on-chain status, so it is
+# never selected for inference or failover. Use this to route around a TEE that
+# is misbehaving before it is disabled on-chain. Ids are compared case- and
+# ``0x``-prefix-insensitively (see ``_normalize_tee_id``).
+BLACKLISTED_TEE_IDS: frozenset[str] = frozenset(
+    {
+        "0x381a4c1d64f4b00791881b58ffaec635ce7a1b2d1af6af49ef1c162282e46edf",
+    }
+)
+
+
+def _normalize_tee_id(tee_id: str) -> str:
+    """Normalize a TEE id for blacklist comparison (lowercase, no ``0x``)."""
+    return tee_id.strip().lower().removeprefix("0x")
+
+
+_BLACKLISTED_TEE_IDS_NORMALIZED: frozenset[str] = frozenset(_normalize_tee_id(t) for t in BLACKLISTED_TEE_IDS)
+
 
 class OhttpConfig(NamedTuple):
     """Mirrors the on-chain TEERegistry.OhttpConfig struct.
@@ -149,6 +168,9 @@ class TEERegistry:
             tee_id_hex = Web3.keccak(tee.public_key).hex()
             if not tee.endpoint or not tee.tls_certificate:
                 logger.warning("  teeId=%s  missing endpoint or TLS cert  (skipped)", tee_id_hex)
+                continue
+            if _normalize_tee_id(tee_id_hex) in _BLACKLISTED_TEE_IDS_NORMALIZED:
+                logger.warning("  teeId=%s  locally blacklisted  (skipped)", tee_id_hex)
                 continue
 
             endpoints.append(
