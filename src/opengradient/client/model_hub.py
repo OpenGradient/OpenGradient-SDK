@@ -113,7 +113,7 @@ class ModelHub:
         json_response = response.json()
         created_name = json_response.get("name")
         if not created_name:
-            raise Exception(f"Model creation response missing 'name'. Full response: {json_response}")
+            raise RuntimeError(f"Model creation response missing 'name'. Full response: {json_response}")
 
         # Create the initial version for the newly created model.
         # Pass `version` as release notes (e.g. "1.00") since the server assigns
@@ -137,7 +137,7 @@ class ModelHub:
             dict: The server response containing version details.
 
         Raises:
-            Exception: If the version creation fails.
+            RuntimeError: If the version creation fails or the response is unexpected.
         """
         url = f"https://api.opengradient.ai/api/v0/models/{model_name}/versions"
         headers = {"Authorization": f"Bearer {self._get_auth_token()}", "Content-Type": "application/json"}
@@ -163,12 +163,10 @@ class ModelHub:
                     return {"versionString": "Unknown", "note": "Version ID not provided in response"}
                 return {"versionString": version_string}
             else:
-                raise Exception(f"Unexpected response type: {type(json_response)}")
+                raise RuntimeError(f"Unexpected response type: {type(json_response)}")
 
         except requests.RequestException as e:
-            raise Exception(f"Version creation failed: {str(e)}")
-        except Exception:
-            raise
+            raise RuntimeError(f"Version creation failed: {str(e)}")
 
     def upload(self, model_path: str, model_name: str, version: str) -> FileUploadResult:
         """
@@ -207,7 +205,10 @@ class ModelHub:
                 elif response.status_code == 500:
                     raise RuntimeError(f"Internal server error occurred (status_code=500)")
                 else:
-                    error_message = response.json().get("detail", "Unknown error occurred")
+                    try:
+                        error_message = response.json().get("detail", "Unknown error occurred")
+                    except ValueError:
+                        error_message = response.text or "Unknown error occurred"
                     raise RuntimeError(f"Upload failed: {error_message} (status_code={response.status_code})")
 
         except requests.RequestException as e:
