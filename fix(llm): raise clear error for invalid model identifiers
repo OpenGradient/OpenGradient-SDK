@@ -1,0 +1,16 @@
+## Summary
+
+Fixes invalid model string handling in the LLM client.
+
+`LLM.completion()` and `LLM.chat()` currently assume the model identifier always contains a `/` separator and directly access `model.split("/")[1]`. When a caller passes a plain string such as `"gpt-5"`, the SDK raises an unhelpful `IndexError` instead of a clear validation error.
+
+This PR adds a shared parser that validates model identifiers and raises a descriptive `ValueError` when the input is not in `provider/model-name` format.
+
+Fixes #249
+
+## Problem
+
+Both `LLM.completion()` and `LLM.chat()` strip the provider prefix with direct string splitting:
+
+```python
+model.split("/")[1]
