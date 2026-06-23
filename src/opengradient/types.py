@@ -593,14 +593,38 @@ class TEE_LLM(str, Enum):
     GROK_4_20_NON_REASONING = "x-ai/grok-4.20-non-reasoning"
     GROK_CODE_FAST_1 = "x-ai/grok-code-fast-1"
 
+    # xAI image-generation models via TEE (Aurora, dedicated /images/generations endpoint).
+    # Billed at a flat rate per image. Images are returned on ``TextGenerationOutput.images``
+    # and ``StreamChunk.images`` as data: URIs and are not part of the signed output hash.
+    GROK_2_IMAGE = "x-ai/grok-2-image"
+
     # ByteDance Seed models via TEE (BytePlus ModelArk)
     SEED_1_6 = "bytedance/seed-1.6"
     SEED_1_8 = "bytedance/seed-1.8"
     SEED_2_0_LITE = "bytedance/seed-2.0-lite"
 
+    # DeepSeek models via TEE (served through BytePlus ModelArk)
+    DEEPSEEK_V4_FLASH = "bytedance/deepseek-v4-flash"
+    DEEPSEEK_V4_PRO = "bytedance/deepseek-v4-pro"
+
+    # ByteDance image-generation models via TEE (ModelArk, dedicated /images/generations
+    # endpoint). Billed at a flat rate per image. Images are returned on
+    # ``TextGenerationOutput.images`` and ``StreamChunk.images`` as data: URIs.
+    SEEDREAM_4_0 = "bytedance/seedream-4.0"
+    SEEDANCE_4_5 = "bytedance/seedance-4.5"
+
+
     # Nous Research Hermes models via TEE (Nous Portal)
     HERMES_4_405B = "nous/hermes-4-405b"
     HERMES_4_70B = "nous/hermes-4-70b"
+
+    # Z.ai GLM models via TEE (Model API, OpenAI-compatible)
+    GLM_5_2 = "zai/glm-5.2"
+
+    # Z.ai image-generation model via TEE (dedicated /images/generations endpoint).
+    # Billed at a flat rate per image. Images are returned on
+    # ``TextGenerationOutput.images`` and ``StreamChunk.images`` as data: URIs.
+    GLM_IMAGE = "zai/glm-image"
 
 
 @dataclass
