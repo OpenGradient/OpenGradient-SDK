@@ -607,10 +607,9 @@ class TEE_LLM(str, Enum):
     DEEPSEEK_V4_FLASH = "bytedance/deepseek-v4-flash"
     DEEPSEEK_V4_PRO = "bytedance/deepseek-v4-pro"
 
-    # ByteDance image-generation models via TEE (ModelArk, dedicated /images/generations
-    # endpoint). Billed at a flat rate per image. Images are returned on
+    # ByteDance Seedream image-generation via a ModelArk deployment endpoint.
+    # Billed at a flat rate per image. Images are returned on
     # ``TextGenerationOutput.images`` and ``StreamChunk.images`` as data: URIs.
-    SEEDREAM_4_0 = "bytedance/seedream-4.0"
     SEEDANCE_4_5 = "bytedance/seedance-4.5"
 
     # Nous Research Hermes models via TEE (Nous Portal)
