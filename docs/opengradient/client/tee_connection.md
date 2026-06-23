@@ -53,7 +53,7 @@ failover when the current TEE becomes unavailable.
 #### Constructor
 
 ```python
-def __init__(x402_client: `x402Client`, registry: [TEERegistry](./tee_registry))
+def __init__(x402_client: `x402Client`, registry: `TEERegistry`)
 ```
 
 **Arguments**
