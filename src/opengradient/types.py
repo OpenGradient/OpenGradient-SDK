@@ -594,6 +594,7 @@ class TEE_LLM(str, Enum):
     GROK_4_20_REASONING = "x-ai/grok-4.20-reasoning"
     GROK_4_20_NON_REASONING = "x-ai/grok-4.20-non-reasoning"
     GROK_CODE_FAST_1 = "x-ai/grok-code-fast-1"
+    GROK_2_IMAGE = "x-ai/grok-2-image"
 
     # ByteDance Seed models via TEE (BytePlus ModelArk)
     SEED_1_6 = "bytedance/seed-1.6"
@@ -603,6 +604,7 @@ class TEE_LLM(str, Enum):
     # DeepSeek models served via TEE (BytePlus ModelArk)
     DEEPSEEK_V4_FLASH = "bytedance/deepseek-v4-flash"
     DEEPSEEK_V4_PRO = "bytedance/deepseek-v4-pro"
+    SEEDREAM_4_0 = "bytedance/seedream-4.0"
 
     # Nous Research Hermes models via TEE (Nous Portal)
     HERMES_4_405B = "nous/hermes-4-405b"
@@ -610,6 +612,7 @@ class TEE_LLM(str, Enum):
 
     # GLM models via TEE (Z.ai)
     GLM_5_2 = "zai/glm-5.2"
+    GLM_IMAGE = "zai/glm-image"
 
 
 @dataclass
