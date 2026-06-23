@@ -483,6 +483,8 @@ auditability and tamper-proof AI inference.
 * static `CLAUDE_OPUS_4_8`
 * static `CLAUDE_SONNET_4_5`
 * static `CLAUDE_SONNET_4_6`
+* static `DEEPSEEK_V4_FLASH`
+* static `DEEPSEEK_V4_PRO`
 * static `GEMINI_2_5_FLASH`
 * static `GEMINI_2_5_FLASH_IMAGE`
 * static `GEMINI_2_5_FLASH_LITE`
