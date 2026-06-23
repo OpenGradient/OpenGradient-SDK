@@ -600,11 +600,11 @@ class TEE_LLM(str, Enum):
     SEED_1_6 = "bytedance/seed-1.6"
     SEED_1_8 = "bytedance/seed-1.8"
     SEED_2_0_LITE = "bytedance/seed-2.0-lite"
+    SEEDREAM_4_0 = "bytedance/seedream-4.0"
 
     # DeepSeek models served via TEE (BytePlus ModelArk)
     DEEPSEEK_V4_FLASH = "bytedance/deepseek-v4-flash"
     DEEPSEEK_V4_PRO = "bytedance/deepseek-v4-pro"
-    SEEDREAM_4_0 = "bytedance/seedream-4.0"
 
     # Nous Research Hermes models via TEE (Nous Portal)
     HERMES_4_405B = "nous/hermes-4-405b"
