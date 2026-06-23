@@ -9,7 +9,7 @@ logging.getLogger("opengradient").setLevel(logging.DEBUG)
 
 
 async def main():
-    llm = og.LLM(private_key=os.environ.get("OG_PRIVATE_KEY"))
+    llm = og.LLM.from_url(private_key=os.environ.get("OG_PRIVATE_KEY"), llm_server_url="https://13.59.207.188")
     llm.ensure_opg_approval(min_allowance=0.1)
 
     messages = [
@@ -18,7 +18,7 @@ async def main():
 
     # Run inference with full public settlement
     result = await llm.chat(
-        model=og.TEE_LLM.GPT_5_5,
+        model=og.TEE_LLM.CLAUDE_OPUS_4_8,
         messages=messages,
         max_tokens=300,
         x402_settlement_mode=og.x402SettlementMode.INDIVIDUAL_FULL,
@@ -33,5 +33,6 @@ async def main():
         print(f"Explorer: https://explorer.opengradient.ai/tx/{tx_hash}?tab=index")
     else:
         print("No settlement tx hash returned")
+
 
 asyncio.run(main())

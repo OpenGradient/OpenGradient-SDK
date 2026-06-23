@@ -613,7 +613,6 @@ class TEE_LLM(str, Enum):
     SEEDREAM_4_0 = "bytedance/seedream-4.0"
     SEEDANCE_4_5 = "bytedance/seedance-4.5"
 
-
     # Nous Research Hermes models via TEE (Nous Portal)
     HERMES_4_405B = "nous/hermes-4-405b"
     HERMES_4_70B = "nous/hermes-4-70b"
