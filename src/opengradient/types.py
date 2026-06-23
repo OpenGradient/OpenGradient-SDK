@@ -606,6 +606,10 @@ class TEE_LLM(str, Enum):
     DEEPSEEK_V4_FLASH = "bytedance/deepseek-v4-flash"
     DEEPSEEK_V4_PRO = "bytedance/deepseek-v4-pro"
 
+    # DeepSeek models via TEE (served through BytePlus ModelArk)
+    DEEPSEEK_V4_FLASH = "bytedance/deepseek-v4-flash"
+    DEEPSEEK_V4_PRO = "bytedance/deepseek-v4-pro"
+
     # Nous Research Hermes models via TEE (Nous Portal)
     HERMES_4_405B = "nous/hermes-4-405b"
     HERMES_4_70B = "nous/hermes-4-70b"
