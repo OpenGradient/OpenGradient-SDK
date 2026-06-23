@@ -565,6 +565,7 @@ class TEE_LLM(str, Enum):
     CLAUDE_OPUS_4_6 = "anthropic/claude-opus-4-6"
     CLAUDE_OPUS_4_7 = "anthropic/claude-opus-4-7"
     CLAUDE_OPUS_4_8 = "anthropic/claude-opus-4-8"
+    CLAUDE_FABLE_5 = "anthropic/claude-fable-5"
 
     # Google models via TEE
     # Note: gemini-2.5-flash, gemini-2.5-pro, and gemini-2.5-flash-lite are scheduled
@@ -585,6 +586,7 @@ class TEE_LLM(str, Enum):
     GEMINI_3_1_FLASH_IMAGE = "google/gemini-3.1-flash-image"
 
     # xAI Grok models via TEE
+    GROK_4_3 = "x-ai/grok-4.3"
     GROK_4 = "x-ai/grok-4"
     GROK_4_FAST = "x-ai/grok-4-fast"
     GROK_4_1_FAST = "x-ai/grok-4-1-fast"
@@ -592,19 +594,25 @@ class TEE_LLM(str, Enum):
     GROK_4_20_REASONING = "x-ai/grok-4.20-reasoning"
     GROK_4_20_NON_REASONING = "x-ai/grok-4.20-non-reasoning"
     GROK_CODE_FAST_1 = "x-ai/grok-code-fast-1"
+    GROK_2_IMAGE = "x-ai/grok-2-image"
 
     # ByteDance Seed models via TEE (BytePlus ModelArk)
     SEED_1_6 = "bytedance/seed-1.6"
     SEED_1_8 = "bytedance/seed-1.8"
     SEED_2_0_LITE = "bytedance/seed-2.0-lite"
+    SEEDREAM_4_0 = "bytedance/seedream-4.0"
 
-    # DeepSeek models via TEE (served through BytePlus ModelArk)
+    # DeepSeek models served via TEE (BytePlus ModelArk)
     DEEPSEEK_V4_FLASH = "bytedance/deepseek-v4-flash"
     DEEPSEEK_V4_PRO = "bytedance/deepseek-v4-pro"
 
     # Nous Research Hermes models via TEE (Nous Portal)
     HERMES_4_405B = "nous/hermes-4-405b"
     HERMES_4_70B = "nous/hermes-4-70b"
+
+    # GLM models via TEE (Z.ai)
+    GLM_5_2 = "zai/glm-5.2"
+    GLM_IMAGE = "zai/glm-image"
 
 
 @dataclass
