@@ -155,6 +155,30 @@ class LLM:
         """
         return self._tee.resolve(tee_id)
 
+    # ── Image helpers ────────────────────────────────────────────────────
+
+    @staticmethod
+    async def _resolve_images(images: Optional[List[str]]) -> Optional[List[str]]:
+        """Fetch any HTTP/HTTPS image URLs and convert them to data: URIs.
+
+        Providers like ByteDance Seedance return pre-signed CDN URLs instead of
+        inline base64. This normalises the list so callers always receive data: URIs.
+        """
+        if not images:
+            return images
+        resolved: List[str] = []
+        async with httpx.AsyncClient(follow_redirects=True, timeout=60) as client:
+            for img in images:
+                if img.startswith("http://") or img.startswith("https://"):
+                    resp = await client.get(img)
+                    resp.raise_for_status()
+                    mime = resp.headers.get("content-type", "image/jpeg").split(";")[0].strip()
+                    b64 = base64.b64encode(resp.content).decode("ascii")
+                    resolved.append(f"data:{mime};base64,{b64}")
+                else:
+                    resolved.append(img)
+        return resolved
+
     # ── Request helpers ─────────────────────────────────────────────────
 
     def _headers(self, settlement_mode: x402SettlementMode) -> Dict[str, str]:
@@ -458,7 +482,7 @@ class LLM:
                 data_settlement_blob_id=self._data_settlement_blob_id(response),
                 finish_reason=choices[0].get("finish_reason"),
                 chat_output=message,
-                images=message.get("images"),
+                images=await self._resolve_images(message.get("images")),
                 usage=result.get("usage"),
                 tee_signature=result.get("tee_signature"),
                 tee_timestamp=result.get("tee_timestamp"),
@@ -497,7 +521,7 @@ class LLM:
             tee_payment_address=result.tee_payment_address,
             data_settlement_transaction_hash=result.data_settlement_transaction_hash,
             data_settlement_blob_id=result.data_settlement_blob_id,
-            images=result.images,
+            images=await self._resolve_images(result.images),
         )
 
     async def _chat_stream(self, params: _ChatParams, messages: List[Dict]) -> AsyncGenerator[StreamChunk, None]:
