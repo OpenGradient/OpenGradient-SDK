@@ -40,6 +40,7 @@ async def main():
     #   xAI (flat per-image rate, $0.07/image):
     #     og.TEE_LLM.GROK_2_IMAGE
     #   ByteDance (flat per-image rate):
+    #     og.TEE_LLM.SEEDREAM_4_0  ($0.03/image)
     #     og.TEE_LLM.SEEDANCE_4_5  ($0.05/image)
     #   Z.ai (flat per-image rate, $0.015/image):
     #     og.TEE_LLM.GLM_IMAGE
