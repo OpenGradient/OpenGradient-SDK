@@ -170,10 +170,7 @@ class RegistryTEEConnection:
                 continue
 
             cached = self._active_by_tee_id.get(normalized_tee_id)
-            if (
-                cached is not None
-                and cached.endpoint.rstrip("/") == tee.endpoint.rstrip("/")
-            ):
+            if cached is not None and cached.endpoint.rstrip("/") == tee.endpoint.rstrip("/"):
                 return cached
 
             resolved = self._connect_to_tee(tee)
@@ -185,9 +182,7 @@ class RegistryTEEConnection:
             )
             return resolved
 
-        raise ValueError(
-            f"Selected TEE is not active in the registry: {normalized_tee_id}"
-        )
+        raise ValueError(f"Selected TEE is not active in the registry: {normalized_tee_id}")
 
     # ── Connection management ───────────────────────────────────────────
 

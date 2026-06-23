@@ -32,6 +32,18 @@ async def main():
     # The text caption (if any) is in chat_output["content"]; the generated images
     # are in result.images as data: URIs. Images travel out-of-band and are not part
     # of the signed output hash.
+    #
+    # Available image generation models:
+    #   Google (inline, billed per output token):
+    #     og.TEE_LLM.GEMINI_2_5_FLASH_IMAGE
+    #     og.TEE_LLM.GEMINI_3_1_FLASH_IMAGE
+    #   xAI (flat per-image rate, $0.07/image):
+    #     og.TEE_LLM.GROK_2_IMAGE
+    #   ByteDance (flat per-image rate):
+    #     og.TEE_LLM.SEEDREAM_4_0  ($0.03/image)
+    #     og.TEE_LLM.SEEDANCE_4_5  ($0.05/image)
+    #   Z.ai (flat per-image rate, $0.015/image):
+    #     og.TEE_LLM.GLM_IMAGE
     result = await llm.chat(
         model=og.TEE_LLM.GEMINI_3_1_FLASH_IMAGE,
         messages=messages,
