@@ -557,6 +557,12 @@ class TEE_LLM(str, Enum):
     GPT_5_4_NANO = "openai/gpt-5.4-nano"
     GPT_5_5 = "openai/gpt-5.5"
 
+    # OpenAI image-generation model via TEE (dedicated /images/generations
+    # endpoint). Billed at a flat rate per image. Images are returned on
+    # ``TextGenerationOutput.images`` and ``StreamChunk.images`` as data: URIs
+    # and are not part of the signed output hash.
+    GPT_IMAGE_2 = "openai/gpt-image-2"
+
     # Anthropic models via TEE
     CLAUDE_SONNET_4_5 = "anthropic/claude-sonnet-4-5"
     CLAUDE_SONNET_4_6 = "anthropic/claude-sonnet-4-6"
