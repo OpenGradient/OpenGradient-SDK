@@ -250,6 +250,7 @@ The SDK provides access to models from multiple providers via the `og.TEE_LLM` e
 - GPT-5
 - GPT-5 Mini
 - GPT-5.2
+- GPT Image 2 (native image generation)
 
 #### Anthropic
 - Claude Sonnet 4.5

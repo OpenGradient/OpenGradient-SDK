@@ -34,6 +34,8 @@ async def main():
     # of the signed output hash.
     #
     # Available image generation models:
+    #   OpenAI (flat per-image rate, $0.05/image):
+    #     og.TEE_LLM.GPT_IMAGE_2
     #   Google (inline, billed per output token):
     #     og.TEE_LLM.GEMINI_2_5_FLASH_IMAGE
     #     og.TEE_LLM.GEMINI_3_1_FLASH_IMAGE
