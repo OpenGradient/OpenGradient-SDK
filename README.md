@@ -45,6 +45,7 @@ OpenGradient enables developers to build AI applications with verifiable executi
 ### Key Features
 
 - **Verifiable LLM Inference**: Drop-in replacement for OpenAI and Anthropic APIs with cryptographic attestation
+- **Confidential Inference (Oblivious HTTP)**: End-to-end encrypted chat through an untrusted relay, with the enclave signature verified client-side before any content is returned — no wallet needed on the caller
 - **Multi-Provider Support**: Access models from OpenAI, Anthropic, Google, and xAI through a unified interface
 - **Native Web Search**: Opt-in `web_search` flag enables each provider's built-in web search, billed per search
 - **Image Generation**: Native image-output models ("nano banana") return generated images directly on the response
@@ -213,6 +214,52 @@ for i, image in enumerate(result.images or []):
     payload = image.split(",", 1)[1]  # strip the "data:image/png;base64," prefix
     with open(f"image_{i}.png", "wb") as f:
         f.write(base64.b64decode(payload))
+```
+
+### Confidential Inference (Oblivious HTTP)
+
+`og.ConfidentialLLM` sends chat completions end-to-end encrypted to a TEE through an untrusted relay — the same Oblivious HTTP path the OpenGradient chat app uses in the browser. The request is HPKE-encrypted so the relay only ever sees ciphertext, and the enclave's signature is **verified client-side before any content is returned**. Unlike `og.LLM`, this path needs **no wallet on the caller**: the relay holds the x402 account and pays per request.
+
+It auto-resolves an OHTTP-capable TEE from the on-chain registry and appends the confidential-inference path (`/api/v1/chat/ohttp`) to the relay URL for you. `chat()` is synchronous.
+
+```python
+import opengradient as og
+
+client = og.ConfidentialLLM(
+    relay_url="https://chat-api.opengradient.ai",
+    # If the relay requires authentication, provide a per-request header callable:
+    auth_headers=lambda: {"Authorization": "Bearer <token>"},
+)
+
+result = client.chat(
+    model=og.TEE_LLM.CLAUDE_HAIKU_4_5,
+    messages=[{"role": "user", "content": "In one sentence, what is a TEE?"}],
+    max_tokens=200,
+)
+
+print(result.content)          # verified assistant text
+print(result.proof.tee_id)     # the attested enclave that produced it
+```
+
+Set `stream=True` to buffer, verify, and return the decrypted SSE frames in `result.stream_frames`. To target a self-hosted or pre-selected enclave and skip the registry lookup, use `og.ConfidentialLLM.from_tee(relay_url, tee)`.
+
+#### Sign in with your Chat account
+
+Instead of managing a relay URL and token yourself, `og.login_chat_account()` signs you in through the browser — the same CLI-auth flow other OpenGradient tools use. It opens `chat.opengradient.ai/cli-auth`, waits for you to authorize on a short-lived loopback listener (the session is only ever posted back to `127.0.0.1`, never to a remote host), and returns the access token together with the relay URL to use:
+
+```python
+auth = og.login_chat_account()          # opens the browser, waits for sign-in
+
+client = og.ConfidentialLLM(
+    relay_url=auth.chat_api_base_url,    # relay URL from the account config
+    auth_headers=auth.auth_headers,      # Bearer <access_token>, refreshed per request
+)
+
+result = client.chat(
+    model=og.TEE_LLM.CLAUDE_HAIKU_4_5,
+    messages=[{"role": "user", "content": "Hello!"}],
+)
+print(result.content)
 ```
 
 ### Verifiable LangChain Integration

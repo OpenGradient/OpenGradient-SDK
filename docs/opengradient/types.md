@@ -494,6 +494,8 @@ auditability and tamper-proof AI inference.
 * static `GEMINI_3_1_PRO_PREVIEW`
 * static `GEMINI_3_5_FLASH`
 * static `GEMINI_3_FLASH`
+* static `GLM_5_2`
+* static `GLM_IMAGE`
 * static `GPT_4_1_2025_04_14`
 * static `GPT_4_1_MINI`
 * static `GPT_4_1_NANO`
@@ -504,6 +506,8 @@ auditability and tamper-proof AI inference.
 * static `GPT_5_4_NANO`
 * static `GPT_5_5`
 * static `GPT_5_MINI`
+* static `GPT_IMAGE_2`
+* static `GROK_2_IMAGE`
 * static `GROK_4`
 * static `GROK_4_1_FAST`
 * static `GROK_4_1_FAST_NON_REASONING`
@@ -515,6 +519,8 @@ auditability and tamper-proof AI inference.
 * static `HERMES_4_70B`
 * static `O3`
 * static `O4_MINI`
+* static `SEEDANCE_4_5`
+* static `SEEDREAM_4_0`
 * static `SEED_1_6`
 * static `SEED_1_8`
 * static `SEED_2_0_LITE`

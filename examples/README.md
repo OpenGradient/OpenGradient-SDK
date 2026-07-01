@@ -108,6 +108,19 @@ python examples/llm_image_generation.py
 - Reads the generated images from `result.images` (data URIs) and writes them to disk
 - Image output is billed as completion tokens; images travel out-of-band and are not part of the signed output hash
 
+#### `confidential_chat.py`
+Runs a confidential (Oblivious HTTP) chat completion through an untrusted relay.
+
+```bash
+python examples/confidential_chat.py
+```
+
+**What it does:**
+- Uses `og.ConfidentialLLM`, which auto-resolves an OHTTP-capable TEE from the on-chain registry and targets the relay's confidential-inference path (`/api/v1/chat/ohttp`) — the same OHTTP flow the browser chat app uses
+- Sends the request end-to-end encrypted (HPKE): the relay holds the x402 account and only ever sees ciphertext, so no wallet is needed on this side
+- Verifies the enclave's RSA-PSS signature before returning any content, and exposes the provenance via `result.proof`
+- By default signs in through the browser with `og.login_chat_account()` (the CLI-auth flow) and uses the account's own relay URL and token; set `OG_RELAY_URL` (and optional `OG_RELAY_TOKEN`) to skip the browser and point at a relay directly
+
 ## Alpha Testnet Examples
 
 Examples for features only available on the **Alpha Testnet** are located in the [`alpha/`](./alpha/) folder. These include:
