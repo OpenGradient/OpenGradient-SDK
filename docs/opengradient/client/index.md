@@ -11,6 +11,7 @@ OpenGradient Client -- service modules for the SDK.
 ## Modules
 
 - **[llm](./llm)** -- LLM chat and text completion with TEE-verified execution and x402 payment settlement (Base OPG tokens)
+- **[confidential_llm](./confidential_llm)** -- One-call confidential (Oblivious HTTP) chat: auto-resolves an OHTTP-capable TEE and verifies the response, no wallet needed on the caller
 - **[model_hub](./model_hub)** -- Model repository management: create, version, and upload ML models
 - **[alpha](./alpha)** -- Alpha Testnet features: on-chain ONNX model inference (VANILLA, TEE, ZKML modes), workflow deployment, and scheduled ML model execution (OpenGradient testnet gas tokens)
 - **[twins](./twins)** -- Digital twins chat via OpenGradient verifiable inference
