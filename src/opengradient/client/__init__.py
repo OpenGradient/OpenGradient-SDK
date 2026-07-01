@@ -5,6 +5,7 @@ OpenGradient Client -- service modules for the SDK.
 
 - **`opengradient.client.llm`** -- LLM chat and text completion with TEE-verified execution and x402 payment settlement (Base OPG tokens)
 - **`opengradient.client.confidential_llm`** -- One-call confidential (Oblivious HTTP) chat: auto-resolves an OHTTP-capable TEE and verifies the response, no wallet needed on the caller
+- **`opengradient.client.chat_auth`** -- Browser-based login to an OpenGradient Chat account (the CLI-auth flow): returns the access token and client config for the confidential-inference relay
 - **`opengradient.client.model_hub`** -- Model repository management: create, version, and upload ML models
 - **`opengradient.client.alpha`** -- Alpha Testnet features: on-chain ONNX model inference (VANILLA, TEE, ZKML modes), workflow deployment, and scheduled ML model execution (OpenGradient testnet gas tokens)
 - **`opengradient.client.twins`** -- Digital twins chat via OpenGradient verifiable inference
@@ -32,6 +33,7 @@ repo = hub.create_model("my-model", "A price prediction model")
 """
 
 from .alpha import Alpha
+from .chat_auth import ChatAccountAuth, login_chat_account
 from .confidential_llm import ConfidentialLLM
 from .llm import LLM
 from .model_hub import ModelHub
@@ -48,6 +50,10 @@ __all__ = [
     # Confidential inference: one-call verified, private chat over Oblivious HTTP
     # (auto-resolves an OHTTP-capable TEE from the registry, like the chat app).
     "ConfidentialLLM",
+    # Browser-based login to an OpenGradient Chat account (the CLI-auth flow):
+    # returns the access token + client config, ready for ConfidentialLLM.
+    "login_chat_account",
+    "ChatAccountAuth",
     # Verified-inference building blocks: route an OpenAI-style request to a TEE
     # through an untrusted relay, then cryptographically verify the response.
     "TEERegistry",
@@ -75,4 +81,5 @@ __pdoc__ = {
     "tee_verify": True,
     "tee_ohttp_client": True,
     "confidential_llm": True,
+    "chat_auth": True,
 }

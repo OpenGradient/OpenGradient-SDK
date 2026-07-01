@@ -243,6 +243,25 @@ print(result.proof.tee_id)     # the attested enclave that produced it
 
 Set `stream=True` to buffer, verify, and return the decrypted SSE frames in `result.stream_frames`. To target a self-hosted or pre-selected enclave and skip the registry lookup, use `og.ConfidentialLLM.from_tee(relay_url, tee)`.
 
+#### Sign in with your Chat account
+
+Instead of managing a relay URL and token yourself, `og.login_chat_account()` signs you in through the browser — the same CLI-auth flow other OpenGradient tools use. It opens `chat.opengradient.ai/cli-auth`, waits for you to authorize on a short-lived loopback listener (the session is only ever posted back to `127.0.0.1`, never to a remote host), and returns the access token together with the relay URL to use:
+
+```python
+auth = og.login_chat_account()          # opens the browser, waits for sign-in
+
+client = og.ConfidentialLLM(
+    relay_url=auth.chat_api_base_url,    # relay URL from the account config
+    auth_headers=auth.auth_headers,      # Bearer <access_token>, refreshed per request
+)
+
+result = client.chat(
+    model=og.TEE_LLM.CLAUDE_HAIKU_4_5,
+    messages=[{"role": "user", "content": "Hello!"}],
+)
+print(result.content)
+```
+
 ### Verifiable LangChain Integration
 
 Use OpenGradient as a drop-in LLM provider for LangChain agents with network-verified execution:

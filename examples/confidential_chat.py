@@ -6,9 +6,10 @@ same OHTTP path the OpenGradient chat app uses in the browser. No wallet is
 needed on this side: the relay holds the x402 account and only ever sees
 ciphertext.
 
-Set OG_RELAY_URL to your relay's base URL (the /api/v1/chat/ohttp path is
-appended automatically). Set OG_RELAY_TOKEN if the relay requires a bearer
-token.
+By default this signs you in through the browser (og.login_chat_account) and
+uses the account's own relay URL and token — the same CLI-auth flow other
+OpenGradient tools use. Set OG_RELAY_URL / OG_RELAY_TOKEN to skip the browser
+and point at a relay directly instead.
 """
 
 import logging
@@ -21,14 +22,27 @@ logging.getLogger("opengradient").setLevel(logging.INFO)
 
 
 def main():
-    relay_url = os.environ.get("OG_RELAY_URL", "https://chat-api.opengradient.ai")
+    relay_url = os.environ.get("OG_RELAY_URL")
     token = os.environ.get("OG_RELAY_TOKEN")
+
+    if relay_url:
+        # Direct: point at a relay yourself (the /api/v1/chat/ohttp path is
+        # appended automatically).
+        auth_headers = (lambda: {"Authorization": f"Bearer {token}"}) if token else None
+    else:
+        # Browser login: opens chat.opengradient.ai/cli-auth, waits for sign-in,
+        # and hands back the access token plus the relay URL to use.
+        auth = og.login_chat_account()
+        relay_url = auth.chat_api_base_url
+        auth_headers = auth.auth_headers
+        if not relay_url:
+            raise SystemExit("The chat account did not return a relay URL; set OG_RELAY_URL instead.")
 
     # Resolves an OHTTP-capable TEE from the on-chain registry and targets the
     # relay's confidential-inference path automatically.
     client = og.ConfidentialLLM(
         relay_url=relay_url,
-        auth_headers=(lambda: {"Authorization": f"Bearer {token}"}) if token else None,
+        auth_headers=auth_headers,
     )
 
     result = client.chat(
