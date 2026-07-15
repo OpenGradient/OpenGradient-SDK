@@ -3,6 +3,7 @@
 import asyncio
 import logging
 import ssl
+import time
 from dataclasses import dataclass
 from typing import Dict, Optional, Protocol, Union
 
@@ -19,6 +20,8 @@ from .tee_registry import (
 logger = logging.getLogger(__name__)
 
 _TEE_REFRESH_INTERVAL = 300  # Re-resolve TEE from registry every 5 minutes
+_TEE_RESOLVE_TTL = 30  # Seconds a pinned aresolve() outcome (found or not) stays cached
+_ARESOLVE_CACHE_SWEEP_THRESHOLD = 256  # Sweep expired aresolve entries past this size
 
 
 @dataclass(frozen=True)
@@ -44,6 +47,7 @@ class TEEConnectionInterface(Protocol):
 
     def get(self) -> ActiveTEE: ...
     def resolve(self, tee_id: Optional[str] = None) -> ActiveTEE: ...
+    async def aresolve(self, tee_id: Optional[str] = None) -> ActiveTEE: ...
     def ensure_refresh_loop(self) -> None: ...
     async def reconnect(self) -> None: ...
     async def close(self) -> None: ...
@@ -98,6 +102,10 @@ class StaticTEEConnection:
         """
         return self._active
 
+    async def aresolve(self, tee_id: Optional[str] = None) -> ActiveTEE:
+        """Async variant of ``resolve``; static connections never do I/O."""
+        return self._active
+
     def _connect(self) -> ActiveTEE:
         return ActiveTEE(
             endpoint=self._endpoint,
@@ -143,6 +151,9 @@ class RegistryTEEConnection:
         self._refresh_task: Optional[asyncio.Task] = None
         self._active_by_tee_id: dict[str, ActiveTEE] = {}
 
+        self._aresolve_lock = asyncio.Lock()
+        self._aresolve_cache: dict[str, tuple[float, Optional[ActiveTEE]]] = {}
+
         self._active: ActiveTEE = self._connect()
 
     # ── Public API ──────────────────────────────────────────────────────
@@ -184,6 +195,60 @@ class RegistryTEEConnection:
 
         raise ValueError(f"Selected TEE is not active in the registry: {normalized_tee_id}")
 
+    async def aresolve(self, tee_id: Optional[str] = None) -> ActiveTEE:
+        """Event-loop-safe ``resolve`` for per-request use in async backends.
+
+        ``resolve`` scans the registry with a blocking web3 call whenever the
+        requested TEE is not the active one, which stalls the event loop when
+        called per request. This variant runs the scan in a worker thread and
+        caches each pinned id's outcome — found or not-active — for
+        ``_TEE_RESOLVE_TTL`` seconds, so steady traffic costs at most one
+        chain RPC per TTL window per TEE id, and concurrent cold lookups
+        collapse into a single scan. It also starts the background refresh
+        loop, so long-running relays fail over when the active TEE is retired
+        from the registry.
+
+        Raises:
+            ValueError: If the requested TEE id is not active in the registry
+                (the miss may be cached for up to ``_TEE_RESOLVE_TTL`` seconds).
+        """
+        self.ensure_refresh_loop()
+
+        normalized_tee_id = _normalize_tee_id(tee_id)
+        if normalized_tee_id is None or normalized_tee_id == _normalize_tee_id(self._active.tee_id):
+            return self._active
+
+        cached = self._aresolve_cache.get(normalized_tee_id)
+        if cached is not None and time.monotonic() - cached[0] < _TEE_RESOLVE_TTL:
+            return self._require_resolved(normalized_tee_id, cached[1])
+
+        async with self._aresolve_lock:
+            cached = self._aresolve_cache.get(normalized_tee_id)
+            if cached is not None and time.monotonic() - cached[0] < _TEE_RESOLVE_TTL:
+                return self._require_resolved(normalized_tee_id, cached[1])
+
+            try:
+                resolved: Optional[ActiveTEE] = await asyncio.to_thread(self.resolve, normalized_tee_id)
+            except ValueError:
+                resolved = None
+
+            # Bogus ids each add a (negative) entry; sweep expired ones once
+            # the cache outgrows any plausible number of real TEEs so callers
+            # relaying untrusted ids can't grow it without bound.
+            if len(self._aresolve_cache) > _ARESOLVE_CACHE_SWEEP_THRESHOLD:
+                now = time.monotonic()
+                self._aresolve_cache = {key: entry for key, entry in self._aresolve_cache.items() if now - entry[0] < _TEE_RESOLVE_TTL}
+
+            self._aresolve_cache[normalized_tee_id] = (time.monotonic(), resolved)
+
+        return self._require_resolved(normalized_tee_id, resolved)
+
+    @staticmethod
+    def _require_resolved(normalized_tee_id: str, resolved: Optional[ActiveTEE]) -> ActiveTEE:
+        if resolved is None:
+            raise ValueError(f"Selected TEE is not active in the registry: {normalized_tee_id}")
+        return resolved
+
     # ── Connection management ───────────────────────────────────────────
 
     def _resolve_tee(self) -> TEEEndpoint:
@@ -223,12 +288,17 @@ class RegistryTEEConnection:
         )
 
     async def reconnect(self) -> None:
-        """Connect to a new TEE from the registry and rebuild the HTTP client."""
+        """Connect to a new TEE from the registry and rebuild the HTTP client.
+
+        The registry lookup is a blocking web3 call, so it runs in a worker
+        thread rather than on the event loop. A failed reconnect keeps the
+        previous connection.
+        """
         async with self._refresh_lock:
             try:
-                self._active = self._connect()
+                self._active = await asyncio.to_thread(self._connect)
             except Exception:
-                logger.debug("Failed to close previous HTTP client during TEE refresh.", exc_info=True)
+                logger.warning("Failed to reconnect to a new TEE; keeping the previous connection.", exc_info=True)
 
     # ── Background health check ─────────────────────────────────────────
 
@@ -250,7 +320,8 @@ class RegistryTEEConnection:
         while True:
             await asyncio.sleep(_TEE_REFRESH_INTERVAL)
             try:
-                active_tees = self._registry.get_active_tees_by_type(TEE_TYPE_LLM_PROXY)
+                # Blocking web3 call — keep it off the event loop.
+                active_tees = await asyncio.to_thread(self._registry.get_active_tees_by_type, TEE_TYPE_LLM_PROXY)
                 if any(t.tee_id == self._active.tee_id for t in active_tees):
                     logger.debug("Current TEE %s still active; no refresh needed.", self._active.tee_id)
                     continue

@@ -152,8 +152,36 @@ class LLM:
         This is primarily for backend relays that need SDK-managed TEE routing,
         TLS pinning, and x402 clients without using the chat/completion helpers
         directly, for example when forwarding OHTTP ciphertext.
+
+        Warning:
+            Resolving a TEE id other than the active one scans the on-chain
+            registry with a blocking web3 call. Async servers resolving a TEE
+            per request should use ``aresolve_tee_connection`` instead.
         """
         return self._tee.resolve(tee_id)
+
+    async def aresolve_tee_connection(self, tee_id: Optional[str] = None) -> ActiveTEE:
+        """Async, event-loop-safe variant of ``resolve_tee_connection``.
+
+        Built for backend relays that resolve a TEE on every request: registry
+        scans run in a worker thread and each pinned id's outcome (found or
+        not-active) is cached briefly, so this never blocks the event loop and
+        doesn't hit the chain RPC per request. Also starts the background TEE
+        refresh loop, so the active TEE fails over when it is retired from the
+        registry.
+        """
+        return await self._tee.aresolve(tee_id)
+
+    def ensure_tee_refresh_loop(self) -> None:
+        """Start the background TEE health-check/failover loop if not running.
+
+        The loop starts lazily from the SDK's own request helpers and from
+        ``aresolve_tee_connection``. Call this explicitly from server startup
+        when neither is used on every code path and you still want the active
+        TEE to fail over once it is retired from the registry. Requires a
+        running event loop. No-op for static/dev connections.
+        """
+        self._tee.ensure_refresh_loop()
 
     # ── Image helpers ────────────────────────────────────────────────────
 

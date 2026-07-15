@@ -852,3 +852,28 @@ class TestTeeCertRotation:
         assert len(chunks) == 1
         assert chunks[0].choices[0].delta.content == "ok"
         assert len(fake_http.post_calls) == 2
+
+
+@pytest.mark.asyncio
+class TestTeeConnectionApi:
+    """Public TEE-connection helpers used by backend relays."""
+
+    async def test_aresolve_tee_connection_returns_active(self, fake_http):
+        llm = _make_llm()
+
+        resolved = await llm.aresolve_tee_connection()
+
+        assert resolved is llm.resolve_tee_connection()
+        assert resolved.endpoint == "https://test.tee.server"
+
+    async def test_aresolve_tee_connection_static_ignores_pin(self, fake_http):
+        llm = _make_llm()
+
+        resolved = await llm.aresolve_tee_connection("0xsome-tee-id")
+
+        assert resolved is llm.resolve_tee_connection()
+
+    async def test_ensure_tee_refresh_loop_is_noop_for_static(self, fake_http):
+        llm = _make_llm()
+
+        llm.ensure_tee_refresh_loop()  # should not raise
