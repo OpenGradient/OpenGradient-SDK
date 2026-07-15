@@ -18,6 +18,7 @@ from x402 import x402Client
 from opengradient.client.tee_connection import (
     ActiveTEE,
     RegistryTEEConnection,
+    StaticTEEConnection,
 )
 from opengradient.client.tee_registry import build_ssl_context_from_der
 
@@ -358,6 +359,110 @@ class TestRegistryTEEConnection:
         conn = _make_registry_connection(registry=mock_reg)
 
         await conn.close()  # should not raise
+
+
+def _mock_registry_tee(endpoint="https://pinned.tee", tee_id="0xbb", tls_cert_der=b"fake-der", payment_address="0xPay2"):
+    """A TEE entry as returned by registry.get_active_tees_by_type()."""
+    tee = MagicMock()
+    tee.endpoint = endpoint
+    tee.tls_cert_der = tls_cert_der
+    tee.tee_id = tee_id
+    tee.payment_address = payment_address
+    return tee
+
+
+def _patch_connection_externals():
+    """Patch client/ssl construction for resolve calls made after init."""
+    return (
+        patch(
+            "opengradient.client.tee_connection.x402HttpxClient",
+            side_effect=FakeHTTPClient,
+        ),
+        patch(
+            "opengradient.client.tee_connection.build_ssl_context_from_der",
+            return_value=MagicMock(spec=ssl.SSLContext),
+        ),
+    )
+
+
+@pytest.mark.asyncio
+class TestAresolve:
+    async def test_none_returns_active_without_scan(self):
+        mock_reg = _mock_registry_with_tee(tee_id="0xaa")
+        conn = _make_registry_connection(registry=mock_reg)
+
+        assert await conn.aresolve(None) is conn.get()
+        mock_reg.get_active_tees_by_type.assert_not_called()
+        await conn.close()
+
+    async def test_matching_active_id_returns_active_without_scan(self):
+        mock_reg = _mock_registry_with_tee(tee_id="0xaa")
+        conn = _make_registry_connection(registry=mock_reg)
+
+        # Case/prefix-insensitive match against the active TEE.
+        assert await conn.aresolve("AA") is conn.get()
+        mock_reg.get_active_tees_by_type.assert_not_called()
+        await conn.close()
+
+    async def test_starts_refresh_loop(self):
+        mock_reg = _mock_registry_with_tee(tee_id="0xaa")
+        conn = _make_registry_connection(registry=mock_reg)
+
+        await conn.aresolve(None)
+
+        assert conn._refresh_task is not None
+        assert not conn._refresh_task.done()
+        await conn.close()
+
+    async def test_pinned_id_scans_once_then_caches(self):
+        mock_reg = _mock_registry_with_tee(tee_id="0xaa")
+        mock_reg.get_active_tees_by_type.return_value = [_mock_registry_tee(tee_id="0xbb")]
+        conn = _make_registry_connection(registry=mock_reg)
+
+        p1, p2 = _patch_connection_externals()
+        with p1, p2:
+            results = [await conn.aresolve("0xBB") for _ in range(5)]
+
+        assert all(r.endpoint == "https://pinned.tee" for r in results)
+        assert mock_reg.get_active_tees_by_type.call_count == 1
+        await conn.close()
+
+    async def test_unknown_id_raises_and_caches_miss(self):
+        mock_reg = _mock_registry_with_tee(tee_id="0xaa")
+        mock_reg.get_active_tees_by_type.return_value = []
+        conn = _make_registry_connection(registry=mock_reg)
+
+        p1, p2 = _patch_connection_externals()
+        with p1, p2:
+            for _ in range(3):
+                with pytest.raises(ValueError, match="not active in the registry"):
+                    await conn.aresolve("0xdead")
+
+        assert mock_reg.get_active_tees_by_type.call_count == 1
+        await conn.close()
+
+    async def test_concurrent_cold_lookups_collapse_to_one_scan(self):
+        mock_reg = _mock_registry_with_tee(tee_id="0xaa")
+        mock_reg.get_active_tees_by_type.return_value = [_mock_registry_tee(tee_id="0xbb")]
+        conn = _make_registry_connection(registry=mock_reg)
+
+        p1, p2 = _patch_connection_externals()
+        with p1, p2:
+            results = await asyncio.gather(*[conn.aresolve("0xbb") for _ in range(10)])
+
+        assert all(r.endpoint == "https://pinned.tee" for r in results)
+        assert mock_reg.get_active_tees_by_type.call_count == 1
+        await conn.close()
+
+    async def test_static_connection_resolves_without_io(self):
+        with patch(
+            "opengradient.client.tee_connection.x402HttpxClient",
+            side_effect=FakeHTTPClient,
+        ):
+            conn = StaticTEEConnection(x402_client=_mock_x402_client(), endpoint="https://static.tee")
+
+        assert await conn.aresolve("0xanything") is conn.get()
+        await conn.close()
 
 
 # ── TLS certificate verification (real handshake) ────────────────────
