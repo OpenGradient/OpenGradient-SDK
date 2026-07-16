@@ -3,6 +3,7 @@
 import base64
 import json
 import logging
+from pathlib import Path
 from dataclasses import dataclass
 from typing import AsyncGenerator, Awaitable, Callable, Dict, List, Optional, TypeVar, Union
 import httpx
@@ -12,9 +13,16 @@ import os
 from eth_account import Account
 from eth_account.account import LocalAccount
 from x402 import x402Client
-from x402.mechanisms.evm import EthAccountSigner
+from x402.http import decode_payment_response_header
+from x402.mechanisms.evm import EthAccountSignerWithRPC
+from x402.mechanisms.evm.batch_settlement.client import (
+    BatchSettlementEvmScheme,
+    BatchSettlementEvmSchemeOptions,
+    FileChannelStorageOptions,
+    FileClientChannelStorage,
+    process_settle_response,
+)
 from x402.mechanisms.evm.exact.register import register_exact_evm_client
-from x402.mechanisms.evm.upto.register import register_upto_evm_client
 
 from ..types import TEE_LLM, ResponseFormat, StreamChoice, StreamChunk, StreamDelta, TextGenerationOutput, x402SettlementMode
 from .opg_token import Permit2ApprovalResult, ensure_opg_approval
@@ -38,6 +46,9 @@ X402_DATA_SETTLEMENT_BLOB_ID_HEADER = "x-settlement-walrus-blob-id"
 X402_PLACEHOLDER_API_KEY = "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
 BASE_MAINNET_NETWORK = "eip155:8453"
 BASE_MAINNET_RPC = os.getenv("BASE_MAINNET_RPC", "https://base-rpc.publicnode.com")
+DEFAULT_BATCH_CHANNEL_STORAGE_DIR = Path(
+    os.getenv("X402_BATCH_CHANNEL_STORAGE_DIR", "~/.opengradient/x402-batch-channels")
+).expanduser()
 
 _CHAT_ENDPOINT = "/v1/chat/completions"
 _COMPLETION_ENDPOINT = "/v1/completions"
@@ -96,7 +107,10 @@ class LLM:
             raise ValueError("A private key is required to use the LLM client. Pass a valid private_key to the constructor.")
         self._wallet_account: LocalAccount = Account.from_key(private_key)
 
-        x402_client = LLM._build_x402_client(private_key, rpc_url=BASE_MAINNET_RPC)
+        x402_client, self._batch_channel_storage = LLM._build_x402_client(
+            private_key,
+            rpc_url=BASE_MAINNET_RPC,
+        )
         onchain_registry = TEERegistry(rpc_url=rpc_url, registry_address=tee_registry_address)
         self._tee: TEEConnectionInterface = RegistryTEEConnection(x402_client=x402_client, registry=onchain_registry)
 
@@ -121,24 +135,52 @@ class LLM:
         if not private_key:
             raise ValueError("A private key is required to use the LLM client. Pass a valid private_key to the constructor.")
         instance._wallet_account = Account.from_key(private_key)
-        x402_client = cls._build_x402_client(private_key)
+        x402_client, instance._batch_channel_storage = cls._build_x402_client(private_key)
         instance._tee = StaticTEEConnection(x402_client=x402_client, endpoint=llm_server_url)
         return instance
 
     @staticmethod
-    def _build_x402_client(private_key: str, rpc_url: str = BASE_MAINNET_RPC) -> x402Client:
-        """Build the x402 payment stack from a private key."""
+    def _build_x402_client(
+        private_key: str,
+        rpc_url: str = BASE_MAINNET_RPC,
+    ) -> tuple[x402Client, FileClientChannelStorage]:
+        """Build the x402 payment stack and persistent batch channel state."""
         account = Account.from_key(private_key)
-        signer = EthAccountSigner(account)
+        signer = EthAccountSignerWithRPC(account, rpc_url=rpc_url)
+        channel_storage = FileClientChannelStorage(
+            FileChannelStorageOptions(
+                directory=DEFAULT_BATCH_CHANNEL_STORAGE_DIR / account.address.lower(),
+            )
+        )
         client = x402Client()
         register_exact_evm_client(client, signer, networks=[BASE_MAINNET_NETWORK])
-        register_upto_evm_client(
-            client,
-            signer,
-            networks=[BASE_MAINNET_NETWORK],
-            rpc_url=rpc_url,
+        client.register(
+            BASE_MAINNET_NETWORK,
+            BatchSettlementEvmScheme(
+                signer,
+                BatchSettlementEvmSchemeOptions(
+                    storage=channel_storage,
+                    rpc_url=rpc_url,
+                ),
+            ),
         )
-        return client
+        return client, channel_storage
+
+    def process_batch_payment_response(self, payment_response: str) -> None:
+        """Commit a batch voucher settlement response delivered outside HTTP headers.
+
+        Normal x402 HTTP requests are handled by ``x402HttpxClient``. Direct
+        SSE and OHTTP streaming cannot expose ``PAYMENT-RESPONSE`` as a normal
+        response header, so their trusted relay path calls this method with the
+        encoded header value instead.
+        """
+        settle_response = decode_payment_response_header(payment_response)
+        if not settle_response.success:
+            raise RuntimeError(
+                "Batch payment settlement failed: "
+                f"{settle_response.error_reason or 'unknown error'}"
+            )
+        process_settle_response(self._batch_channel_storage, settle_response)
 
     # ── Lifecycle ───────────────────────────────────────────────────────
 
@@ -605,10 +647,18 @@ class LLM:
         status_code = getattr(response, "status_code", None)
         if status_code is not None and status_code >= 400:
             body = await response.aread()
-            raise RuntimeError(f"TEE LLM streaming request failed with status {status_code}: {body.decode('utf-8', errors='replace')}")
+            request = getattr(response, "request", None)
+            if request is None:
+                request = httpx.Request("POST", str(response.url))
+            raise httpx.HTTPStatusError(
+                _format_http_error(response, body),
+                request=request,
+                response=response,
+            )
 
         buffer = b""
         pending_final_chunk: Optional[StreamChunk] = None
+        event_name: Optional[str] = None
         async for raw_chunk in response.aiter_raw():
             if not raw_chunk:
                 continue
@@ -625,6 +675,10 @@ class LLM:
                 except UnicodeDecodeError:
                     continue
 
+                if decoded.startswith("event:"):
+                    event_name = decoded[len("event:") :].strip()
+                    continue
+
                 if not decoded.startswith("data: "):
                     continue
 
@@ -637,7 +691,23 @@ class LLM:
                 try:
                     data = json.loads(data_str)
                 except json.JSONDecodeError:
+                    event_name = None
                     continue
+
+                if event_name == "x402-settlement":
+                    event_name = None
+                    if not isinstance(data, dict) or not data.get("success"):
+                        raise RuntimeError(
+                            "TEE batch settlement failed: "
+                            f"{data.get('error', 'invalid settlement event') if isinstance(data, dict) else 'invalid settlement event'}"
+                        )
+                    payment_response = data.get("paymentResponse")
+                    if not isinstance(payment_response, str) or not payment_response:
+                        raise RuntimeError("TEE batch settlement response is missing paymentResponse")
+                    self.process_batch_payment_response(payment_response)
+                    continue
+
+                event_name = None
 
                 chunk = StreamChunk.from_sse_data(data)
                 if chunk.is_final:
