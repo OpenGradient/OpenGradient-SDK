@@ -1,0 +1,21 @@
+## Summary
+
+Makes the async example scripts non-blocking during Permit2 approval.
+
+Several examples call `llm.ensure_opg_approval(...)` inside `async def main()`. That method is synchronous, and its approval polling path uses blocking sleep internally. In async examples, this can block the event loop and propagate a bad asyncio usage pattern to users copying the official examples.
+
+This PR updates the async examples to run the approval step with `await asyncio.to_thread(...)`, keeping the examples event-loop-safe without changing SDK behavior.
+
+## Problem
+
+The following example scripts are async:
+
+- `examples/llm_chat.py`
+- `examples/llm_chat_streaming.py`
+- `examples/llm_tool_calling.py`
+- `examples/llm_multi_turn_conversation.py`
+
+Each of them called:
+
+```python
+llm.ensure_opg_approval(...)
