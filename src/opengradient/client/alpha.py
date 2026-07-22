@@ -1,5 +1,5 @@
 """
-Alpha Testnet features for OpenGradient SDK.
+Alpha Testnet features for OpenGradient SDK
 
 This module contains features that are only available on the Alpha Testnet,
 including on-chain ONNX model inference, workflow management, and ML model execution.
@@ -163,7 +163,7 @@ class Alpha:
                 "from": self._wallet_account.address,
                 "nonce": nonce,
                 "gas": gas_limit,
-                "gasPrice": self._blockchain.eth.gas_price,
+                "maxFeePerGas": self._blockchain.eth.gas_price, "maxPriorityFeePerGas": self._blockchain.eth.gas_price,
             }
         )
 
@@ -308,7 +308,7 @@ class Alpha:
                     "from": self._wallet_account.address,
                     "nonce": self._blockchain.eth.get_transaction_count(self._wallet_account.address, "pending"),
                     "gas": gas_limit,
-                    "gasPrice": self._blockchain.eth.gas_price,
+                    "maxFeePerGas": self._blockchain.eth.gas_price, "maxPriorityFeePerGas": self._blockchain.eth.gas_price,
                     "chainId": self._blockchain.eth.chain_id,
                 }
             )
@@ -359,7 +359,7 @@ class Alpha:
                 {
                     "from": self._wallet_account.address,
                     "gas": 300000,
-                    "gasPrice": self._blockchain.eth.gas_price,
+                    "maxFeePerGas": self._blockchain.eth.gas_price, "maxPriorityFeePerGas": self._blockchain.eth.gas_price,
                     "nonce": self._blockchain.eth.get_transaction_count(self._wallet_account.address, "pending"),
                     "chainId": self._blockchain.eth.chain_id,
                 }
@@ -425,7 +425,7 @@ class Alpha:
                 "from": self._wallet_account.address,
                 "nonce": nonce,
                 "gas": 30000000,
-                "gasPrice": self._blockchain.eth.gas_price,
+                "maxFeePerGas": self._blockchain.eth.gas_price, "maxPriorityFeePerGas": self._blockchain.eth.gas_price,
                 "chainId": self._blockchain.eth.chain_id,
             }
         )
