@@ -1,0 +1,23 @@
+## Summary
+
+Fixes the `llm_server_url` path in the LangChain adapter.
+
+When `llm_server_url` is provided, `OpenGradientChatModel` was passing it into `LLM(...)`, but `LLM.__init__()` does not accept that argument. This causes a runtime `TypeError` instead of creating a client bound to the provided TEE endpoint.
+
+This PR switches that path to use `LLM.from_url(private_key=..., llm_server_url=...)`, while preserving the existing registry-based `LLM(...)` behavior for the default case.
+
+Fixes #248
+
+## Problem
+
+`OpenGradientChatModel` and `langchain_adapter()` accept `llm_server_url`, but the implementation forwarded it as a keyword argument to `LLM(...)`.
+
+That constructor only accepts:
+- `private_key`
+- `rpc_url`
+- `tee_registry_address`
+
+As a result, any caller trying to use `llm_server_url` hits:
+
+```python
+TypeError: __init__() got an unexpected keyword argument 'llm_server_url'
