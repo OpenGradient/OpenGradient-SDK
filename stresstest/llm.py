@@ -17,7 +17,7 @@ async def main(private_key: str):
 
     async def run_prompt(prompt: str):
         messages = [{"role": "user", "content": prompt}]
-        await llm.chat(MODEL, messages=messages, max_tokens=50, x402_settlement_mode=og.x402SettlementMode.INDIVIDUAL_FULL)
+        await llm.chat(MODEL, messages=messages, max_tokens=50, x402_settlement_mode=og.x402SettlementMode.BATCH_HASHED)
 
     latencies, failures = await stress_test_wrapper(run_prompt, num_requests=NUM_REQUESTS)
 

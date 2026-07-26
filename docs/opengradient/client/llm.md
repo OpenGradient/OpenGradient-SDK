@@ -99,7 +99,6 @@ Perform inference on an LLM model using chat via TEE.
 * **`x402_settlement_mode (x402SettlementMode, optional)`**: Settlement mode for x402 payments.
         - PRIVATE: Payment only, no input/output data on-chain (most privacy-preserving).
         - BATCH_HASHED: Aggregates inferences into a Merkle tree with input/output hashes and signatures (default, most cost-efficient).
-        - INDIVIDUAL_FULL: Records input, output, timestamp, and verification on-chain (maximum auditability).
         Defaults to BATCH_HASHED.
 * **`stream (bool, optional)`**: Whether to stream the response. Default is False.
 
@@ -115,9 +114,8 @@ Union[TextGenerationOutput, AsyncGenerator[StreamChunk, None]]:
 * **`data_settlement_transaction_hash`**: Blockchain transaction hash for
         the data settlement transaction. ``None`` when the provider
         does not return data settlement metadata.
-* **`data_settlement_blob_id`**: Walrus blob ID for individual data
-        settlement. ``None`` for private/batch settlement or when the
-        provider does not return it.
+* **`data_settlement_blob_id`**: Walrus blob ID for data settlement.
+        ``None`` when the provider does not return it.
 * **`finish_reason`**: Reason the model stopped generating
         (e.g. ``"stop"``, ``"tool_call"``, ``"error"``).
         Only populated for chat requests.
@@ -179,7 +177,6 @@ Perform inference on an LLM model using completions via TEE.
 * **`x402_settlement_mode (x402SettlementMode, optional)`**: Settlement mode for x402 payments.
         - PRIVATE: Payment only, no input/output data on-chain (most privacy-preserving).
         - BATCH_HASHED: Aggregates inferences into a Merkle tree with input/output hashes and signatures (default, most cost-efficient).
-        - INDIVIDUAL_FULL: Records input, output, timestamp, and verification on-chain (maximum auditability).
         Defaults to BATCH_HASHED.
 
 **Returns**
@@ -194,9 +191,8 @@ TextGenerationOutput: Generated text results including:
 * **`data_settlement_transaction_hash`**: Blockchain transaction hash for
         the data settlement transaction. ``None`` when the provider
         does not return data settlement metadata.
-* **`data_settlement_blob_id`**: Walrus blob ID for individual data
-        settlement. ``None`` for private/batch settlement or when the
-        provider does not return it.
+* **`data_settlement_blob_id`**: Walrus blob ID for data settlement.
+        ``None`` when the provider does not return it.
 * **`finish_reason`**: Reason the model stopped generating
         (e.g. ``"stop"``, ``"tool_call"``, ``"error"``).
         Only populated for chat requests.

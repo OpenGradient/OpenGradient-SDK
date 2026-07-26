@@ -210,4 +210,7 @@ class TestX402SettlementMode:
         """Test settlement mode enum values."""
         assert x402SettlementMode.PRIVATE == "private"
         assert x402SettlementMode.BATCH_HASHED == "batch"
-        assert x402SettlementMode.INDIVIDUAL_FULL == "individual"
+        assert list(x402SettlementMode) == [
+            x402SettlementMode.PRIVATE,
+            x402SettlementMode.BATCH_HASHED,
+        ]

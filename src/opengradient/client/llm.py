@@ -339,7 +339,6 @@ class LLM:
             x402_settlement_mode (x402SettlementMode, optional): Settlement mode for x402 payments.
                 - PRIVATE: Payment only, no input/output data on-chain (most privacy-preserving).
                 - BATCH_HASHED: Aggregates inferences into a Merkle tree with input/output hashes and signatures (default, most cost-efficient).
-                - INDIVIDUAL_FULL: Records input, output, timestamp, and verification on-chain (maximum auditability).
                 Defaults to BATCH_HASHED.
 
         Returns:
@@ -427,7 +426,6 @@ class LLM:
             x402_settlement_mode (x402SettlementMode, optional): Settlement mode for x402 payments.
                 - PRIVATE: Payment only, no input/output data on-chain (most privacy-preserving).
                 - BATCH_HASHED: Aggregates inferences into a Merkle tree with input/output hashes and signatures (default, most cost-efficient).
-                - INDIVIDUAL_FULL: Records input, output, timestamp, and verification on-chain (maximum auditability).
                 Defaults to BATCH_HASHED.
             stream (bool, optional): Whether to stream the response. Default is False.
 

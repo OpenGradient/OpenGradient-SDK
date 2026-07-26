@@ -439,7 +439,6 @@ OpenGradient supports multiple settlement modes through the x402 payment protoco
 
 - **PRIVATE**: Payment only, no input/output data on-chain (maximum privacy)
 - **BATCH_HASHED**: Aggregates inferences into a Merkle tree with input/output hashes and signatures (most cost-efficient, default)
-- **INDIVIDUAL_FULL**: Records input, output, timestamp, and verification on-chain (maximum auditability)
 
 Specify settlement mode in your requests:
 ```python

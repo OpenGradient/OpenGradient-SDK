@@ -16,12 +16,12 @@ async def main():
         {"role": "user", "content": "What model are you?"},
     ]
 
-    # Run inference with full public settlement
+    # Run inference with batched settlement
     result = await llm.chat(
         model=og.TEE_LLM.CLAUDE_OPUS_4_8,
         messages=messages,
         max_tokens=300,
-        x402_settlement_mode=og.x402SettlementMode.INDIVIDUAL_FULL,
+        x402_settlement_mode=og.x402SettlementMode.BATCH_HASHED,
     )
     print(result.chat_output["content"])
 

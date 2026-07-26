@@ -73,7 +73,6 @@ InferenceModes = {
 x402SettlementModes = {
     "batch-hashed": x402SettlementMode.BATCH_HASHED,
     "private": x402SettlementMode.PRIVATE,
-    "individual-full": x402SettlementMode.INDIVIDUAL_FULL,
 }
 
 
@@ -384,7 +383,7 @@ def infer(ctx, model_cid: str, inference_mode: str, input_data, input_file: Path
     "x402_settlement_mode",
     type=click.Choice(x402SettlementModes.keys()),
     default="batch-hashed",
-    help="Settlement mode for x402 payments: private (payment only), batch-hashed (default), individual-full (full data with verification)",
+    help="Settlement mode for x402 payments: private (payment only), batch-hashed (default)",
 )
 @click.pass_context
 def completion(
@@ -518,7 +517,7 @@ def print_llm_completion_result(model_cid, tx_hash, llm_output, is_vanilla=True,
     "--x402-settlement-mode",
     type=click.Choice(x402SettlementModes.keys()),
     default="batch-hashed",
-    help="Settlement mode for x402 payments: private (payment only), batch-hashed (default), individual-full (full data with verification)",
+    help="Settlement mode for x402 payments: private (payment only), batch-hashed (default)",
 )
 @click.option("--stream", is_flag=True, default=False, help="Stream the output from the LLM")
 @click.pass_context
