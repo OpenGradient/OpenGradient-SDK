@@ -25,4 +25,5 @@ jobs:
       - name: Run LLM E2E tests
         env:
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+          BASE_MAINNET_RPC: ${{ secrets.BASE_MAINNET_RPC || vars.BASE_MAINNET_RPC }}
         run: make llm_integrationtest
