@@ -352,7 +352,7 @@ usage information.
 * **`tee_payment_address`**: Payment address registered for the TEE (final chunk only)
 * **`data_settlement_transaction_hash`**: Transaction hash for the data settlement
         transaction, present on the final chunk when available.
-* **`data_settlement_blob_id`**: Walrus blob ID for individual data settlement,
+* **`data_settlement_blob_id`**: Walrus blob ID for data settlement,
         present on the final chunk when available.
 * **`images`**: Generated images returned by image-output models, present on the
         final chunk when available. Each entry is a ``data:`` URI.
@@ -410,7 +410,7 @@ StreamChunk instance
 * **`tee_payment_address`**: Payment address registered for the TEE (final chunk only)
 * **`data_settlement_transaction_hash`**: Transaction hash for the data settlement
         transaction, present on the final chunk when available.
-* **`data_settlement_blob_id`**: Walrus blob ID for individual data settlement,
+* **`data_settlement_blob_id`**: Walrus blob ID for data settlement,
         present on the final chunk when available.
 * **`images`**: Generated images returned by image-output models, present on the
         final chunk when available. Each entry is a ``data:`` URI.
@@ -557,9 +557,8 @@ Trust model:
 * **`data_settlement_transaction_hash`**: Blockchain transaction hash for
         the data settlement transaction. ``None`` when the provider
         does not return data settlement metadata.
-* **`data_settlement_blob_id`**: Walrus blob ID for individual data
-        settlement. ``None`` for private/batch settlement or when the
-        provider does not return it.
+* **`data_settlement_blob_id`**: Walrus blob ID for data settlement.
+        ``None`` when the provider does not return it.
 * **`finish_reason`**: Reason the model stopped generating
         (e.g. ``"stop"``, ``"tool_call"``, ``"error"``).
         Only populated for chat requests.
@@ -634,8 +633,3 @@ privacy, and transaction costs.
         using a Merkle tree containing input hashes, output hashes, and signatures.
         Most cost-efficient for high-volume applications.
         CLI usage: --settlement-mode batch-hashed
-* **`INDIVIDUAL_FULL`**: Individual settlement with full metadata.
-        Records input data, output data, timestamp, and verification on-chain.
-        Provides maximum transparency and auditability.
-        Higher gas costs due to larger data storage.
-        CLI usage: --settlement-mode individual-full

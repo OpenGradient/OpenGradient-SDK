@@ -414,5 +414,5 @@ if __name__ == "__main__":
   even during multi-turn tool loops. See **Tutorial 2** for streaming basics.
 - **Use different providers**: Swap `og.TEE_LLM.GPT_5` for `CLAUDE_SONNET_4_6` or
   `GEMINI_2_5_FLASH` -- tool calling works across all providers.
-- **Add settlement transparency**: Switch to `INDIVIDUAL_FULL` to store the full
-  tool-calling reasoning chain on-chain for audit purposes.
+- **Record settlement receipts**: Store payment hashes and transaction hashes for
+  audit purposes.
