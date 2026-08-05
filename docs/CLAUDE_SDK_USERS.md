@@ -282,9 +282,8 @@ og.InferenceMode.TEE        # Trusted Execution Environment
 og.InferenceMode.ZKML       # Zero-knowledge proof
 
 # x402 Payment Settlement Modes (for LLM calls)
-og.x402SettlementMode.PRIVATE           # Input/output hashes only (most private)
-og.x402SettlementMode.BATCH_HASHED     # Batch hashes (most cost-efficient, default)
-og.x402SettlementMode.INDIVIDUAL_FULL  # Full data and metadata on-chain
+og.x402SettlementMode.PRIVATE       # Payment only; inference data stays off-chain
+og.x402SettlementMode.BATCH_HASHED  # Batch hashes (most cost-efficient, default)
 
 # Workflow data types
 og.CandleType.OPEN, .HIGH, .LOW, .CLOSE, .VOLUME

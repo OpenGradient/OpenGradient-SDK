@@ -352,7 +352,7 @@ usage information.
 * **`tee_payment_address`**: Payment address registered for the TEE (final chunk only)
 * **`data_settlement_transaction_hash`**: Transaction hash for the data settlement
         transaction, present on the final chunk when available.
-* **`data_settlement_blob_id`**: Walrus blob ID for individual data settlement,
+* **`data_settlement_blob_id`**: Walrus blob ID for data settlement,
         present on the final chunk when available.
 * **`images`**: Generated images returned by image-output models, present on the
         final chunk when available. Each entry is a ``data:`` URI.
@@ -410,7 +410,7 @@ StreamChunk instance
 * **`tee_payment_address`**: Payment address registered for the TEE (final chunk only)
 * **`data_settlement_transaction_hash`**: Transaction hash for the data settlement
         transaction, present on the final chunk when available.
-* **`data_settlement_blob_id`**: Walrus blob ID for individual data settlement,
+* **`data_settlement_blob_id`**: Walrus blob ID for data settlement,
         present on the final chunk when available.
 * **`images`**: Generated images returned by image-output models, present on the
         final chunk when available. Each entry is a ``data:`` URI.
@@ -494,6 +494,8 @@ auditability and tamper-proof AI inference.
 * static `GEMINI_3_1_PRO_PREVIEW`
 * static `GEMINI_3_5_FLASH`
 * static `GEMINI_3_FLASH`
+* static `GLM_5_2`
+* static `GLM_IMAGE`
 * static `GPT_4_1_2025_04_14`
 * static `GPT_4_1_MINI`
 * static `GPT_4_1_NANO`
@@ -504,6 +506,8 @@ auditability and tamper-proof AI inference.
 * static `GPT_5_4_NANO`
 * static `GPT_5_5`
 * static `GPT_5_MINI`
+* static `GPT_IMAGE_2`
+* static `GROK_2_IMAGE`
 * static `GROK_4`
 * static `GROK_4_1_FAST`
 * static `GROK_4_1_FAST_NON_REASONING`
@@ -515,6 +519,8 @@ auditability and tamper-proof AI inference.
 * static `HERMES_4_70B`
 * static `O3`
 * static `O4_MINI`
+* static `SEEDANCE_4_5`
+* static `SEEDREAM_4_0`
 * static `SEED_1_6`
 * static `SEED_1_8`
 * static `SEED_2_0_LITE`
@@ -551,9 +557,8 @@ Trust model:
 * **`data_settlement_transaction_hash`**: Blockchain transaction hash for
         the data settlement transaction. ``None`` when the provider
         does not return data settlement metadata.
-* **`data_settlement_blob_id`**: Walrus blob ID for individual data
-        settlement. ``None`` for private/batch settlement or when the
-        provider does not return it.
+* **`data_settlement_blob_id`**: Walrus blob ID for data settlement.
+        ``None`` when the provider does not return it.
 * **`finish_reason`**: Reason the model stopped generating
         (e.g. ``"stop"``, ``"tool_call"``, ``"error"``).
         Only populated for chat requests.
@@ -628,8 +633,3 @@ privacy, and transaction costs.
         using a Merkle tree containing input hashes, output hashes, and signatures.
         Most cost-efficient for high-volume applications.
         CLI usage: --settlement-mode batch-hashed
-* **`INDIVIDUAL_FULL`**: Individual settlement with full metadata.
-        Records input data, output data, timestamp, and verification on-chain.
-        Provides maximum transparency and auditability.
-        Higher gas costs due to larger data storage.
-        CLI usage: --settlement-mode individual-full

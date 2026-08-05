@@ -135,7 +135,7 @@ async def test_chat(llm_client):
         model=og.TEE_LLM.GEMINI_2_5_FLASH,
         messages=messages,
         max_tokens=50,
-        x402_settlement_mode=og.x402SettlementMode.INDIVIDUAL_FULL,
+        x402_settlement_mode=og.x402SettlementMode.BATCH_HASHED,
     )
 
     assert result is not None
@@ -152,7 +152,7 @@ async def test_chat_streaming(llm_client):
         model=og.TEE_LLM.GEMINI_2_5_FLASH,
         messages=messages,
         max_tokens=50,
-        x402_settlement_mode=og.x402SettlementMode.INDIVIDUAL_FULL,
+        x402_settlement_mode=og.x402SettlementMode.BATCH_HASHED,
         stream=True,
     )
 

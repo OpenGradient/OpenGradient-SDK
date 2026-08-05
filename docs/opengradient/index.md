@@ -20,6 +20,8 @@ inference was performed correctly.
 The SDK operates across two chains with separate private keys:
 
 - **[llm](./client/llm)** (``og.LLM``) -- LLM chat and completion with TEE-verified execution. Pays via x402 on **Base** (requires OPG tokens).
+- **[confidential_llm](./client/confidential_llm)** (``og.ConfidentialLLM``) -- Confidential (Oblivious HTTP) chat: end-to-end encrypted to the enclave and signature-verified, with no wallet on the caller (an untrusted relay pays via x402 and only sees ciphertext).
+- **[chat_auth](./client/chat_auth)** (``og.login_chat_account``) -- Browser-based login to an OpenGradient Chat account: opens the CLI-auth page and returns the access token plus the relay config for ``og.ConfidentialLLM``.
 - **[alpha](./client/alpha)** (``og.Alpha``) -- On-chain ONNX model inference with VANILLA, TEE, or ZKML verification. Pays gas on the **OpenGradient alpha testnet**.
 - **[model_hub](./client/model_hub)** (``og.ModelHub``) -- Model repository management: create, version, and upload ML models. Requires email/password auth.
 - **[twins](./client/twins)** (``og.Twins``) -- Digital twins chat via verifiable inference. Requires a twins API key.

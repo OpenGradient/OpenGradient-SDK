@@ -11,6 +11,8 @@ inference was performed correctly.
 The SDK operates across two chains with separate private keys:
 
 - **`opengradient.client.llm`** (``og.LLM``) -- LLM chat and completion with TEE-verified execution. Pays via x402 on **Base** (requires OPG tokens).
+- **`opengradient.client.confidential_llm`** (``og.ConfidentialLLM``) -- Confidential (Oblivious HTTP) chat: end-to-end encrypted to the enclave and signature-verified, with no wallet on the caller (an untrusted relay pays via x402 and only sees ciphertext).
+- **`opengradient.client.chat_auth`** (``og.login_chat_account``) -- Browser-based login to an OpenGradient Chat account: opens the CLI-auth page and returns the access token plus the relay config for ``og.ConfidentialLLM``.
 - **`opengradient.client.alpha`** (``og.Alpha``) -- On-chain ONNX model inference with VANILLA, TEE, or ZKML verification. Pays gas on the **OpenGradient alpha testnet**.
 - **`opengradient.client.model_hub`** (``og.ModelHub``) -- Model repository management: create, version, and upload ML models. Requires email/password auth.
 - **`opengradient.client.twins`** (``og.Twins``) -- Digital twins chat via verifiable inference. Requires a twins API key.
@@ -80,6 +82,8 @@ from . import agents, alphasense
 from .client import (
     LLM,
     Alpha,
+    ChatAccountAuth,
+    ConfidentialLLM,
     ModelHub,
     OhttpRelayClient,
     RelayError,
@@ -90,6 +94,7 @@ from .client import (
     VerificationError,
     VerifiedChatResponse,
     build_inner_request,
+    login_chat_account,
     verify_response,
 )
 from .types import (
@@ -126,6 +131,12 @@ __all__ = [
     "x402SettlementMode",
     "agents",
     "alphasense",
+    # Confidential inference (Oblivious HTTP) — verified, private chat with no
+    # wallet needed on the caller (the relay pays via x402).
+    "ConfidentialLLM",
+    # Browser login to an OpenGradient Chat account (CLI-auth flow).
+    "login_chat_account",
+    "ChatAccountAuth",
     # Verified-inference building blocks
     "TEERegistry",
     "TEEEndpoint",
@@ -151,6 +162,9 @@ __pdoc__ = {
     "Alpha": False,
     "ModelHub": False,
     "Twins": False,
+    "ConfidentialLLM": False,
+    "login_chat_account": False,
+    "ChatAccountAuth": False,
     "TEE_LLM": False,
     "InferenceMode": False,
     "TextGenerationOutput": False,

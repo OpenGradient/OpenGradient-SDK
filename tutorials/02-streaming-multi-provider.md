@@ -163,16 +163,15 @@ Each `StreamChoice` contains a `StreamDelta` with optional `content`, `role`, an
 ## Step 4: Settlement Modes
 
 Every LLM call settles on-chain. The `x402_settlement_mode` parameter controls the
-privacy/cost/transparency trade-off:
+privacy/cost trade-off:
 
 | Mode | On-Chain Data | Use Case |
 |------|--------------|----------|
-| `PRIVATE` | Input/output hashes only | **Privacy** -- prove execution without revealing content |
+| `PRIVATE` | Payment only; no input/output data | **Privacy** -- keep inference data off-chain |
 | `BATCH_HASHED` | Batch digest of multiple calls | **Cost efficiency** -- lower gas per inference (default) |
-| `INDIVIDUAL_FULL` | Full model, input, output, metadata | **Transparency** -- complete audit trail |
 
 ```python
-# Privacy-first: only hashes stored on-chain
+# Privacy-first: no inference data stored on-chain
 result_private = await llm.chat(
     model=og.TEE_LLM.CLAUDE_SONNET_4_6,
     messages=[{"role": "user", "content": "Sensitive query here."}],
@@ -189,18 +188,9 @@ result_batch = await llm.chat(
     x402_settlement_mode=og.x402SettlementMode.BATCH_HASHED,
 )
 print(f"Payment hash (BATCH_HASHED): {result_batch.payment_hash}")
-
-# Full transparency: everything on-chain
-result_transparent = await llm.chat(
-    model=og.TEE_LLM.CLAUDE_SONNET_4_6,
-    messages=[{"role": "user", "content": "Auditable query."}],
-    max_tokens=100,
-    x402_settlement_mode=og.x402SettlementMode.INDIVIDUAL_FULL,
-)
-print(f"Payment hash (INDIVIDUAL_FULL): {result_transparent.payment_hash}")
 ```
 
-All three calls return a `payment_hash` you can look up on-chain. The difference is
+Both calls return a `payment_hash` you can look up on-chain. The difference is
 how much detail the on-chain record contains. Store these hashes if you need an
 audit trail -- they are the on-chain receipts for each inference call.
 
@@ -315,9 +305,8 @@ async def main():
 
     # ── Settlement modes ──────────────────────────────────────────────────
     for mode_name, mode in [
-        ("PRIVATE",          og.x402SettlementMode.PRIVATE),
-        ("BATCH_HASHED",    og.x402SettlementMode.BATCH_HASHED),
-        ("INDIVIDUAL_FULL", og.x402SettlementMode.INDIVIDUAL_FULL),
+        ("PRIVATE",       og.x402SettlementMode.PRIVATE),
+        ("BATCH_HASHED", og.x402SettlementMode.BATCH_HASHED),
     ]:
         try:
             r = await llm.chat(

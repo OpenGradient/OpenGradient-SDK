@@ -14,7 +14,7 @@ async def main():
         {"role": "user", "content": "What makes it good for beginners?"},
     ]
 
-    settlement_mode=og.x402SettlementMode.INDIVIDUAL_FULL
+    settlement_mode = og.x402SettlementMode.BATCH_HASHED
     stream = await llm.chat(
         model=og.TEE_LLM.GPT_4_1_2025_04_14,
         messages=messages,
@@ -27,10 +27,10 @@ async def main():
         if chunk.choices[0].delta.content:
             print(chunk.choices[0].delta.content, end="", flush=True)
 
-        if settlement_mode == og.x402SettlementMode.INDIVIDUAL_FULL:
-            if chunk.data_settlement_blob_id: 
-                print("\n Data Settlement Blob ID: ", chunk.data_settlement_blob_id)
-            if chunk.data_settlement_transaction_hash:
-                print("\n Data Settlement Transaction Hash: ", chunk.data_settlement_transaction_hash)
+        if chunk.data_settlement_blob_id:
+            print("\n Data Settlement Blob ID: ", chunk.data_settlement_blob_id)
+        if chunk.data_settlement_transaction_hash:
+            print("\n Data Settlement Transaction Hash: ", chunk.data_settlement_transaction_hash)
+
 
 asyncio.run(main())

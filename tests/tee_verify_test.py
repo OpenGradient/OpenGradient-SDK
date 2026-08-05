@@ -53,9 +53,7 @@ def _sign(priv, canonical, output_content, timestamp):
 def _good_case():
     priv, pem = _make_key()
     tee_id = verify.tee_id_for_key(pem)
-    _wire, canonical = build_inner_request(
-        {"model": "gpt-4.1", "messages": [{"role": "user", "content": "Hello!"}]}
-    )
+    _wire, canonical = build_inner_request({"model": "gpt-4.1", "messages": [{"role": "user", "content": "Hello!"}]})
     content = "Hi there!"
     response = {
         "choices": [{"index": 0, "message": {"role": "assistant", "content": content}, "finish_reason": "stop"}],
@@ -160,9 +158,7 @@ def test_build_inner_request_strips_attachment_bytes_from_hash_only():
 
 def test_non_list_tools_rejected():
     with pytest.raises(verify.UnsupportedRequestError, match="tools"):
-        build_inner_request(
-            {"model": "gpt-4.1", "messages": [{"role": "user", "content": "x"}], "tools": {"a": 1}}
-        )
+        build_inner_request({"model": "gpt-4.1", "messages": [{"role": "user", "content": "x"}], "tools": {"a": 1}})
 
 
 def test_non_dict_message_rejected():

@@ -11,6 +11,8 @@ OpenGradient Client -- service modules for the SDK.
 ## Modules
 
 - **[llm](./llm)** -- LLM chat and text completion with TEE-verified execution and x402 payment settlement (Base OPG tokens)
+- **[confidential_llm](./confidential_llm)** -- One-call confidential (Oblivious HTTP) chat: auto-resolves an OHTTP-capable TEE and verifies the response, no wallet needed on the caller
+- **[chat_auth](./chat_auth)** -- Browser-based login to an OpenGradient Chat account (the CLI-auth flow): returns the access token and client config for the confidential-inference relay
 - **[model_hub](./model_hub)** -- Model repository management: create, version, and upload ML models
 - **[alpha](./alpha)** -- Alpha Testnet features: on-chain ONNX model inference (VANILLA, TEE, ZKML modes), workflow deployment, and scheduled ML model execution (OpenGradient testnet gas tokens)
 - **[twins](./twins)** -- Digital twins chat via OpenGradient verifiable inference
@@ -70,6 +72,66 @@ hashes (attachment bytes stripped). Pass ``canonical`` to
 
 ---
 
+### `login_chat_account()`
+
+```python
+def login_chat_account(
+    chat_app_url: str = 'https://chat.opengradient.ai',
+    *,
+    app_name: str = 'opengradient-sdk',
+    timeout: float = 300.0,
+    open_browser: bool = True,
+    host: str = '127.0.0.1',
+    port: int = 0,
+    on_ready: Optional[Callable[[str], None]] = None
+) ‑> `ChatAccountAuth`
+```
+Sign in to an OpenGradient Chat account via the browser and return the session.
+
+Starts a loopback HTTP listener, opens the chat app's ``/cli-auth`` page
+pointed at it, and blocks until the page posts back the session bundle (after
+the user signs in and authorizes) or ``timeout`` elapses.
+
+**Arguments**
+
+* **`chat_app_url`**: Base URL of the chat app hosting ``/cli-auth``. Defaults to
+        ``https://chat.opengradient.ai``.
+* **`app_name`**: Name shown to the user on the authorization page.
+* **`timeout`**: Seconds to wait for the user to authorize before giving up.
+* **`open_browser`**: Open the authorization URL in the default browser. When
+        False (or if no browser is available), the URL is surfaced via
+        ``on_ready`` / logged so the user can open it manually.
+* **`host`**: Loopback host to bind the listener to (``127.0.0.1`` or
+        ``localhost`` — the page rejects any non-loopback callback).
+* **`port`**: Loopback port to bind. ``0`` picks a free ephemeral port.
+* **`on_ready`**: Optional callback invoked with the full authorization URL once
+        the listener is up. Defaults to logging it. Use this to surface the
+        URL yourself (e.g. print a QR code).
+
+**Returns**
+
+A `ChatAccountAuth` with the session tokens and client config.
+
+**`ChatAccountAuth` fields:**
+
+* **`access_token`**: The bearer token to authenticate to the chat-api relay.
+* **`refresh_token`**: The Supabase refresh token (for obtaining a new access
+        token when this one expires).
+* **`token_type`**: The token type reported by Supabase (typically ``"bearer"``).
+* **`expires_at`**: Unix seconds at which ``access_token`` expires, if known.
+* **`expires_in`**: Seconds until expiry at issue time, if known.
+* **`user`**: The signed-in user record (``id``, ``email``, ``is_anonymous``).
+* **`config`**: Public client configuration (``chat_api_base_url``,
+        ``tee_registry_rpc_url``, ``tee_registry_address``, ...).
+* **`raw`**: The full bundle exactly as received, for forward compatibility.
+
+**Raises**
+
+* **`TimeoutError`**: If the user did not authorize within ``timeout`` seconds.
+* **`ValueError`**: If the received bundle was malformed.
+
+---
+
 ### `verify_response()`
 
 ```python
@@ -119,6 +181,58 @@ A :class:`TeeProof` describing the verified provenance.
         request/output hash mismatch, or bad signature).
 
 ## Classes
+
+### `ChatAccountAuth`
+
+A signed-in OpenGradient Chat session handed back by the browser.
+
+Mirrors the chat app's ``CliAuthBundle``. Besides the Supabase session
+tokens, it carries the public ``config`` the CLI/SDK needs to talk to
+chat-api and read the TEE registry — a single source of truth so nothing has
+to be hardcoded.
+
+**Attributes**
+
+* **`access_token`**: The bearer token to authenticate to the chat-api relay.
+* **`refresh_token`**: The Supabase refresh token (for obtaining a new access
+        token when this one expires).
+* **`token_type`**: The token type reported by Supabase (typically ``"bearer"``).
+* **`expires_at`**: Unix seconds at which ``access_token`` expires, if known.
+* **`expires_in`**: Seconds until expiry at issue time, if known.
+* **`user`**: The signed-in user record (``id``, ``email``, ``is_anonymous``).
+* **`config`**: Public client configuration (``chat_api_base_url``,
+        ``tee_registry_rpc_url``, ``tee_registry_address``, ...).
+* **`raw`**: The full bundle exactly as received, for forward compatibility.
+
+#### Constructor
+
+```python
+def __init__(
+    access_token: str,
+    refresh_token: str,
+    token_type: str,
+    expires_at: Optional[int],
+    expires_in: Optional[int],
+    user: Dict[str, Any] = &lt;factory&gt;,
+    config: Dict[str, Any] = &lt;factory&gt;,
+    raw: Dict[str, Any] = &lt;factory&gt;
+)
+```
+
+#### Methods
+
+---
+
+#### `auth_headers()`
+
+```python
+def auth_headers(self) ‑> Dict[str, str]
+```
+Return the ``Authorization`` header for the relay.
+
+Shaped as a zero-argument callable so it can be handed directly to
+`ConfidentialLLM(auth_headers=...)` / `OhttpRelayClient`, which call it
+per request.
 
 ### `OhttpRelayClient`
 

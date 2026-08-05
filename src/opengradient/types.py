@@ -31,12 +31,6 @@ class x402SettlementMode(str, Enum):
             Most cost-efficient for high-volume applications.
             CLI usage: --settlement-mode batch-hashed
 
-        INDIVIDUAL_FULL: Individual settlement with full metadata.
-            Records input data, output data, timestamp, and verification on-chain.
-            Provides maximum transparency and auditability.
-            Higher gas costs due to larger data storage.
-            CLI usage: --settlement-mode individual-full
-
     Examples:
         >>> from opengradient import x402SettlementMode
         >>> mode = x402SettlementMode.PRIVATE
@@ -46,7 +40,6 @@ class x402SettlementMode(str, Enum):
 
     PRIVATE = "private"
     BATCH_HASHED = "batch"
-    INDIVIDUAL_FULL = "individual"
 
 
 class CandleOrder(IntEnum):
@@ -242,7 +235,7 @@ class StreamChunk:
         tee_payment_address: Payment address registered for the TEE (final chunk only)
         data_settlement_transaction_hash: Transaction hash for the data settlement
             transaction, present on the final chunk when available.
-        data_settlement_blob_id: Walrus blob ID for individual data settlement,
+        data_settlement_blob_id: Walrus blob ID for data settlement,
             present on the final chunk when available.
         images: Generated images returned by image-output models, present on the
             final chunk when available. Each entry is a ``data:`` URI.
@@ -430,9 +423,8 @@ class TextGenerationOutput:
         data_settlement_transaction_hash: Blockchain transaction hash for
             the data settlement transaction. ``None`` when the provider
             does not return data settlement metadata.
-        data_settlement_blob_id: Walrus blob ID for individual data
-            settlement. ``None`` for private/batch settlement or when the
-            provider does not return it.
+        data_settlement_blob_id: Walrus blob ID for data settlement.
+            ``None`` when the provider does not return it.
         finish_reason: Reason the model stopped generating
             (e.g. ``"stop"``, ``"tool_call"``, ``"error"``).
             Only populated for chat requests.
@@ -453,7 +445,7 @@ class TextGenerationOutput:
     """Blockchain transaction hash for the data settlement transaction. ``None`` when unavailable."""
 
     data_settlement_blob_id: Optional[str] = None
-    """Walrus blob ID for individual data settlement. ``None`` when unavailable."""
+    """Walrus blob ID for data settlement. ``None`` when unavailable."""
 
     finish_reason: Optional[str] = None
     """Reason the model stopped generating (e.g. ``"stop"``, ``"tool_call"``, ``"error"``). Only populated for chat requests."""
@@ -557,6 +549,12 @@ class TEE_LLM(str, Enum):
     GPT_5_4_NANO = "openai/gpt-5.4-nano"
     GPT_5_5 = "openai/gpt-5.5"
 
+    # OpenAI image-generation model via TEE (dedicated /images/generations
+    # endpoint). Billed at a flat rate per image. Images are returned on
+    # ``TextGenerationOutput.images`` and ``StreamChunk.images`` as data: URIs
+    # and are not part of the signed output hash.
+    GPT_IMAGE_2 = "openai/gpt-image-2"
+
     # Anthropic models via TEE
     CLAUDE_SONNET_4_5 = "anthropic/claude-sonnet-4-5"
     CLAUDE_SONNET_4_6 = "anthropic/claude-sonnet-4-6"
@@ -596,6 +594,11 @@ class TEE_LLM(str, Enum):
     GROK_CODE_FAST_1 = "x-ai/grok-code-fast-1"
     GROK_2_IMAGE = "x-ai/grok-2-image"
 
+    # xAI image-generation models via TEE (Aurora, dedicated /images/generations endpoint).
+    # Billed at a flat rate per image. Images are returned on ``TextGenerationOutput.images``
+    # and ``StreamChunk.images`` as data: URIs and are not part of the signed output hash.
+    GROK_2_IMAGE = "x-ai/grok-2-image"
+
     # ByteDance Seed models via TEE (BytePlus ModelArk)
     SEED_1_6 = "bytedance/seed-1.6"
     SEED_1_8 = "bytedance/seed-1.8"
@@ -606,12 +609,22 @@ class TEE_LLM(str, Enum):
     DEEPSEEK_V4_FLASH = "bytedance/deepseek-v4-flash"
     DEEPSEEK_V4_PRO = "bytedance/deepseek-v4-pro"
 
+    # ByteDance image-generation models via TEE (ModelArk, dedicated /images/generations
+    # endpoint). Billed at a flat rate per image. Images are returned on
+    # ``TextGenerationOutput.images`` and ``StreamChunk.images`` as data: URIs.
+    SEEDREAM_4_0 = "bytedance/seedream-4.0"
+    SEEDANCE_4_5 = "bytedance/seedance-4.5"
+
     # Nous Research Hermes models via TEE (Nous Portal)
     HERMES_4_405B = "nous/hermes-4-405b"
     HERMES_4_70B = "nous/hermes-4-70b"
 
-    # GLM models via TEE (Z.ai)
+    # Z.ai GLM models via TEE (Model API, OpenAI-compatible)
     GLM_5_2 = "zai/glm-5.2"
+
+    # Z.ai image-generation model via TEE (dedicated /images/generations endpoint).
+    # Billed at a flat rate per image. Images are returned on
+    # ``TextGenerationOutput.images`` and ``StreamChunk.images`` as data: URIs.
     GLM_IMAGE = "zai/glm-image"
 
 

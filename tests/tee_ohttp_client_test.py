@@ -47,12 +47,12 @@ class _FakeResp:
 def _make_endpoint(recipient):
     hpke_priv, hpke_pub = recipient.generate_keypair()
     rsa_priv = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-    der = rsa_priv.public_key().public_bytes(
-        encoding=serialization.Encoding.DER, format=serialization.PublicFormat.SubjectPublicKeyInfo
+    der = rsa_priv.public_key().public_bytes(encoding=serialization.Encoding.DER, format=serialization.PublicFormat.SubjectPublicKeyInfo)
+    pem = (
+        rsa_priv.public_key()
+        .public_bytes(encoding=serialization.Encoding.PEM, format=serialization.PublicFormat.SubjectPublicKeyInfo)
+        .decode()
     )
-    pem = rsa_priv.public_key().public_bytes(
-        encoding=serialization.Encoding.PEM, format=serialization.PublicFormat.SubjectPublicKeyInfo
-    ).decode()
     endpoint = TEEEndpoint(
         tee_id=tee_id_for_key(pem),
         endpoint="https://gw.example",

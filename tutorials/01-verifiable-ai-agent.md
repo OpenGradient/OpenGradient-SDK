@@ -220,9 +220,8 @@ is recorded on-chain:
 
 | Mode | What's Stored | Best For |
 |------|--------------|----------|
-| `PRIVATE` | Hashes of input and output only | **Privacy** -- proves execution happened without revealing content |
+| `PRIVATE` | Payment only; no input/output data | **Privacy** -- keeps inference data off-chain |
 | `BATCH_HASHED` | Batch hash of multiple inferences | **Cost efficiency** -- reduces per-call gas costs (default) |
-| `INDIVIDUAL_FULL` | Full model info, input, output, and metadata | **Transparency** -- complete auditability for compliance |
 
 Choose based on your requirements:
 
@@ -232,13 +231,6 @@ llm_dev = og.agents.langchain_adapter(
     private_key=os.environ["OG_PRIVATE_KEY"],
     model_cid=og.TEE_LLM.GPT_4_1_2025_04_14,
     x402_settlement_mode=og.x402SettlementMode.BATCH_HASHED,
-)
-
-# For production financial applications -- full audit trail
-llm_prod = og.agents.langchain_adapter(
-    private_key=os.environ["OG_PRIVATE_KEY"],
-    model_cid=og.TEE_LLM.GPT_4_1_2025_04_14,
-    x402_settlement_mode=og.x402SettlementMode.INDIVIDUAL_FULL,
 )
 
 # For privacy-sensitive applications -- minimal on-chain footprint
@@ -354,5 +346,5 @@ if __name__ == "__main__":
   models deployed on OpenGradient.
 - **Read workflow results**: Use `og.alphasense.create_read_workflow_tool` to read
   from scheduled on-chain workflows that run models automatically.
-- **Go to production**: Switch settlement mode to `INDIVIDUAL_FULL` and store the
-  payment hashes and transaction hashes for your compliance records.
+- **Go to production**: Store payment hashes and transaction hashes for your
+  compliance records.
