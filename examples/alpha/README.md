@@ -23,6 +23,18 @@ python examples/alpha/run_inference.py
 - Demonstrates passing structured input data (e.g., OHLC price data)
 - Returns model predictions along with the transaction hash
 
+### `run_inference_with_error_handling.py`
+Runs inference with explicit error handling and retry logic.
+
+```bash
+python examples/alpha/run_inference_with_error_handling.py
+```
+
+**What it does:**
+- Demonstrates `try/except` handling for invalid input, contract revert, and runtime failures
+- Classifies runtime failures (network, timeout, insufficient funds, model/CID issues)
+- Retries transient failures with exponential backoff
+
 ### `run_embeddings_model.py`
 Runs inference on an embeddings model for semantic search.
 
