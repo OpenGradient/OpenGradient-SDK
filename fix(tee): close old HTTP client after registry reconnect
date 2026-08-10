@@ -1,0 +1,14 @@
+## Summary
+
+Fixes a connection leak in `RegistryTEEConnection.reconnect()`.
+
+The reconnect path was creating a new active TEE connection without closing the old HTTP client. In long-running processes that refresh or fail over repeatedly, this can leave stale clients open and slowly leak resources.
+
+Fixes #247
+
+## Problem
+
+`RegistryTEEConnection.reconnect()` previously did this:
+
+```python
+self._active = self._connect()
