@@ -44,11 +44,13 @@ Usage:
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Dict, List, Optional, Union
+import json
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
+import httpx
 import requests
 
-from .tee_ohttp_client import AuthHeaderProvider, OhttpRelayClient, VerifiedChatResponse
+from .tee_ohttp_client import AuthHeaderProvider, OhttpRelayClient, RelayError, VerifiedChatResponse
 from .tee_registry import TEEEndpoint, TEERegistry
 
 if TYPE_CHECKING:
@@ -64,6 +66,82 @@ DEFAULT_TEE_REGISTRY_ADDRESS = "0x703cB174AEadB35D611858369B4b1111dC9Abda6"
 # ``OHTTP_ENDPOINT`` constant (``lib/api/ohttp.ts``): encapsulated OHTTP requests
 # are POSTed here.
 OHTTP_CHAT_ENDPOINT = "/api/v1/chat/ohttp"
+
+
+class OHTTPXClient(httpx.Client):
+    """An ``httpx.Client`` replacement for OpenAI chat completions over OHTTP.
+
+    Pass an instance as ``OpenAI(http_client=...)``. OpenAI's generated HTTP
+    request is encrypted and sent to the Chat API's ``/api/v1/chat/ohttp`` relay
+    route, then returned as a normal ``httpx.Response`` only after the TEE
+    signature has been verified.
+
+    Only ``POST /chat/completions`` is supported. Streaming responses are fully
+    buffered for verification before the OpenAI SDK receives their SSE frames.
+    """
+
+    def __init__(
+        self,
+        relay_url: str,
+        *,
+        rpc_url: str = DEFAULT_RPC_URL,
+        registry_address: str = DEFAULT_TEE_REGISTRY_ADDRESS,
+        auth_headers: Optional[AuthHeaderProvider] = None,
+        session: Optional[requests.Session] = None,
+        timeout: float = 120.0,
+        **httpx_options: Any,
+    ) -> None:
+        httpx_options.setdefault("timeout", timeout)
+        super().__init__(**httpx_options)
+        self._session = session or requests.Session()
+        self._owns_session = session is None
+        self._confidential = ConfidentialLLM(
+            relay_url=relay_url,
+            rpc_url=rpc_url,
+            registry_address=registry_address,
+            auth_headers=auth_headers,
+            session=self._session,
+            timeout=timeout,
+        )
+
+    def send(self, request: httpx.Request, *, stream: bool = False, **kwargs: Any) -> httpx.Response:
+        """Send an OpenAI chat-completions request through the OHTTP relay."""
+        if self.is_closed:
+            raise RuntimeError("Cannot send a request, as the client has been closed.")
+        if request.method != "POST" or not request.url.path.rstrip("/").endswith("/chat/completions"):
+            raise ValueError("OHTTPXClient only supports POST /chat/completions")
+
+        try:
+            body = json.loads(request.read())
+        except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+            raise ValueError("OpenAI chat-completions request body must be valid JSON") from exc
+        if not isinstance(body, dict):
+            raise ValueError("OpenAI chat-completions request body must be a JSON object")
+
+        try:
+            if body.get("stream"):
+                result = self._confidential.stream_chat_completion(body)
+                return httpx.Response(
+                    200,
+                    headers={"content-type": "text/event-stream"},
+                    content="".join(result.stream_frames or []).encode("utf-8"),
+                    request=request,
+                )
+
+            result = self._confidential.chat_completion(body)
+            return httpx.Response(200, json=result.body, request=request)
+        except RelayError as exc:
+            return httpx.Response(
+                exc.status_code,
+                json={"error": {"message": exc.message, "type": "ohttp_relay_error"}},
+                request=request,
+            )
+
+    def close(self) -> None:
+        """Close this HTTPX client and its internally created relay session."""
+        if self._owns_session:
+            self._session.close()
+        super().close()
 
 
 class ConfidentialLLM:
