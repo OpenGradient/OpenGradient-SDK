@@ -13,6 +13,7 @@ client = OpenAI(
     http_client=OHTTPXClient(
         relay_url=auth.chat_api_base_url,
         auth_headers=auth.auth_headers,
+        debug=True,
     ),
 )
 

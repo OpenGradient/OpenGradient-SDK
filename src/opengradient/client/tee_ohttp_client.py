@@ -92,6 +92,8 @@ class OhttpRelayClient:
             relay (called per request so tokens can be refreshed).
         session: Optional ``requests.Session`` to reuse connections.
         timeout: Per-request timeout in seconds.
+        debug: Print plaintext requests, encrypted relay payloads, decrypted
+            responses, and verification results. Intended only for local testing.
     """
 
     def __init__(
@@ -102,6 +104,7 @@ class OhttpRelayClient:
         auth_headers: Optional[AuthHeaderProvider] = None,
         session: Optional[requests.Session] = None,
         timeout: float = 120.0,
+        debug: bool = False,
     ):
         if tee.ohttp_config is None or len(tee.ohttp_config.public_key) != 32:
             raise ValueError("TEEEndpoint has no usable OHTTP config")
@@ -121,6 +124,7 @@ class OhttpRelayClient:
         self._auth_headers = auth_headers
         self._session = session or requests.Session()
         self._timeout = timeout
+        self._debug = debug
         self._signing_key_pem = pem_from_der(tee.signing_public_key_der)
 
     def chat_completion(self, body: dict) -> VerifiedChatResponse:
@@ -139,6 +143,12 @@ class OhttpRelayClient:
         """
         wire, canonical = build_inner_request(body)
         enc = encapsulate_request(self._ohttp_public_key, json.dumps(wire).encode("utf-8"), **self._enc_ids)
+        if self._debug:
+            print("\n[OHTTP debug] Inner plaintext request before encryption:")
+            print(json.dumps(wire, indent=2, default=str))
+            print(f"\n[OHTTP debug] Chat API relay URL: {self._relay_url}")
+            print("\n[OHTTP debug] Encrypted request sent to Chat API relay (hex):")
+            print(enc.wire.hex())
 
         resp = self._session.post(
             self._relay_url,
@@ -146,12 +156,20 @@ class OhttpRelayClient:
             headers=self._headers(stream=False),
             timeout=self._timeout,
         )
+        if self._debug:
+            print(f"\n[OHTTP debug] Chat API relay response: HTTP {resp.status_code}")
+            print(f"[OHTTP debug] Content-Type: {resp.headers.get('content-type', '')}")
+            print("[OHTTP debug] Raw response body before OHTTP decryption (hex):")
+            print(resp.content.hex())
         if not resp.ok:
             raise RelayError(resp.status_code, _error_message(resp.content))
 
         from .tee_ohttp import decrypt_response
 
         inner_bytes = decrypt_response(enc.response_secret, enc.enc, resp.content)
+        if self._debug:
+            print("\n[OHTTP debug] Decrypted response body:")
+            print(inner_bytes.decode("utf-8", errors="replace"))
         status, inner = _normalize_inner(json.loads(inner_bytes.decode("utf-8")))
         if status >= 400:
             raise RelayError(status, str(inner.get("error", "TEE inner error")))
@@ -165,6 +183,9 @@ class OhttpRelayClient:
             expected_tee_id=self._tee.tee_id,
             tee_host=self._tee.endpoint,
         )
+        if self._debug:
+            print("\n[OHTTP debug] Signature verification succeeded:")
+            print(json.dumps(proof.__dict__, indent=2, default=str))
         return VerifiedChatResponse(body=inner, content=content, proof=proof)
 
     def stream_chat_completion(self, body: dict) -> VerifiedChatResponse:
@@ -189,6 +210,12 @@ class OhttpRelayClient:
         wire, canonical = build_inner_request(body)
         wire = {**wire, "stream": True}
         enc = encapsulate_request(self._ohttp_public_key, json.dumps(wire).encode("utf-8"), **self._enc_ids)
+        if self._debug:
+            print("\n[OHTTP debug] Inner plaintext streaming request before encryption:")
+            print(json.dumps(wire, indent=2, default=str))
+            print(f"\n[OHTTP debug] Chat API relay URL: {self._relay_url}")
+            print("\n[OHTTP debug] Encrypted streaming request sent to Chat API relay (hex):")
+            print(enc.wire.hex())
 
         resp = self._session.post(
             self._relay_url,
@@ -197,6 +224,9 @@ class OhttpRelayClient:
             timeout=self._timeout,
             stream=True,
         )
+        if self._debug:
+            print(f"\n[OHTTP debug] Chat API relay streaming response: HTTP {resp.status_code}")
+            print(f"[OHTTP debug] Content-Type: {resp.headers.get('content-type', '')}")
         if not resp.ok:
             raise RelayError(resp.status_code, _error_message(resp.content))
 
@@ -209,10 +239,16 @@ class OhttpRelayClient:
         chunks = resp.iter_content(chunk_size=8192)
         try:
             for raw, is_last in _with_last(chunks):
+                if self._debug:
+                    print("\n[OHTTP debug] Encrypted response chunk (hex):")
+                    print(raw.hex())
                 # A malformed/truncated encrypted stream is an integrity failure;
                 # surface it as VerificationError, not a raw ValueError.
                 for plaintext in decrypter.push(raw, done=is_last):
                     text = plaintext.decode("utf-8", errors="replace")
+                    if self._debug:
+                        print("\n[OHTTP debug] Decrypted response chunk:")
+                        print(text)
                     frames.append(text)
                     for parsed in _iter_sse_objects(text):
                         full_content += _delta_content(parsed)
@@ -241,6 +277,9 @@ class OhttpRelayClient:
             expected_tee_id=self._tee.tee_id,
             tee_host=self._tee.endpoint,
         )
+        if self._debug:
+            print("\n[OHTTP debug] Streaming signature verification succeeded:")
+            print(json.dumps(proof.__dict__, indent=2, default=str))
         return VerifiedChatResponse(body=final_frame, content=response_content, proof=proof, stream_frames=frames)
 
     def _headers(self, *, stream: bool) -> dict:

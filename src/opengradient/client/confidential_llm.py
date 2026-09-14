@@ -68,6 +68,39 @@ DEFAULT_TEE_REGISTRY_ADDRESS = "0x703cB174AEadB35D611858369B4b1111dC9Abda6"
 OHTTP_CHAT_ENDPOINT = "/api/v1/chat/ohttp"
 
 
+def _print_tee_debug(rpc_url: str, registry_address: str, tee: TEEEndpoint) -> None:
+    config = tee.ohttp_config
+    print("\n[OHTTP debug] TEE registry lookup:")
+    print(f"RPC URL:          {rpc_url}")
+    print(f"Registry address: {registry_address}")
+    print("[OHTTP debug] Selected TEE and registry OHTTP config:")
+    print(
+        json.dumps(
+            {
+                "tee_id": tee.tee_id,
+                "endpoint": tee.endpoint,
+                "payment_address": tee.payment_address,
+                "pcr_hash": tee.pcr_hash,
+                "signing_public_key_der_hex": tee.signing_public_key_der.hex(),
+                "ohttp_config": (
+                    {
+                        "key_id": config.key_id,
+                        "kem_id": config.kem_id,
+                        "kdf_id": config.kdf_id,
+                        "aead_id": config.aead_id,
+                        "public_key_hex": config.public_key.hex(),
+                        "key_config_hex": config.key_config.hex(),
+                        "registered_at": config.registered_at,
+                    }
+                    if config is not None
+                    else None
+                ),
+            },
+            indent=2,
+        )
+    )
+
+
 class OHTTPXClient(httpx.Client):
     """An ``httpx.Client`` replacement for OpenAI chat completions over OHTTP.
 
@@ -78,6 +111,8 @@ class OHTTPXClient(httpx.Client):
 
     Only ``POST /chat/completions`` is supported. Streaming responses are fully
     buffered for verification before the OpenAI SDK receives their SSE frames.
+    Set ``debug=True`` only during local testing to print plaintext request and
+    response data as well as encrypted relay payloads.
     """
 
     def __init__(
@@ -89,6 +124,7 @@ class OHTTPXClient(httpx.Client):
         auth_headers: Optional[AuthHeaderProvider] = None,
         session: Optional[requests.Session] = None,
         timeout: float = 120.0,
+        debug: bool = False,
         **httpx_options: Any,
     ) -> None:
         httpx_options.setdefault("timeout", timeout)
@@ -102,7 +138,9 @@ class OHTTPXClient(httpx.Client):
             auth_headers=auth_headers,
             session=self._session,
             timeout=timeout,
+            debug=debug,
         )
+        self._debug = debug
 
     def send(self, request: httpx.Request, *, stream: bool = False, **kwargs: Any) -> httpx.Response:
         """Send an OpenAI chat-completions request through the OHTTP relay."""
@@ -117,6 +155,9 @@ class OHTTPXClient(httpx.Client):
             raise ValueError("OpenAI chat-completions request body must be valid JSON") from exc
         if not isinstance(body, dict):
             raise ValueError("OpenAI chat-completions request body must be a JSON object")
+        if self._debug:
+            print("\n[OHTTP debug] Initial OpenAI chat-completions request:")
+            print(json.dumps(body, indent=2, default=str))
 
         try:
             if body.get("stream"):
@@ -165,6 +206,8 @@ class ConfidentialLLM:
             ``lambda: {"Authorization": "Bearer <token>"}``.
         session: Optional ``requests.Session`` to reuse connections.
         timeout: Per-request timeout in seconds.
+        debug: Print registry, encryption, relay response, decryption, and
+            verification details. Intended only for local testing.
 
     Raises:
         RuntimeError: If the registry has no active OHTTP-capable LLM TEE.
@@ -179,6 +222,7 @@ class ConfidentialLLM:
         auth_headers: Optional[AuthHeaderProvider] = None,
         session: Optional[requests.Session] = None,
         timeout: float = 120.0,
+        debug: bool = False,
     ):
         registry = TEERegistry(rpc_url=rpc_url, registry_address=registry_address)
         tee = registry.get_llm_tee_ohttp_config()
@@ -186,7 +230,9 @@ class ConfidentialLLM:
             raise RuntimeError(
                 f"No active OHTTP-capable LLM TEE found in the registry (rpc_url={rpc_url}, registry_address={registry_address})."
             )
-        self._init(relay_url, tee, auth_headers=auth_headers, session=session, timeout=timeout)
+        if debug:
+            _print_tee_debug(rpc_url, registry_address, tee)
+        self._init(relay_url, tee, auth_headers=auth_headers, session=session, timeout=timeout, debug=debug)
 
     @classmethod
     def from_tee(
@@ -197,6 +243,7 @@ class ConfidentialLLM:
         auth_headers: Optional[AuthHeaderProvider] = None,
         session: Optional[requests.Session] = None,
         timeout: float = 120.0,
+        debug: bool = False,
     ) -> "ConfidentialLLM":
         """Create a client for a TEE you have already resolved.
 
@@ -211,9 +258,10 @@ class ConfidentialLLM:
             auth_headers: Optional per-request relay auth header provider.
             session: Optional ``requests.Session`` to reuse connections.
             timeout: Per-request timeout in seconds.
+            debug: Print encryption and verification details for local testing.
         """
         instance = cls.__new__(cls)
-        instance._init(relay_url, tee, auth_headers=auth_headers, session=session, timeout=timeout)
+        instance._init(relay_url, tee, auth_headers=auth_headers, session=session, timeout=timeout, debug=debug)
         return instance
 
     def _init(
@@ -224,6 +272,7 @@ class ConfidentialLLM:
         auth_headers: Optional[AuthHeaderProvider],
         session: Optional[requests.Session],
         timeout: float,
+        debug: bool,
     ) -> None:
         self._tee = tee
         self._relay_url = _confidential_inference_url(relay_url)
@@ -233,6 +282,7 @@ class ConfidentialLLM:
             auth_headers=auth_headers,
             session=session,
             timeout=timeout,
+            debug=debug,
         )
 
     @property
