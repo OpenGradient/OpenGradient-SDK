@@ -105,7 +105,7 @@ result_google = await llm.chat(
 
 # xAI
 result_xai = await llm.chat(
-    model=og.TEE_LLM.GROK_4,
+    model=og.TEE_LLM.GROK_4_6,
     messages=[{"role": "user", "content": "Hello from xAI!"}],
     max_tokens=100,
 )
@@ -273,7 +273,7 @@ async def main():
         ("GPT-5",             og.TEE_LLM.GPT_5),
         ("Claude Sonnet 4.6", og.TEE_LLM.CLAUDE_SONNET_4_6),
         ("Gemini 2.5 Flash",  og.TEE_LLM.GEMINI_2_5_FLASH),
-        ("Grok 4",            og.TEE_LLM.GROK_4),
+        ("Grok 4.6",          og.TEE_LLM.GROK_4_6),
     ]
 
     for name, model in models:

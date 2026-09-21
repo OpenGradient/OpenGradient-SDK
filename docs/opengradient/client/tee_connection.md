@@ -65,6 +65,30 @@ def __init__(x402_client: `x402Client`, registry: `TEERegistry`)
 
 ---
 
+#### `aresolve()`
+
+```python
+async def aresolve(self, tee_id: Optional[str] = None) ‑> `ActiveTEE`
+```
+Event-loop-safe ``resolve`` for per-request use in async backends.
+
+``resolve`` scans the registry with a blocking web3 call whenever the
+requested TEE is not the active one, which stalls the event loop when
+called per request. This variant runs the scan in a worker thread and
+caches each pinned id's outcome — found or not-active — for
+``_TEE_RESOLVE_TTL`` seconds, so steady traffic costs at most one
+chain RPC per TTL window per TEE id, and concurrent cold lookups
+collapse into a single scan. It also starts the background refresh
+loop, so long-running relays fail over when the active TEE is retired
+from the registry.
+
+**Raises**
+
+* **`ValueError`**: If the requested TEE id is not active in the registry
+        (the miss may be cached for up to ``_TEE_RESOLVE_TTL`` seconds).
+
+---
+
 #### `close()`
 
 ```python
@@ -101,6 +125,10 @@ async def reconnect(self) ‑> None
 ```
 Connect to a new TEE from the registry and rebuild the HTTP client.
 
+The registry lookup is a blocking web3 call, so it runs in a worker
+thread rather than on the event loop. A failed reconnect keeps the
+previous connection.
+
 ---
 
 #### `resolve()`
@@ -134,6 +162,15 @@ def __init__(x402_client: `x402Client`, endpoint: str)
 * **`endpoint`**: The TEE endpoint URL to connect to.
 
 #### Methods
+
+---
+
+#### `aresolve()`
+
+```python
+async def aresolve(self, tee_id: Optional[str] = None) ‑> `ActiveTEE`
+```
+Async variant of ``resolve``; static connections never do I/O.
 
 ---
 
@@ -194,6 +231,14 @@ def __init__(*args, **kwargs)
 ```
 
 #### Methods
+
+---
+
+#### `aresolve()`
+
+```python
+async def aresolve(self, tee_id: Optional[str] = None) ‑> `ActiveTEE`
+```
 
 ---
 

@@ -548,21 +548,31 @@ class TEE_LLM(str, Enum):
     GPT_5_4_MINI = "openai/gpt-5.4-mini"
     GPT_5_4_NANO = "openai/gpt-5.4-nano"
     GPT_5_5 = "openai/gpt-5.5"
+    GPT_5_6_SOL = "openai/gpt-5.6-sol"
+    GPT_5_6_TERRA = "openai/gpt-5.6-terra"
+    GPT_5_6_LUNA = "openai/gpt-5.6-luna"
+    GPT_6_ASTRA = "openai/gpt-6-astra"
 
-    # OpenAI image-generation model via TEE (dedicated /images/generations
+    # OpenAI image-generation models via TEE (dedicated /images/generations
     # endpoint). Billed at a flat rate per image. Images are returned on
     # ``TextGenerationOutput.images`` and ``StreamChunk.images`` as data: URIs
     # and are not part of the signed output hash.
     GPT_IMAGE_2 = "openai/gpt-image-2"
+    GPT_IMAGE_2_5_FLARE = "openai/gpt-image-2.5-flare"
+    GPT_IMAGE_2_5_SUNBURST = "openai/gpt-image-2.5-sunburst"
 
     # Anthropic models via TEE
     CLAUDE_SONNET_4_5 = "anthropic/claude-sonnet-4-5"
     CLAUDE_SONNET_4_6 = "anthropic/claude-sonnet-4-6"
+    CLAUDE_SONNET_5 = "anthropic/claude-sonnet-5"
     CLAUDE_HAIKU_4_5 = "anthropic/claude-haiku-4-5"
     CLAUDE_OPUS_4_5 = "anthropic/claude-opus-4-5"
     CLAUDE_OPUS_4_6 = "anthropic/claude-opus-4-6"
     CLAUDE_OPUS_4_7 = "anthropic/claude-opus-4-7"
     CLAUDE_OPUS_4_8 = "anthropic/claude-opus-4-8"
+    CLAUDE_OPUS_5 = "anthropic/claude-opus-5"
+    CLAUDE_FABLE_5 = "anthropic/claude-fable-5"
+    CLAUDE_FABLE_5_1 = "anthropic/claude-fable-5-1"
 
     # Google models via TEE
     # Note: gemini-2.5-flash, gemini-2.5-pro, and gemini-2.5-flash-lite are scheduled
@@ -573,8 +583,11 @@ class TEE_LLM(str, Enum):
     GEMINI_2_5_FLASH_LITE = "google/gemini-2.5-flash-lite"
     GEMINI_3_FLASH = "google/gemini-3-flash-preview"
     GEMINI_3_1_PRO_PREVIEW = "google/gemini-3.1-pro-preview"
-    GEMINI_3_1_FLASH_LITE_PREVIEW = "google/gemini-3.1-flash-lite-preview"
     GEMINI_3_5_FLASH = "google/gemini-3.5-flash"
+    GEMINI_3_5_FLASH_LITE = "google/gemini-3.5-flash-lite"
+    GEMINI_3_6_FLASH = "google/gemini-3.6-flash"
+    GEMINI_3_7_FLASH = "google/gemini-3.7-flash"
+    GEMINI_3_8_FLASH = "google/gemini-3.8-flash"
 
     # Google native image-generation models ("nano banana") via TEE.
     # These return generated images on the response (see ``TextGenerationOutput.images``
@@ -583,23 +596,33 @@ class TEE_LLM(str, Enum):
     GEMINI_3_1_FLASH_IMAGE = "google/gemini-3.1-flash-image"
 
     # xAI Grok models via TEE
-    GROK_4 = "x-ai/grok-4"
-    GROK_4_FAST = "x-ai/grok-4-fast"
-    GROK_4_1_FAST = "x-ai/grok-4-1-fast"
-    GROK_4_1_FAST_NON_REASONING = "x-ai/grok-4-1-fast-non-reasoning"
+    #
+    # Note: grok-4, grok-4-fast, grok-4-1-fast, grok-4-1-fast-non-reasoning and
+    # grok-code-fast-1 were retired by xAI on May 15, 2026 and are no longer
+    # offered here. xAI silently redirects those slugs (to grok-4.3, or
+    # grok-build-0.1 for grok-code-fast-1) and bills them at grok-4.3 rates, so
+    # requests naming them ran a different model than the name implied. Use
+    # GROK_4_3 for the fast tier and GROK_4_6 for the flagship.
+    GROK_4_3 = "x-ai/grok-4.3"
+    GROK_4_5 = "x-ai/grok-4.5"
+    GROK_4_6 = "x-ai/grok-4.6"
     GROK_4_20_REASONING = "x-ai/grok-4.20-reasoning"
     GROK_4_20_NON_REASONING = "x-ai/grok-4.20-non-reasoning"
-    GROK_CODE_FAST_1 = "x-ai/grok-code-fast-1"
 
     # xAI image-generation models via TEE (Aurora, dedicated /images/generations endpoint).
     # Billed at a flat rate per image. Images are returned on ``TextGenerationOutput.images``
     # and ``StreamChunk.images`` as data: URIs and are not part of the signed output hash.
+    # GROK_2_IMAGE is a legacy public alias: grok-2-image-1212 itself was retired
+    # in February 2026, and the gateway routes this name to xAI's current
+    # grok-imagine-image. GROK_IMAGINE_IMAGE_2_0 is the newer, higher-quality model.
     GROK_2_IMAGE = "x-ai/grok-2-image"
+    GROK_IMAGINE_IMAGE_2_0 = "x-ai/grok-imagine-image-2.0"
 
     # ByteDance Seed models via TEE (BytePlus ModelArk)
     SEED_1_6 = "bytedance/seed-1.6"
     SEED_1_8 = "bytedance/seed-1.8"
     SEED_2_0_LITE = "bytedance/seed-2.0-lite"
+    DOLA_SEED_2_0_MINI = "bytedance/dola-seed-2.0-mini"
 
     # DeepSeek models via TEE (served through BytePlus ModelArk)
     DEEPSEEK_V4_FLASH = "bytedance/deepseek-v4-flash"
@@ -609,13 +632,20 @@ class TEE_LLM(str, Enum):
     # endpoint). Billed at a flat rate per image. Images are returned on
     # ``TextGenerationOutput.images`` and ``StreamChunk.images`` as data: URIs.
     SEEDREAM_4_0 = "bytedance/seedream-4.0"
+    SEEDREAM_5_0_LITE = "bytedance/seedream-5.0-lite"
     SEEDANCE_4_5 = "bytedance/seedance-4.5"
+    SEEDANCE_5_0 = "bytedance/seedance-5.0"
 
-    # Nous Research Hermes models via TEE (Nous Portal)
+    # Nous Research Hermes models via TEE (routed through OpenRouter)
     HERMES_4_405B = "nous/hermes-4-405b"
     HERMES_4_70B = "nous/hermes-4-70b"
 
-    # Z.ai GLM models via TEE (Model API, OpenAI-compatible)
+    # Tencent Hunyuan models via TEE (routed through OpenRouter)
+    HY3 = "tencent/hy3"
+    HY4_PREVIEW = "tencent/hy4-preview"
+
+    # Z.ai GLM models via TEE (glm-5.2 is served through a BytePlus ModelArk
+    # deployment endpoint; the gateway routes it for us)
     GLM_5_2 = "zai/glm-5.2"
 
     # Z.ai image-generation model via TEE (dedicated /images/generations endpoint).

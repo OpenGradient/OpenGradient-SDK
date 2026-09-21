@@ -14,7 +14,7 @@ print("--------------------------------")
 
 elon = twins.chat(
     twin_id="0x1abd463fd6244be4a1dc0f69e0b70cd5",
-    model=og.TEE_LLM.GROK_4_1_FAST_NON_REASONING,
+    model=og.TEE_LLM.GROK_4_3,
     messages=[{"role": "user", "content": "What do you think about AI?"}],
     max_tokens=1000,
 )
@@ -27,7 +27,7 @@ print("--------------------------------")
 
 trump = twins.chat(
     twin_id="0x66ae99aae4324ed580b2787ac5e811f6",
-    model=og.TEE_LLM.GROK_4_1_FAST_NON_REASONING,
+    model=og.TEE_LLM.GROK_4_3,
     messages=[{"role": "user", "content": "What's your plan for America?"}],
     max_tokens=1000,
 )
