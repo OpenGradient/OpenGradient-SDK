@@ -58,6 +58,22 @@ resolves TEEs from the on-chain registry.
 
 ---
 
+#### `aresolve_tee_connection()`
+
+```python
+async def aresolve_tee_connection(self, tee_id: Optional[str] = None) ‑> `ActiveTEE`
+```
+Async, event-loop-safe variant of ``resolve_tee_connection``.
+
+Built for backend relays that resolve a TEE on every request: registry
+scans run in a worker thread and each pinned id's outcome (found or
+not-active) is cached briefly, so this never blocks the event loop and
+doesn't hit the chain RPC per request. Also starts the background TEE
+refresh loop, so the active TEE fails over when it is retired from the
+registry.
+
+---
+
 #### `chat()`
 
 ```python
@@ -253,6 +269,21 @@ Permit2ApprovalResult: Contains ``allowance_before``,
 * **`ValueError`**: If ``min_allowance`` is less than 0.1 or
         ``approve_amount`` is less than ``min_allowance``.
 * **`RuntimeError`**: If the approval transaction fails.
+
+---
+
+#### `ensure_tee_refresh_loop()`
+
+```python
+def ensure_tee_refresh_loop(self) ‑> None
+```
+Start the background TEE health-check/failover loop if not running.
+
+The loop starts lazily from the SDK's own request helpers and from
+``aresolve_tee_connection``. Call this explicitly from server startup
+when neither is used on every code path and you still want the active
+TEE to fail over once it is retired from the registry. Requires a
+running event loop. No-op for static/dev connections.
 
 ---
 
