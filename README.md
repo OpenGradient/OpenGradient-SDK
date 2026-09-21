@@ -289,45 +289,90 @@ print(result["messages"][-1].content)
 
 ### Available Models
 
-The SDK provides access to models from multiple providers via the `og.TEE_LLM` enum:
+The SDK provides access to models from multiple providers via the `og.TEE_LLM` enum.
+Image-generation models are marked; everything else is a text/chat model.
 
 #### OpenAI
-- GPT-4.1 (2025-04-14)
-- o4-mini
-- GPT-5
-- GPT-5 Mini
-- GPT-5.2
-- GPT Image 2 (native image generation)
+- `gpt-4.1-2025-04-14` (`TEE_LLM.GPT_4_1_2025_04_14`)
+- `gpt-4.1-mini` (`TEE_LLM.GPT_4_1_MINI`)
+- `o3` (`TEE_LLM.O3`)
+- `gpt-5` (`TEE_LLM.GPT_5`)
+- `gpt-5-mini` (`TEE_LLM.GPT_5_MINI`)
+- `gpt-5.2` (`TEE_LLM.GPT_5_2`)
+- `gpt-5.4` (`TEE_LLM.GPT_5_4`)
+- `gpt-5.4-mini` (`TEE_LLM.GPT_5_4_MINI`)
+- `gpt-5.4-nano` (`TEE_LLM.GPT_5_4_NANO`)
+- `gpt-5.5` (`TEE_LLM.GPT_5_5`)
+- `gpt-5.6-sol` (`TEE_LLM.GPT_5_6_SOL`)
+- `gpt-5.6-terra` (`TEE_LLM.GPT_5_6_TERRA`)
+- `gpt-5.6-luna` (`TEE_LLM.GPT_5_6_LUNA`)
+- `gpt-6-astra` (`TEE_LLM.GPT_6_ASTRA`)
+- `gpt-image-2` (`TEE_LLM.GPT_IMAGE_2`) — image generation
+- `gpt-image-2.5-flare` (`TEE_LLM.GPT_IMAGE_2_5_FLARE`) — image generation
+- `gpt-image-2.5-sunburst` (`TEE_LLM.GPT_IMAGE_2_5_SUNBURST`) — image generation
 
 #### Anthropic
-- Claude Sonnet 4.5
-- Claude Sonnet 4.6
-- Claude Haiku 4.5
-- Claude Opus 4.5
-- Claude Opus 4.6
-- Claude Opus 4.7
-- Claude Opus 4.8
+- `claude-sonnet-4-5` (`TEE_LLM.CLAUDE_SONNET_4_5`)
+- `claude-sonnet-4-6` (`TEE_LLM.CLAUDE_SONNET_4_6`)
+- `claude-sonnet-5` (`TEE_LLM.CLAUDE_SONNET_5`)
+- `claude-haiku-4-5` (`TEE_LLM.CLAUDE_HAIKU_4_5`)
+- `claude-opus-4-5` (`TEE_LLM.CLAUDE_OPUS_4_5`)
+- `claude-opus-4-6` (`TEE_LLM.CLAUDE_OPUS_4_6`)
+- `claude-opus-4-7` (`TEE_LLM.CLAUDE_OPUS_4_7`)
+- `claude-opus-4-8` (`TEE_LLM.CLAUDE_OPUS_4_8`)
+- `claude-opus-5` (`TEE_LLM.CLAUDE_OPUS_5`)
+- `claude-fable-5` (`TEE_LLM.CLAUDE_FABLE_5`)
+- `claude-fable-5-1` (`TEE_LLM.CLAUDE_FABLE_5_1`)
 
 #### Google
-- Gemini 2.5 Flash
-- Gemini 2.5 Pro
-- Gemini 2.5 Flash Lite
-- Gemini 3 Pro
-- Gemini 3 Flash
-- Gemini 3.5 Flash
-- Gemini 2.5 Flash Image (native image generation, "nano banana")
-- Gemini 3.1 Flash Image (native image generation, "nano banana 2")
+- `gemini-2.5-flash` (`TEE_LLM.GEMINI_2_5_FLASH`)
+- `gemini-2.5-pro` (`TEE_LLM.GEMINI_2_5_PRO`)
+- `gemini-2.5-flash-lite` (`TEE_LLM.GEMINI_2_5_FLASH_LITE`)
+- `gemini-3-flash-preview` (`TEE_LLM.GEMINI_3_FLASH`)
+- `gemini-3.1-pro-preview` (`TEE_LLM.GEMINI_3_1_PRO_PREVIEW`)
+- `gemini-3.5-flash` (`TEE_LLM.GEMINI_3_5_FLASH`)
+- `gemini-3.5-flash-lite` (`TEE_LLM.GEMINI_3_5_FLASH_LITE`)
+- `gemini-3.6-flash` (`TEE_LLM.GEMINI_3_6_FLASH`)
+- `gemini-3.7-flash` (`TEE_LLM.GEMINI_3_7_FLASH`)
+- `gemini-3.8-flash` (`TEE_LLM.GEMINI_3_8_FLASH`)
+- `gemini-2.5-flash-image` (`TEE_LLM.GEMINI_2_5_FLASH_IMAGE`) — native image generation
+- `gemini-3.1-flash-image` (`TEE_LLM.GEMINI_3_1_FLASH_IMAGE`) — native image generation
 
 #### xAI
-- Grok 4
-- Grok 4 Fast
-- Grok 4.1 Fast (reasoning and non-reasoning)
+- `grok-4.3` (`TEE_LLM.GROK_4_3`)
+- `grok-4.5` (`TEE_LLM.GROK_4_5`)
+- `grok-4.6` (`TEE_LLM.GROK_4_6`)
+- `grok-4.20-reasoning` (`TEE_LLM.GROK_4_20_REASONING`)
+- `grok-4.20-non-reasoning` (`TEE_LLM.GROK_4_20_NON_REASONING`)
+- `grok-2-image` (`TEE_LLM.GROK_2_IMAGE`) — image generation
+- `grok-imagine-image-2.0` (`TEE_LLM.GROK_IMAGINE_IMAGE_2_0`) — image generation
 
-#### Nous Research
-- Hermes 4 405B
-- Hermes 4 70B
+#### ByteDance (BytePlus ModelArk)
+- `seed-1.6` (`TEE_LLM.SEED_1_6`)
+- `seed-1.8` (`TEE_LLM.SEED_1_8`)
+- `seed-2.0-lite` (`TEE_LLM.SEED_2_0_LITE`)
+- `dola-seed-2.0-mini` (`TEE_LLM.DOLA_SEED_2_0_MINI`)
+- `deepseek-v4-flash` (`TEE_LLM.DEEPSEEK_V4_FLASH`)
+- `deepseek-v4-pro` (`TEE_LLM.DEEPSEEK_V4_PRO`)
+- `seedream-4.0` (`TEE_LLM.SEEDREAM_4_0`) — image generation
+- `seedream-5.0-lite` (`TEE_LLM.SEEDREAM_5_0_LITE`) — image generation
+- `seedance-4.5` (`TEE_LLM.SEEDANCE_4_5`) — image generation
+- `seedance-5.0` (`TEE_LLM.SEEDANCE_5_0`) — image generation
 
-For a complete list, reference the `og.TEE_LLM` enum or consult the [API documentation](https://docs.opengradient.ai/api_reference/python_sdk/).
+#### Nous Research (via OpenRouter)
+- `hermes-4-405b` (`TEE_LLM.HERMES_4_405B`)
+- `hermes-4-70b` (`TEE_LLM.HERMES_4_70B`)
+
+#### Tencent (via OpenRouter)
+- `hy3` (`TEE_LLM.HY3`)
+- `hy4-preview` (`TEE_LLM.HY4_PREVIEW`)
+
+#### Z.ai
+- `glm-5.2` (`TEE_LLM.GLM_5_2`)
+- `glm-image` (`TEE_LLM.GLM_IMAGE`) — image generation
+
+Model availability tracks the TEE gateway's registry; the enum is the source of truth.
+See the [API documentation](https://docs.opengradient.ai/api_reference/python_sdk/) for details.
 
 ## Alpha Testnet Features
 

@@ -536,11 +536,20 @@ class TEE_LLM(str, Enum):
     """
 
     # OpenAI models via TEE
+    #
+    # Note: gpt-4.1-nano and o4-mini were dropped ahead of their 2026-10-23
+    # OpenAI shutdown -- those exact slugs stop resolving on that date, and an
+    # SDK release plus upgrade lag outruns it. Use GPT_5_6_LUNA and
+    # GPT_5_6_TERRA, OpenAI's named replacements.
+    #
+    # O3, GPT_5 and GPT_5_MINI are undated aliases of snapshots
+    # (o3-2025-04-16, gpt-5-2025-08-07, gpt-5-mini-2025-08-07) that shut down
+    # on 2026-12-11. OpenAI does not document whether such an alias is
+    # repointed to a successor or retired with its snapshot, so these need
+    # revisiting before that date.
     GPT_4_1_2025_04_14 = "openai/gpt-4.1-2025-04-14"
     GPT_4_1_MINI = "openai/gpt-4.1-mini"
-    GPT_4_1_NANO = "openai/gpt-4.1-nano"
     O3 = "openai/o3"
-    O4_MINI = "openai/o4-mini"
     GPT_5 = "openai/gpt-5"
     GPT_5_MINI = "openai/gpt-5-mini"
     GPT_5_2 = "openai/gpt-5.2"
