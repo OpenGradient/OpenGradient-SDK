@@ -522,16 +522,11 @@ auditability and tamper-proof AI inference.
 * static `GPT_IMAGE_2_5_FLARE`
 * static `GPT_IMAGE_2_5_SUNBURST`
 * static `GROK_2_IMAGE`
-* static `GROK_4`
-* static `GROK_4_1_FAST`
-* static `GROK_4_1_FAST_NON_REASONING`
 * static `GROK_4_20_NON_REASONING`
 * static `GROK_4_20_REASONING`
 * static `GROK_4_3`
 * static `GROK_4_5`
 * static `GROK_4_6`
-* static `GROK_4_FAST`
-* static `GROK_CODE_FAST_1`
 * static `GROK_IMAGINE_IMAGE_2_0`
 * static `HERMES_4_405B`
 * static `HERMES_4_70B`

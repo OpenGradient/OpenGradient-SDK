@@ -20,7 +20,7 @@ class Twins:
         twins = og.Twins(api_key="your-api-key")
         response = twins.chat(
             twin_id="0x1abd463fd6244be4a1dc0f69e0b70cd5",
-            model=og.TEE_LLM.GROK_4_1_FAST_NON_REASONING,
+            model=og.TEE_LLM.GROK_4_3,
             messages=[{"role": "user", "content": "What do you think about AI?"}],
             max_tokens=1000,
         )
@@ -43,7 +43,7 @@ class Twins:
 
         Args:
             twin_id: The unique identifier of the digital twin.
-            model: The model to use for inference (e.g., TEE_LLM.GROK_4_1_FAST_NON_REASONING).
+            model: The model to use for inference (e.g., TEE_LLM.GROK_4_3).
             messages: The conversation messages to send.
             temperature: Sampling temperature. Optional.
             max_tokens: Maximum number of tokens for the response. Optional.

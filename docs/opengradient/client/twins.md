@@ -44,7 +44,7 @@ Chat with a digital twin.
 **Arguments**
 
 * **`twin_id`**: The unique identifier of the digital twin.
-* **`model`**: The model to use for inference (e.g., TEE_LLM.GROK_4_1_FAST_NON_REASONING).
+* **`model`**: The model to use for inference (e.g., TEE_LLM.GROK_4_3).
 * **`messages`**: The conversation messages to send.
 * **`temperature`**: Sampling temperature. Optional.
 * **`max_tokens`**: Maximum number of tokens for the response. Optional.

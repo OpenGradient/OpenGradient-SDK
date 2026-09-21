@@ -596,20 +596,25 @@ class TEE_LLM(str, Enum):
     GEMINI_3_1_FLASH_IMAGE = "google/gemini-3.1-flash-image"
 
     # xAI Grok models via TEE
-    GROK_4 = "x-ai/grok-4"
+    #
+    # Note: grok-4, grok-4-fast, grok-4-1-fast, grok-4-1-fast-non-reasoning and
+    # grok-code-fast-1 were retired by xAI on May 15, 2026 and are no longer
+    # offered here. xAI silently redirects those slugs (to grok-4.3, or
+    # grok-build-0.1 for grok-code-fast-1) and bills them at grok-4.3 rates, so
+    # requests naming them ran a different model than the name implied. Use
+    # GROK_4_3 for the fast tier and GROK_4_6 for the flagship.
     GROK_4_3 = "x-ai/grok-4.3"
     GROK_4_5 = "x-ai/grok-4.5"
     GROK_4_6 = "x-ai/grok-4.6"
-    GROK_4_FAST = "x-ai/grok-4-fast"
-    GROK_4_1_FAST = "x-ai/grok-4-1-fast"
-    GROK_4_1_FAST_NON_REASONING = "x-ai/grok-4-1-fast-non-reasoning"
     GROK_4_20_REASONING = "x-ai/grok-4.20-reasoning"
     GROK_4_20_NON_REASONING = "x-ai/grok-4.20-non-reasoning"
-    GROK_CODE_FAST_1 = "x-ai/grok-code-fast-1"
 
     # xAI image-generation models via TEE (Aurora, dedicated /images/generations endpoint).
     # Billed at a flat rate per image. Images are returned on ``TextGenerationOutput.images``
     # and ``StreamChunk.images`` as data: URIs and are not part of the signed output hash.
+    # GROK_2_IMAGE is a legacy public alias: grok-2-image-1212 itself was retired
+    # in February 2026, and the gateway routes this name to xAI's current
+    # grok-imagine-image. GROK_IMAGINE_IMAGE_2_0 is the newer, higher-quality model.
     GROK_2_IMAGE = "x-ai/grok-2-image"
     GROK_IMAGINE_IMAGE_2_0 = "x-ai/grok-imagine-image-2.0"
 
