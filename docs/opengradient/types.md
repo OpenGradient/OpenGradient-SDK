@@ -528,7 +528,6 @@ auditability and tamper-proof AI inference.
 * static `GROK_4_6`
 * static `GROK_IMAGINE_IMAGE_2_0`
 * static `HERMES_4_405B`
-* static `HERMES_4_70B`
 * static `HY3`
 * static `HY4_PREVIEW`
 * static `O3`
