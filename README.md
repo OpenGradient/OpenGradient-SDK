@@ -361,7 +361,6 @@ Image-generation models are marked; everything else is a text/chat model.
 
 #### Nous Research (via OpenRouter)
 - `hermes-4-405b` (`TEE_LLM.HERMES_4_405B`)
-- `hermes-4-70b` (`TEE_LLM.HERMES_4_70B`)
 
 #### Tencent (via OpenRouter)
 - `hy3` (`TEE_LLM.HY3`)

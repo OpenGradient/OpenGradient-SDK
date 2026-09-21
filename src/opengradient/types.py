@@ -645,9 +645,10 @@ class TEE_LLM(str, Enum):
     SEEDANCE_4_5 = "bytedance/seedance-4.5"
     SEEDANCE_5_0 = "bytedance/seedance-5.0"
 
-    # Nous Research Hermes models via TEE (routed through OpenRouter)
+    # Nous Research Hermes models via TEE (routed through OpenRouter).
+    # Only the 405B is served: OpenRouter delisted hermes-4-70b, and the
+    # gateway no longer routes it.
     HERMES_4_405B = "nous/hermes-4-405b"
-    HERMES_4_70B = "nous/hermes-4-70b"
 
     # Tencent Hunyuan models via TEE (routed through OpenRouter)
     HY3 = "tencent/hy3"
