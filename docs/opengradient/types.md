@@ -506,7 +506,6 @@ auditability and tamper-proof AI inference.
 * static `GLM_IMAGE`
 * static `GPT_4_1_2025_04_14`
 * static `GPT_4_1_MINI`
-* static `GPT_4_1_NANO`
 * static `GPT_5`
 * static `GPT_5_2`
 * static `GPT_5_4`
@@ -533,7 +532,6 @@ auditability and tamper-proof AI inference.
 * static `HY3`
 * static `HY4_PREVIEW`
 * static `O3`
-* static `O4_MINI`
 * static `SEEDANCE_4_5`
 * static `SEEDANCE_5_0`
 * static `SEEDREAM_4_0`
