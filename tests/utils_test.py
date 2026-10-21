@@ -68,8 +68,15 @@ def test_convert_array_empty():
     assert result.is_simulation_result is False
 
 
-def test_convert_array_invalid_json():
-    """Test handling of invalid JSON data"""
+def test_convert_array_invalid_json(caplog):
+    """Test that invalid JSON tensor data is skipped with a warning instead of crashing.
+
+    Previously json.loads() was unguarded and would crash the entire conversion.
+    After the fix, malformed JSON tensors are skipped and logged as warnings so
+    all other valid tensors in the same response are still returned.
+    """
+    import logging
+
     invalid_json_data = [
         [],  # Empty number tensors
         [],  # Empty string tensors
@@ -77,8 +84,15 @@ def test_convert_array_invalid_json():
         False,
     ]
 
-    with pytest.raises(json.JSONDecodeError):
-        utils.convert_array_to_model_output(invalid_json_data)
+    with caplog.at_level(logging.WARNING):
+        result = utils.convert_array_to_model_output(invalid_json_data)
+
+    # Should not raise; malformed tensor is skipped
+    assert isinstance(result, types.ModelOutput)
+    assert result.jsons == {}
+
+    # A warning should have been emitted mentioning the tensor name
+    assert any("invalid_json" in record.message for record in caplog.records)
 
 
 def test_convert_array_invalid_shape():
