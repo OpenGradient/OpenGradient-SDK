@@ -524,4 +524,4 @@ Browse and discover AI models on the [OpenGradient Model Hub](https://hub.opengr
 ## Support
 
 - Visit our [documentation](https://docs.opengradient.ai/) for detailed guides
-- Join our [community](https://discord.gg/axammqTRDz) for support and discussions
+- Follow updates on [X (Twitter)](https://x.com/OpenGradient)
