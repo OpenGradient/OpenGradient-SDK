@@ -1,0 +1,64 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "opengradient-ohttp"
+dynamic = ["version"]
+description = "OHTTP transport for the OpenAI Python SDK: end-to-end encrypted, TEE-verified chat completions through the DreamFort developer relay"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
+authors = [{ name = "OpenGradient" }]
+keywords = ["ohttp", "hpke", "tee", "openai", "httpx", "confidential-ai"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Security :: Cryptography",
+    "Typing :: Typed",
+]
+dependencies = [
+    "httpx>=0.27,<1",
+    "cryptography>=43",
+    "pyhpke>=0.6,<1",
+    # keccak (tee ids, request/output hashes); the pycryptodome backend is required.
+    "eth-hash[pycryptodome]>=0.7",
+    # decodes TEERegistry.getActiveTEEs(); replaces web3.
+    "eth-abi>=5,<6",
+]
+
+[project.optional-dependencies]
+openai = ["openai>=1.50"]
+test = [
+    "openai>=1.50",
+    "pytest>=8",
+    "pytest-asyncio>=0.24",
+]
+
+[project.urls]
+Homepage = "https://github.com/OpenGradient/sdk/tree/main/packages/opengradient-ohttp"
+Issues = "https://github.com/OpenGradient/sdk/issues"
+
+[tool.hatch.version]
+path = "src/opengradient_ohttp/_version.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/opengradient_ohttp"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src", "tests", "examples", "README.md", "CHANGELOG.md", "LICENSE"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+
+[tool.ruff]
+line-length = 140
+target-version = "py310"
