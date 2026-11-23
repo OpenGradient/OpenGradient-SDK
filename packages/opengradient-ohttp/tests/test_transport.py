@@ -272,6 +272,39 @@ def test_stream_in_band_error_surfaces_as_api_error(gateway: FakeGateway):
     assert "provider failed mid-stream" in str(excinfo.value)
 
 
+def _stream_request() -> httpx.Request:
+    return httpx.Request(
+        "POST",
+        BASE_URL + "/chat/completions",
+        json={"model": "claude-haiku-4-5", "messages": MESSAGES, "stream": True},
+        headers={"authorization": f"Bearer {API_KEY}"},
+    )
+
+
+def test_stream_body_is_single_pass(gateway: FakeGateway):
+    # The OpenAI SDK may iterate response.stream again after [DONE] (to drain it);
+    # a second pass must continue, not replay the encrypted stream from the start.
+    transport = OHTTPTransport(tee=gateway.tee, transport=httpx.MockTransport(FakeRelay(gateway)))
+    response = transport.handle_request(_stream_request())
+
+    first = b"".join(response.stream)
+    second = b"".join(response.stream)
+
+    assert b"data: [DONE]" in first
+    assert second == b""
+
+
+async def test_async_stream_body_is_single_pass(gateway: FakeGateway):
+    transport = AsyncOHTTPTransport(tee=gateway.tee, transport=httpx.MockTransport(FakeRelay(gateway)))
+    response = await transport.handle_async_request(_stream_request())
+
+    first = b"".join([chunk async for chunk in response.stream])
+    second = b"".join([chunk async for chunk in response.stream])
+
+    assert b"data: [DONE]" in first
+    assert second == b""
+
+
 # ---------------------------------------------------------------------------
 # Registry: lazy lookup, and a fresh pick when chat-api says the TEE is gone
 # ---------------------------------------------------------------------------

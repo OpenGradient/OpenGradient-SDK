@@ -25,7 +25,7 @@ client built without this transport fails instead of sending plaintext.
 
 from __future__ import annotations
 
-from typing import AsyncIterator, Iterable, Iterator, Optional, Union
+from typing import AsyncGenerator, AsyncIterator, Generator, Iterable, Iterator, Optional, Union
 
 import httpx
 
@@ -95,11 +95,26 @@ def _single_response(
 
 
 class _SyncVerifiedStream(httpx.SyncByteStream):
+    """Single-pass: iterating again continues where the last iteration stopped.
+
+    The upstream body and the verifier's state can only be consumed once, and
+    callers do iterate twice (the OpenAI SDK drains ``response.stream`` after
+    ``[DONE]``), so a second ``__iter__`` must not restart from the top.
+    """
+
     def __init__(self, upstream: httpx.Response, verifier: StreamVerifier):
         self._upstream = upstream
         self._verifier = verifier
+        self._chunks: Optional[Generator[bytes, None, None]] = None
 
     def __iter__(self) -> Iterator[bytes]:
+        if self._chunks is None:
+            self._chunks = self._generate()
+        # Not `yield from`: that would close the shared generator when this iteration is abandoned.
+        for chunk in self._chunks:
+            yield chunk
+
+    def _generate(self) -> Generator[bytes, None, None]:
         try:
             for raw in self._upstream.iter_bytes():
                 out = self._verifier.feed(raw)
@@ -112,15 +127,26 @@ class _SyncVerifiedStream(httpx.SyncByteStream):
             self._upstream.close()
 
     def close(self) -> None:
+        if self._chunks is not None:
+            self._chunks.close()
         self._upstream.close()
 
 
 class _AsyncVerifiedStream(httpx.AsyncByteStream):
+    """Single-pass, like :class:`_SyncVerifiedStream`."""
+
     def __init__(self, upstream: httpx.Response, verifier: StreamVerifier):
         self._upstream = upstream
         self._verifier = verifier
+        self._chunks: Optional[AsyncGenerator[bytes, None]] = None
 
     async def __aiter__(self) -> AsyncIterator[bytes]:
+        if self._chunks is None:
+            self._chunks = self._generate()
+        async for chunk in self._chunks:
+            yield chunk
+
+    async def _generate(self) -> AsyncGenerator[bytes, None]:
         try:
             async for raw in self._upstream.aiter_bytes():
                 out = self._verifier.feed(raw)
@@ -133,6 +159,8 @@ class _AsyncVerifiedStream(httpx.AsyncByteStream):
             await self._upstream.aclose()
 
     async def aclose(self) -> None:
+        if self._chunks is not None:
+            await self._chunks.aclose()
         await self._upstream.aclose()
 
 
