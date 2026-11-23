@@ -1,60 +1,77 @@
-name: opengradient-ohttp publish
+name: opengradient-ohttp release
 
-# Manual run → TestPyPI. Tag ohttp-v<version> → PyPI.
-# Both use PyPI trusted publishing (OIDC); no API tokens are stored.
+# Same flow as release.yml, for packages/opengradient-ohttp:
+# bump src/opengradient_ohttp/_version.py in a PR, merge, then
+# Actions → "opengradient-ohttp release" → Run workflow (on main).
+# Publishes with PyPI trusted publishing (no token): the opengradient-ohttp
+# project on pypi.org must list this repo and ohttp-publish.yml as a publisher.
+
 on:
   workflow_dispatch:
-  push:
-    tags: ["ohttp-v*"]
+
+permissions:
+  contents: write
+  id-token: write
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: packages/opengradient-ohttp
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
-      - run: uv run --extra test pytest -q
-      - name: Tag matches package version
-        if: startsWith(github.ref, 'refs/tags/ohttp-v')
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Run tests
+        run: uv run --python 3.11 --extra test pytest -q
+
+  release:
+    needs: test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/opengradient-ohttp
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Release from main only
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "::error::Run this workflow on main (this run is on ${GITHUB_REF_NAME})."
+          exit 1
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - name: Get version
+        id: version
         run: |
           VERSION=$(sed -n 's/^__version__ = "\(.*\)"/\1/p' src/opengradient_ohttp/_version.py)
-          test "ohttp-v$VERSION" = "${GITHUB_REF_NAME}" || { echo "tag ${GITHUB_REF_NAME} != ohttp-v$VERSION"; exit 1; }
-      - run: uv build
-      - run: uvx twine check --strict dist/*
-      - uses: actions/upload-artifact@v4
-        with:
-          name: dist
-          path: packages/opengradient-ohttp/dist/
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=ohttp-v$VERSION" >> "$GITHUB_OUTPUT"
 
-  testpypi:
-    needs: build
-    if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    environment: testpypi
-    permissions:
-      id-token: write
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: dist
-          path: dist/
-      - uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          repository-url: https://test.pypi.org/legacy/
+      - name: Build package
+        run: uv build
 
-  pypi:
-    needs: build
-    if: startsWith(github.ref, 'refs/tags/ohttp-v')
-    runs-on: ubuntu-latest
-    environment: pypi
-    permissions:
-      id-token: write
-    steps:
-      - uses: actions/download-artifact@v4
+      - name: Publish to PyPI
+        run: uv publish
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          name: dist
-          path: dist/
-      - uses: pypa/gh-action-pypi-publish@release/v1
+          tag_name: ${{ steps.version.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: opengradient-ohttp ${{ steps.version.outputs.version }}
+          body: |
+            `pip install opengradient-ohttp==${{ steps.version.outputs.version }}`
+
+            Changes: packages/opengradient-ohttp/CHANGELOG.md
+          # Keep the SDK's own release as the repo's "Latest".
+          make_latest: false
+          files: packages/opengradient-ohttp/dist/*
