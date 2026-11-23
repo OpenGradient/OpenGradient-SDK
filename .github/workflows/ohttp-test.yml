@@ -1,0 +1,22 @@
+name: opengradient-ohttp tests
+
+on:
+  pull_request:
+    paths: ["packages/opengradient-ohttp/**", ".github/workflows/ohttp-*.yml"]
+  push:
+    branches: [main]
+    paths: ["packages/opengradient-ohttp/**", ".github/workflows/ohttp-*.yml"]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.10", "3.11", "3.12", "3.13"]
+    defaults:
+      run:
+        working-directory: packages/opengradient-ohttp
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv run --python ${{ matrix.python }} --extra test pytest -q

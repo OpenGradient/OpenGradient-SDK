@@ -1,0 +1,82 @@
+name: opengradient-ohttp release
+
+# Same flow as release.yml, for packages/opengradient-ohttp:
+# bump src/opengradient_ohttp/_version.py in a PR, merge, then
+# Actions → "opengradient-ohttp release" → Run workflow (on main).
+# Publishes with PyPI trusted publishing (no token): the opengradient-ohttp
+# project on pypi.org must list this repo, ohttp-publish.yml and the "pypi"
+# environment as a publisher.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/opengradient-ohttp
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Run tests
+        run: uv run --python 3.11 --extra test pytest -q
+
+  release:
+    needs: test
+    runs-on: ubuntu-latest
+    # Must match the "Environment name" on the PyPI trusted publisher. Its
+    # protection rules (required reviewers, main only) are set in the repo's
+    # Settings → Environments → pypi.
+    environment: pypi
+    defaults:
+      run:
+        working-directory: packages/opengradient-ohttp
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Release from main only
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "::error::Run this workflow on main (this run is on ${GITHUB_REF_NAME})."
+          exit 1
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - name: Get version
+        id: version
+        run: |
+          VERSION=$(sed -n 's/^__version__ = "\(.*\)"/\1/p' src/opengradient_ohttp/_version.py)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=ohttp-v$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Build package
+        run: uv build
+
+      - name: Publish to PyPI
+        run: uv publish
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: opengradient-ohttp ${{ steps.version.outputs.version }}
+          body: |
+            `pip install opengradient-ohttp==${{ steps.version.outputs.version }}`
+
+            Changes: packages/opengradient-ohttp/CHANGELOG.md
+          # Keep the SDK's own release as the repo's "Latest".
+          make_latest: false
+          files: packages/opengradient-ohttp/dist/*
