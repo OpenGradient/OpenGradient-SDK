@@ -4,7 +4,8 @@ name: opengradient-ohttp release
 # bump src/opengradient_ohttp/_version.py in a PR, merge, then
 # Actions → "opengradient-ohttp release" → Run workflow (on main).
 # Publishes with PyPI trusted publishing (no token): the opengradient-ohttp
-# project on pypi.org must list this repo and ohttp-publish.yml as a publisher.
+# project on pypi.org must list this repo, ohttp-publish.yml and the "pypi"
+# environment as a publisher.
 
 on:
   workflow_dispatch:
@@ -31,6 +32,10 @@ jobs:
   release:
     needs: test
     runs-on: ubuntu-latest
+    # Must match the "Environment name" on the PyPI trusted publisher. Its
+    # protection rules (required reviewers, main only) are set in the repo's
+    # Settings → Environments → pypi.
+    environment: pypi
     defaults:
       run:
         working-directory: packages/opengradient-ohttp
